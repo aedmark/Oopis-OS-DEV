@@ -227,25 +227,41 @@ const EditorManager = (() => {
             }
         },
         onReplace: (replaceTerm) => {
-            const { matches, currentIndex } = state.findState;
-            if (currentIndex === -1 || !matches[currentIndex]) return;
+            const { matches, currentIndex, query, isCaseSensitive, isRegex } = state.findState;
+            if (currentIndex === -1 || !matches[currentIndex] || !query) return;
+
+            // To correctly replace only the current instance, we need to be careful.
+            // A simple substring replacement is the most direct way for a single replacement.
             const match = matches[currentIndex];
-            const newContent = state.currentContent.substring(0, match.start) + replaceTerm + state.currentContent.substring(match.end);
-            EditorUI.setContent(newContent); // This will trigger onContentUpdate and a re-find
+            const newContent =
+                state.currentContent.substring(0, match.start) +
+                replaceTerm +
+                state.currentContent.substring(match.end);
+
+            EditorUI.setContent(newContent);
+            // After setting content, find will be re-run, but we want to highlight the *next* logical match.
+            // This is complex, so for now we let find reset to the first match.
         },
         onReplaceAll: (replaceTerm) => {
-            const { matches } = state.findState;
-            if (matches.length === 0) return;
-            let newContent = state.currentContent;
-            let offset = 0;
-            for (const match of matches) {
-                const start = match.start + offset;
-                const end = match.end + offset;
-                newContent = newContent.substring(0, start) + replaceTerm + newContent.substring(end);
-                offset += replaceTerm.length - (end - start);
+            const { query, isCaseSensitive, isRegex } = state.findState;
+            if (!query) return;
+
+            try {
+                // Construct the regex for replacement.
+                const flags = 'g' + (isCaseSensitive ? '' : 'i');
+                const pattern = isRegex ? new RegExp(query, flags) : new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+
+                // Use the built-in, highly optimized replaceAll method if the pattern is global.
+                const newContent = state.currentContent.replaceAll(pattern, replaceTerm);
+
+                // Update the editor content, which will trigger a UI update.
+                EditorUI.setContent(newContent);
+            } catch (e) {
+                // In case of an invalid regex, we show the error.
+                state.findState.error = e.message;
+                EditorUI.updateFindUI(state.findState);
             }
-            EditorUI.setContent(newContent);
-        }
+        },
     };
 
     return { enter, exit, isActive: () => state.isActive };

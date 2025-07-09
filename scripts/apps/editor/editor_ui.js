@@ -314,8 +314,6 @@ const EditorUI = (() => {
 
         elements.findCloseButton.addEventListener('click', () => elements.findBar.classList.add('hidden'));
 
-        elements.findCloseButton.addEventListener('click', () => elements.findBar.classList.add('hidden'));
-
         // Keyboard shortcuts
         elements.container.addEventListener('keydown', (e) => {
             if (e.ctrlKey || e.metaKey) {
