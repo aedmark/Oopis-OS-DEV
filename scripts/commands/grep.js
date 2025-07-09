@@ -11,7 +11,7 @@
             { name: "recursive", short: "-R", long: "--recursive" },
         ],
         coreLogic: async (context) => {
-            const { args, flags, currentUser } = context;
+            const { args, flags, currentUser, input } = context;
 
             if (args.length === 0) {
                 return { success: false, error: "grep: missing pattern" };
@@ -70,6 +70,7 @@
             };
 
             if (flags.recursive) {
+                // Recursive logic remains as it needs to traverse the filesystem itself.
                 const searchRecursively = async (currentPath) => {
                     const pathValidation = FileSystemManager.validatePath("grep", currentPath);
                     if (pathValidation.error) {
@@ -97,22 +98,10 @@
                 for (const pathArg of filePathsArgs) {
                     await searchRecursively(FileSystemManager.getAbsolutePath(pathArg, FileSystemManager.getCurrentPath()));
                 }
-            } else {
-                const generatorContext = {
-                    ...context,
-                    args: filePathsArgs
-                };
-
-                for await (const item of Utils.generateInputContent(generatorContext)) {
-                    if (!item.success) {
-                        await OutputManager.appendToOutput(item.error, {typeClass: Config.CSS_CLASSES.ERROR_MSG});
-                        hadError = true;
-                        continue;
-                    }
-                    const displayPath = item.sourceName === 'stdin' ? null : item.sourceName;
-                    processContent(item.content, displayPath);
-                }
+            } else if (input !== null) {
+                processContent(input, filePathsArgs.length > 0 ? filePathsArgs[0] : null);
             }
+
 
             return {
                 success: !hadError,

@@ -12,28 +12,19 @@
             max: 1,
         },
         coreLogic: async (context) => {
-            const { args, flags, options, currentUser } = context;
+            const { flags, input } = context;
 
             if (flags.repeated && flags.unique) {
                 return { success: false, error: "uniq: printing only unique and repeated lines is mutually exclusive" };
             }
 
-            let lines = [];
-            if (args.length > 0) {
-                const pathArg = args[0];
-                const pathValidation = FileSystemManager.validatePath("uniq", pathArg, { expectedType: 'file' });
-                if (pathValidation.error) {
-                    return { success: false, error: pathValidation.error };
-                }
-                if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
-                    return { success: false, error: `uniq: cannot read '${pathArg}': Permission denied` };
-                }
-                lines = (pathValidation.node.content || '').split('\n');
-            } else if (options.stdinContent !== null) {
-                lines = options.stdinContent.split('\n');
+            if (input === null) {
+                return { success: false, error: "uniq: No readable input provided." };
             }
 
-            if (lines.length === 0) {
+            let lines = input.split('\n');
+
+            if (lines.length === 0 || (lines.length === 1 && lines[0] === '')) {
                 return { success: true, output: "" };
             }
 

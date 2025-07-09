@@ -67,18 +67,21 @@
             { name: "fieldSeparator", short: "-F", takesValue: true }
         ],
         coreLogic: async (context) => {
-            const { flags, args: remainingArgs, options, currentUser } = context;
+            const { flags, args: remainingArgs, input } = context;
 
             if (remainingArgs.length === 0) {
                 return { success: false, error: "awk: missing program" };
             }
 
             const programString = remainingArgs[0];
-            const filePaths = remainingArgs.slice(1);
 
             const program = _parseProgram(programString);
             if (program.error) {
                 return { success: false, error: `awk: program error: ${program.error}` };
+            }
+
+            if (input === null) {
+                return { success: false, error: "awk: No readable input provided." };
             }
 
             const separator = flags.fieldSeparator ? new RegExp(flags.fieldSeparator) : /\s+/;
@@ -92,54 +95,31 @@
                 }
             }
 
-            const processContent = (content) => {
-                if (typeof content !== 'string') {
-                    console.error("AWK internal error: processContent received non-string input:", content);
-                    return;
+            const lines = input.split('\n');
+            for (const line of lines) {
+                if (line === '' && lines.at(-1) === '') continue;
+
+                nr++;
+
+                const trimmedLine = line.trim();
+                let fields = trimmedLine === '' ? [] : trimmedLine.split(separator);
+
+                if (!Array.isArray(fields)) {
+                    console.error("AWK internal error: 'fields' was not an array for line:", line);
+                    fields = [];
                 }
 
-                const lines = content.split('\n');
-                for (const line of lines) {
-                    if (line === '' && lines.at(-1) === '') continue;
+                const allFields = [line, ...fields];
+                const vars = { NR: nr, NF: fields.length };
 
-                    nr++;
-
-                    const trimmedLine = line.trim();
-                    let fields = trimmedLine === '' ? [] : trimmedLine.split(separator);
-
-                    // (Your previous fix can remain here as an extra layer of safety)
-                    if (!Array.isArray(fields)) {
-                        console.error("AWK internal error: 'fields' was not an array for line:", line);
-                        fields = [];
-                    }
-
-                    const allFields = [line, ...fields];
-                    const vars = { NR: nr, NF: fields.length };
-
-                    for (const rule of program.rules) {
-                        if (rule.pattern.test(line)) {
-                            const actionResult = _executeAction(rule.action, allFields, vars);
-                            if (actionResult !== null) {
-                                outputLines.push(actionResult);
-                            }
+                for (const rule of program.rules) {
+                    if (rule.pattern.test(line)) {
+                        const actionResult = _executeAction(rule.action, allFields, vars);
+                        if (actionResult !== null) {
+                            outputLines.push(actionResult);
                         }
                     }
                 }
-            };
-
-            if (filePaths.length > 0) {
-                for (const path of filePaths) {
-                    const pathValidation = FileSystemManager.validatePath("awk", path, { expectedType: 'file' });
-                    if (pathValidation.error) {
-                        return { success: false, error: pathValidation.error };
-                    }
-                    if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
-                        return { success: false, error: `awk: cannot open file '${path}' for reading: Permission denied` };
-                    }
-                    processContent(pathValidation.node.content || "");
-                }
-            } else if (options.stdinContent !== null) {
-                processContent(options.stdinContent);
             }
 
             if (program.end) {

@@ -9,24 +9,16 @@
             { name: "bytes", short: "-c", long: "--bytes" },
         ],
         coreLogic: async (context) => {
-            const { args, flags } = context;
+            const { args, flags, input } = context;
+
+            if (input === null) {
+                return { success: false, error: "wc: No readable input provided." };
+            }
 
             const showAll = !flags.lines && !flags.words && !flags.bytes;
             const showLines = showAll || flags.lines;
             const showWords = showAll || flags.words;
             const showBytes = showAll || flags.bytes;
-
-            const totals = { lines: 0, words: 0, bytes: 0 };
-            const outputLines = [];
-            let hadError = false;
-            let fileCount = 0;
-
-            const getCounts = (content) => {
-                const bytes = content.length;
-                const lines = (content.match(/\n/g) || []).length;
-                const words = content.trim() === '' ? 0 : content.trim().split(/\s+/).length;
-                return { lines, words, bytes };
-            };
 
             const formatOutput = (counts, name) => {
                 let line = " ";
@@ -37,30 +29,18 @@
                 return line;
             };
 
-            for await (const item of Utils.generateInputContent(context)) {
-                if (!item.success) {
-                    outputLines.push(item.error);
-                    hadError = true;
-                    continue;
-                }
+            const counts = {
+                lines: (input.match(/\n/g) || []).length,
+                words: input.trim() === '' ? 0 : input.trim().split(/\s+/).length,
+                bytes: input.length
+            };
 
-                const counts = getCounts(item.content);
-                outputLines.push(formatOutput(counts, item.sourceName === 'stdin' ? '' : item.sourceName));
-
-                totals.lines += counts.lines;
-                totals.words += counts.words;
-                totals.bytes += counts.bytes;
-                fileCount++;
-            }
-
-            if (fileCount > 1) {
-                outputLines.push(formatOutput(totals, "total"));
-            }
+            const fileName = args.length > 0 ? args[0] : '';
+            const output = formatOutput(counts, fileName);
 
             return {
-                success: !hadError,
-                output: outputLines.join('\n'),
-                error: hadError ? "One or more files could not be processed." : null
+                success: true,
+                output: output,
             };
         }
     };

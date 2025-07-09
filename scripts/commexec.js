@@ -5,6 +5,34 @@ const CommandExecutor = (() => {
   const commands = {};
   const loadingPromises = {};
 
+  async function* _generateInputContent(context) {
+    const { args, options, currentUser } = context;
+
+    if (options.stdinContent !== null && options.stdinContent !== undefined) {
+      yield { success: true, content: options.stdinContent, sourceName: 'stdin' };
+      return;
+    }
+
+    const fileArgs = args.filter(arg => !arg.startsWith('-'));
+    if (fileArgs.length === 0) {
+      return;
+    }
+
+    for (const pathArg of fileArgs) {
+      const pathValidation = FileSystemManager.validatePath("input stream", pathArg, { expectedType: 'file' });
+      if (pathValidation.error) {
+        yield { success: false, error: pathValidation.error, sourceName: pathArg };
+        continue;
+      }
+
+      if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
+        yield { success: false, error: `Permission denied: ${pathArg}`, sourceName: pathArg };
+        continue;
+      }
+
+      yield { success: true, content: pathValidation.node.content || "", sourceName: pathArg };
+    }
+  }
 
 
   function createCommandHandler(definition) {
@@ -86,6 +114,25 @@ const CommandExecutor = (() => {
         validatedPaths,
         signal: options.signal,
       };
+
+      const inputParts = [];
+      let hadError = false;
+      for await (const item of _generateInputContent(context)) {
+        if (!item.success) {
+          await OutputManager.appendToOutput(item.error, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+          hadError = true;
+        } else {
+          inputParts.push(item.content);
+        }
+      }
+
+      if (hadError && inputParts.length === 0) {
+        context.input = null; // Indicate that input failed and was empty
+      } else {
+        context.input = inputParts.join('\n');
+      }
+
+
       return definition.coreLogic(context);
     };
     handler.definition = definition;

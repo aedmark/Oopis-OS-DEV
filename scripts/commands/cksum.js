@@ -5,6 +5,12 @@
         commandName: "cksum",
         flagDefinitions: [],
         coreLogic: async (context) => {
+            const { args, input } = context;
+
+            if (input === null) {
+                return { success: false, error: "cksum: No readable input provided." };
+            }
+
             const crc32 = (str) => {
                 const table = [];
                 for (let i = 0; i < 256; i++) {
@@ -21,30 +27,13 @@
                 return (crc ^ -1) >>> 0;
             };
 
-            const processContent = (content, fileName) => {
-                const checksum = crc32(content);
-                const byteCount = content.length;
-                if (fileName && fileName !== 'stdin') {
-                    return `${checksum} ${byteCount} ${fileName}`;
-                }
-                return `${checksum} ${byteCount}`;
-            };
-
-            const outputLines = [];
-            let hadError = false;
-
-            for await (const item of Utils.generateInputContent(context)) {
-                if (!item.success) {
-                    outputLines.push(item.error);
-                    hadError = true;
-                    continue;
-                }
-                outputLines.push(processContent(item.content, item.sourceName));
-            }
+            const checksum = crc32(input);
+            const byteCount = input.length;
+            const fileName = args.length > 0 ? ` ${args[0]}`: '';
 
             return {
-                success: !hadError,
-                output: outputLines.join('\n')
+                success: true,
+                output: `${checksum} ${byteCount}${fileName}`
             };
         }
     };

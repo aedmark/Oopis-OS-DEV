@@ -9,24 +9,13 @@
             { name: "unique", short: "-u", long: "--unique" },
         ],
         coreLogic: async (context) => {
-            const { flags } = context;
-            let allContent = "";
-            let hadError = false;
+            const { flags, input } = context;
 
-            for await (const item of Utils.generateInputContent(context)) {
-                if (!item.success) {
-                    await OutputManager.appendToOutput(item.error, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
-                    hadError = true;
-                    continue;
-                }
-                allContent += item.content;
-            }
-
-            if (hadError && !allContent) {
+            if (input === null) {
                 return { success: false, error: "sort: No readable input provided." };
             }
 
-            let lines = allContent.split('\n');
+            let lines = input.split('\n');
             if (lines.length > 0 && lines[lines.length - 1] === '') {
                 lines.pop();
             }
@@ -55,7 +44,7 @@
             }
 
             return {
-                success: !hadError,
+                success: true,
                 output: lines.join('\n')
             };
         }

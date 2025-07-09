@@ -10,34 +10,6 @@ const Utils = (() => {
         };
     }
 
-    async function* generateInputContent(context) {
-        const { args, options, currentUser } = context;
-
-        if (options.stdinContent !== null && options.stdinContent !== undefined) {
-            yield { success: true, content: options.stdinContent, sourceName: 'stdin' };
-            return;
-        }
-
-        if (args.length === 0) {
-            return;
-        }
-
-        for (const pathArg of args) {
-            const pathValidation = FileSystemManager.validatePath("input stream", pathArg, { expectedType: 'file' });
-            if (pathValidation.error) {
-                yield { success: false, error: pathValidation.error, sourceName: pathArg };
-                continue;
-            }
-
-            if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
-                yield { success: false, error: `Permission denied: ${pathArg}`, sourceName: pathArg };
-                continue;
-            }
-
-            yield { success: true, content: pathValidation.node.content || "", sourceName: pathArg };
-        }
-    }
-
     function getCharacterDimensions(fontStyle = '16px "VT323"') {
         const tempSpan = document.createElement("span");
         tempSpan.textContent = 'M';
@@ -354,7 +326,6 @@ const Utils = (() => {
     }
 
     return {
-        generateInputContent,
         getCharacterDimensions,
         calculateSHA256,
         formatConsoleArgs,

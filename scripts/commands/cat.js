@@ -10,33 +10,22 @@
             { argIndex: 0, optional: true, options: { expectedType: 'file' } }
         ],
         coreLogic: async (context) => {
-            const { flags } = context;
-            const outputParts = [];
-            let lineCounter = 1;
-            let hadError = false;
+            const { flags, input } = context;
 
-            const processAndNumberContent = (content) => {
-                if (!flags.numberLines) {
-                    return content;
-                }
-                const lines = content.split('\n');
-                const processedLines = (lines.at(-1) === '' ? lines.slice(0, -1) : lines);
-                return processedLines.map(line => `     ${lineCounter++}  ${line}`).join('\n');
-            };
-
-            for await (const item of Utils.generateInputContent(context)) {
-                if (!item.success) {
-                    outputParts.push(item.error);
-                    hadError = true;
-                    continue;
-                }
-                outputParts.push(processAndNumberContent(item.content));
+            if (input === null) {
+                return { success: false, error: "cat: No readable input provided." };
             }
 
-            return {
-                success: !hadError,
-                output: outputParts.join('\n')
-            };
+            if (!flags.numberLines) {
+                return { success: true, output: input };
+            }
+
+            let lineCounter = 1;
+            const lines = input.split('\n');
+            const processedLines = (lines.length > 0 && lines.at(-1) === '' ? lines.slice(0, -1) : lines);
+            const numberedOutput = processedLines.map(line => `     ${lineCounter++}  ${line}`).join('\n');
+
+            return { success: true, output: numberedOutput };
         },
     };
 
