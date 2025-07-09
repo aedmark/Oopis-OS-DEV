@@ -120,23 +120,34 @@ const EditorUI = (() => {
     }
 
     function updateStatusBar(state) {
-        if (!elements.statusFileName || !state) return; // Added a check for the state object itself
+        if (!elements.statusFileName || !state) return;
 
         elements.statusFileName.textContent = state.currentFilePath || '...';
         elements.statusDirty.textContent = state.isDirty ? '*' : '';
 
-        // Ensure currentContent is a string before calling .split on it.
         const content = state.currentContent || "";
         const lineCount = content.split('\n').length;
         const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
-        const cursorPos = elements.textArea ? `Ln ${elements.textArea.value.substring(0, elements.textArea.selectionStart).split('\n').length}, Col ${elements.textArea.selectionStart - elements.textArea.value.lastIndexOf('\n', elements.textArea.selectionStart - 1)}` : '';
+
+        // --- Start of Corrected Logic ---
+        let cursorPos = '';
+        if (elements.textArea) {
+            // Use the existing helper to get the character offset
+            const charPos = _getCursorPosition();
+            // Use the known state content to calculate line and column
+            const textToCursor = content.substring(0, charPos);
+            const linesToCursor = textToCursor.split('\n');
+            const lineNum = linesToCursor.length;
+            const colNum = linesToCursor.length > 0 ? linesToCursor[linesToCursor.length - 1].length + 1 : 1;
+            cursorPos = `Ln ${lineNum}, Col ${colNum}`;
+        }
+        // --- End of Corrected Logic ---
 
         elements.statusInfo.textContent = `Lines: ${lineCount} | Words: ${wordCount} | ${cursorPos}`;
 
         if (state.statusMessage) {
             elements.statusInfo.textContent += ` | ${state.statusMessage}`;
             setTimeout(() => {
-                // Check if state is still valid before clearing the message
                 if (elements.statusInfo && state && !state.statusMessage.startsWith("Error")) {
                     updateStatusBar({ ...state, statusMessage: null });
                 }
