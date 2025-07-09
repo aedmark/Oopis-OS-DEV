@@ -31,9 +31,19 @@ const EditorUI = (() => {
         // Find/Replace Bar
         _buildFindBar();
 
+        elements.codeArea = Utils.createElement('code', {
+            id: 'editor-code-area',
+            className: `language-${initialState.fileMode}` // Set initial language for Prism
+        });
+        elements.textArea = Utils.createElement('pre', {
+            id: 'editor-text-area',
+            className: 'editor-textarea', // Keep class for styling
+            contenteditable: 'true',
+            spellcheck: 'false'
+        }, [elements.codeArea]);
+
         // Main content area
         elements.lineNumbers = Utils.createElement('div', { className: 'editor-linenumbers' });
-        elements.textArea = Utils.createElement('textarea', { className: 'editor-textarea', spellcheck: 'false' });
         const editorWrapper = Utils.createElement('div', { className: 'editor-pane-wrapper' }, [elements.lineNumbers, elements.textArea]);
         elements.previewPane = Utils.createElement('div', { className: 'editor-preview' });
         elements.mainArea = Utils.createElement('main', { className: 'editor-main' }, [editorWrapper, elements.previewPane]);
@@ -97,8 +107,9 @@ const EditorUI = (() => {
 
     function _render(state) {
         elements.fileName.textContent = state.currentFilePath;
-        elements.textArea.value = state.currentContent;
-        // Conditionally show/hide UI elements based on the file mode
+        elements.codeArea.textContent = state.currentContent;
+        _applySyntaxHighlighting(state.currentContent, state.fileMode); // Apply initial highlighting
+
         elements.formattingToolbar.classList.toggle('hidden', state.fileMode !== 'markdown');
         elements.previewButton.classList.toggle('hidden', state.fileMode !== 'markdown' && state.fileMode !== 'html');
         updateStatusBar(state);
@@ -166,11 +177,61 @@ const EditorUI = (() => {
     }
 
     function setContent(content) {
-        if (!elements.textArea) return;
-        const cursorPos = elements.textArea.selectionStart;
-        elements.textArea.value = content;
-        elements.textArea.selectionStart = elements.textArea.selectionEnd = cursorPos;
-        managerCallbacks.onContentUpdate(content);
+        if (!elements.codeArea) return;
+        const cursorPos = _getCursorPosition();
+        elements.codeArea.textContent = content; // Set raw text
+        _applySyntaxHighlighting(content, managerCallbacks.getState().fileMode); // Re-highlight
+        _setCursorPosition(cursorPos);
+        managerCallbacks.onContentUpdate(elements.textArea.textContent);
+    }
+
+    function _getCursorPosition() {
+        const selection = window.getSelection();
+        if (selection.rangeCount === 0) return 0;
+        const range = selection.getRangeAt(0);
+        const preCaretRange = range.cloneRange();
+        preCaretRange.selectNodeContents(elements.textArea);
+        preCaretRange.setEnd(range.endContainer, range.endOffset);
+        return preCaretRange.toString().length;
+    }
+
+    function _setCursorPosition(pos) {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        let charCount = 0;
+        let foundNode = false;
+
+        function findTextNode(node) {
+            if (foundNode) return;
+            if (node.nodeType === Node.TEXT_NODE) {
+                const nextCharCount = charCount + node.length;
+                if (pos >= charCount && pos <= nextCharCount) {
+                    range.setStart(node, pos - charCount);
+                    range.collapse(true);
+                    foundNode = true;
+                }
+                charCount = nextCharCount;
+            } else {
+                for (const child of node.childNodes) {
+                    findTextNode(child);
+                }
+            }
+        }
+
+        findTextNode(elements.textArea);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    function _applySyntaxHighlighting(content, language) {
+        if (!Prism.languages[language]) {
+            elements.codeArea.innerHTML = Utils.escapeHtml(content); // Fallback for unloaded languages
+            return;
+        }
+        const highlightedHtml = Prism.highlight(content, Prism.languages[language], language);
+        const pos = _getCursorPosition();
+        elements.codeArea.innerHTML = highlightedHtml;
+        _setCursorPosition(pos);
     }
 
     function _wrapSelection(wrapper, defaultText = 'text') {
@@ -250,7 +311,9 @@ const EditorUI = (() => {
     }
 
     function _addEventListeners() {
-        elements.textArea.addEventListener('input', () => managerCallbacks.onContentUpdate(elements.textArea.value));
+        elements.textArea.addEventListener('input', () => {
+            managerCallbacks.onContentUpdate(elements.textArea.textContent);
+        });
         elements.textArea.addEventListener('scroll', () => { elements.lineNumbers.scrollTop = elements.textArea.scrollTop; });
         elements.textArea.addEventListener('keyup', () => updateStatusBar(managerCallbacks.getState ? managerCallbacks.getState() : {}));
         elements.textArea.addEventListener('click', () => updateStatusBar(managerCallbacks.getState ? managerCallbacks.getState() : {}));
@@ -339,5 +402,17 @@ const EditorUI = (() => {
         });
     }
 
-    return { buildAndShow, hideAndReset, updateStatusBar, setContent, applySettings, applyViewMode, renderPreview, updateLineNumbers, highlightMatch, updateFindUI };
+    return {
+        buildAndShow,
+        hideAndReset,
+        updateStatusBar,
+        setContent,
+        applySettings,
+        applyViewMode,
+        renderPreview,
+        updateLineNumbers,
+        highlightMatch,
+        updateFindUI,
+        applySyntaxHighlighting: _applySyntaxHighlighting
+    };
 })();
