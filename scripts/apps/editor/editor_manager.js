@@ -161,7 +161,6 @@ const EditorManager = (() => {
 
             // Re-run find to keep matches fresh
             state.findState.matches = _findMatches(state.findState.query, state.currentContent, state.findState.isCaseSensitive, state.findState.isRegex);
-            state.findState.currentIndex = -1;
 
             // Update UI elements
             EditorUI.updateFindUI(state.findState);
@@ -216,12 +215,14 @@ const EditorManager = (() => {
         onFindNext: () => {
             if (state.findState.matches.length > 0) {
                 state.findState.currentIndex = (state.findState.currentIndex + 1) % state.findState.matches.length;
+                EditorUI.updateFindUI(state.findState); // Update the UI with the new index
                 EditorUI.highlightMatch(state.findState.matches[state.findState.currentIndex]);
             }
         },
         onFindPrev: () => {
             if (state.findState.matches.length > 0) {
                 state.findState.currentIndex = (state.findState.currentIndex - 1 + state.findState.matches.length) % state.findState.matches.length;
+                EditorUI.updateFindUI(state.findState); // Update the UI with the new index
                 EditorUI.highlightMatch(state.findState.matches[state.findState.currentIndex]);
             }
         },

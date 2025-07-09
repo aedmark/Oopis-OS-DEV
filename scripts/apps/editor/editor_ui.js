@@ -275,14 +275,42 @@ const EditorUI = (() => {
                 isRegex: elements.regexToggle.classList.contains('active')
             });
         };
-        elements.findInput.addEventListener('input', triggerFind);
-        elements.findInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); managerCallbacks.onFindNext(); }});
-        elements.findNextButton.addEventListener('click', () => managerCallbacks.onFindNext());
-        elements.findPrevButton.addEventListener('click', () => managerCallbacks.onFindPrev());
+
+        // The 'input' listener is removed entirely.
+        // The 'keydown' listener now handles the "Enter" key explicitly.
+        elements.findInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                triggerFind(); // Trigger the search on Enter...
+                managerCallbacks.onFindNext(); // ...and immediately move to the first result.
+            }
+        });
+
+        // We modify the button listeners to also trigger a fresh search.
+        elements.findNextButton.addEventListener('click', () => {
+            triggerFind();
+            managerCallbacks.onFindNext();
+        });
+        elements.findPrevButton.addEventListener('click', () => {
+            triggerFind();
+            managerCallbacks.onFindPrev();
+        });
+
         elements.replaceButton.addEventListener('click', () => managerCallbacks.onReplace(elements.replaceInput.value));
         elements.replaceAllButton.addEventListener('click', () => managerCallbacks.onReplaceAll(elements.replaceInput.value));
-        elements.caseSensitiveToggle.addEventListener('click', (e) => { e.currentTarget.classList.toggle('active'); triggerFind(); });
-        elements.regexToggle.addEventListener('click', (e) => { e.currentTarget.classList.toggle('active'); triggerFind(); });
+
+        // Toggles still trigger a find to update the matches based on new criteria.
+        elements.caseSensitiveToggle.addEventListener('click', (e) => {
+            e.currentTarget.classList.toggle('active');
+            triggerFind();
+        });
+        elements.regexToggle.addEventListener('click', (e) => {
+            e.currentTarget.classList.toggle('active');
+            triggerFind();
+        });
+
+        elements.findCloseButton.addEventListener('click', () => elements.findBar.classList.add('hidden'));
+
         elements.findCloseButton.addEventListener('click', () => elements.findBar.classList.add('hidden'));
 
         // Keyboard shortcuts
