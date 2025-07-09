@@ -22,13 +22,8 @@
             const pathInfo = validatedPaths[1];
             const node = pathInfo.node;
             const nowISO = new Date().toISOString();
-            const users = StorageManager.loadItem(
-                Config.STORAGE_KEYS.USER_CREDENTIALS,
-                "User list",
-                {}
-            );
 
-            if (!users[newOwnerArg] && newOwnerArg !== Config.USER.DEFAULT_NAME) {
+            if (!await UserManager.userExists(newOwnerArg) && newOwnerArg !== Config.USER.DEFAULT_NAME) {
                 return {
                     success: false,
                     error: `chown: user '${newOwnerArg}' does not exist.`,
