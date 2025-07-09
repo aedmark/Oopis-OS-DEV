@@ -21,10 +21,8 @@ const EditorUI = (() => {
         // Header and Toolbar
         elements.fileName = Utils.createElement('div', { className: 'editor-filename' });
 
-        // Build the formatting toolbar (initially hidden)
-        _buildFormattingToolbar();
-
-        elements.header = Utils.createElement('header', {className: 'editor-header'}, [elements.fileName, elements.formattingToolbar]);
+        // The formatting toolbar is no longer needed here.
+        elements.header = Utils.createElement('header', {className: 'editor-header'}, [elements.fileName]);
 
         // Find/Replace Bar
         _buildFindBar();
@@ -68,10 +66,7 @@ const EditorUI = (() => {
     }
 
     function _registerPrismToolbarButtons() {
-        // Defensive check to ensure the toolbar plugin and its buttons object are ready.
-        if (!Prism.plugins.toolbar) {
-            return;
-        }
+        if (!Prism.plugins.toolbar) return;
         if (!Prism.plugins.toolbar.buttons) {
             Prism.plugins.toolbar.buttons = {};
         }
@@ -80,56 +75,77 @@ const EditorUI = (() => {
             return;
         }
 
-        const buttonsToRegister = {
-            'save': {
-                text: 'Save & Exit',
-                onClick: () => managerCallbacks.onSaveRequest()
-            },
-            'find': {
-                text: 'Find',
-                onClick: () => {
-                    elements.findBar.classList.toggle('hidden');
-                    if (!elements.findBar.classList.contains('hidden')) {
-                        elements.findInput.focus();
-                        elements.findInput.select();
-                    }
-                }
-            },
-            'wrap': {
-                text: 'Wrap',
-                onClick: () => managerCallbacks.onToggleWordWrap()
-            },
-            'preview': {
-                text: 'Preview',
-                onClick: () => managerCallbacks.onToggleViewMode()
-            }
-        };
-
-        for (const key in buttonsToRegister) {
-            // This check is now safe.
-            if (!Prism.plugins.toolbar.buttons[key]) {
-                Prism.plugins.toolbar.registerButton(key, buttonsToRegister[key]);
-            }
-        }
-        prismButtonsRegistered = true;
-    }
-
-
-    function _buildFormattingToolbar() {
         const createButton = (text, title, action) => {
-            const button = Utils.createElement('button', { className: 'btn', textContent: text, title });
-            button.addEventListener('click', action);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = text;
+            if (title) button.title = title;
+            button.addEventListener('click', () => action());
             return button;
         };
 
-        elements.formattingToolbar = Utils.createElement('div', { className: 'editor-toolbar editor-format-toolbar hidden' }, [
-            createButton('B', 'Bold (Ctrl+B)', () => _wrapSelection('**')),
-            createButton('I', 'Italic (Ctrl+I)', () => _wrapSelection('*')),
-            createButton('H', 'Heading (Ctrl+H)', () => _prefixLine('# ')),
-            createButton('“', 'Blockquote', () => _prefixLine('> ')),
-            createButton('🔗', 'Link', () => _insertLink()),
-            createButton('img', 'Image', () => _insertImage()),
-        ]);
+        // --- Universal Buttons ---
+        Prism.plugins.toolbar.registerButton('save', env => createButton('Save & Exit', 'Save & Exit (Ctrl+S)', () => managerCallbacks.onSaveRequest()));
+        Prism.plugins.toolbar.registerButton('find', env => createButton('Find', 'Find (Ctrl+F)', () => {
+            elements.findBar.classList.toggle('hidden');
+            if (!elements.findBar.classList.contains('hidden')) {
+                elements.findInput.focus();
+                elements.findInput.select();
+            }
+        }));
+        Prism.plugins.toolbar.registerButton('wrap', env => createButton('Wrap', 'Toggle Word Wrap', () => managerCallbacks.onToggleWordWrap()));
+
+        // --- Context-Aware Buttons ---
+        Prism.plugins.toolbar.registerButton('preview', env => {
+            if (env.language === 'markdown' || env.language === 'html') {
+                return createButton('Preview', 'Toggle Preview (Ctrl+P)', () => managerCallbacks.onToggleViewMode());
+            }
+            return null;
+        });
+
+        Prism.plugins.toolbar.registerButton('bold', env => {
+            if (env.language === 'markdown') {
+                return createButton('B', 'Bold (Ctrl+B)', () => _wrapSelection('**'));
+            }
+            return null;
+        });
+
+        Prism.plugins.toolbar.registerButton('italic', env => {
+            if (env.language === 'markdown') {
+                return createButton('I', 'Italic (Ctrl+I)', () => _wrapSelection('*'));
+            }
+            return null;
+        });
+
+        Prism.plugins.toolbar.registerButton('heading', env => {
+            if (env.language === 'markdown') {
+                return createButton('H', 'Heading (Ctrl+H)', () => _prefixLine('# '));
+            }
+            return null;
+        });
+
+        Prism.plugins.toolbar.registerButton('blockquote', env => {
+            if (env.language === 'markdown') {
+                return createButton('“', 'Blockquote', () => _prefixLine('> '));
+            }
+            return null;
+        });
+
+        Prism.plugins.toolbar.registerButton('link', env => {
+            if (env.language === 'markdown') {
+                return createButton('🔗', 'Link', () => _insertLink());
+            }
+            return null;
+        });
+
+        Prism.plugins.toolbar.registerButton('image', env => {
+            if (env.language === 'markdown') {
+                return createButton('img', 'Image', () => _insertImage());
+            }
+            return null;
+        });
+
+        prismButtonsRegistered = true;
     }
 
 
@@ -161,7 +177,6 @@ const EditorUI = (() => {
         elements.codeArea.textContent = initialState.currentContent;
         _applySyntaxHighlighting(initialState.currentContent, initialState.fileMode); // Apply initial highlighting
 
-        elements.formattingToolbar.classList.toggle('hidden', initialState.fileMode !== 'markdown');
         updateStatusBar(initialState);
         updateLineNumbers(initialState.currentContent);
         renderPreview(initialState.fileMode, initialState.currentContent);
