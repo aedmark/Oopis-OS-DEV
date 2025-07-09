@@ -29,28 +29,7 @@ const EditorManager = (() => {
         }
     };
 
-    const loadedLanguages = new Set(['markup', 'css', 'clike', 'javascript']); // Prism core
-
-    function _ensureLanguageLoaded(language) {
-        return new Promise((resolve) => {
-            if (!language || loadedLanguages.has(language) || !Prism.plugins.autoloader) {
-                resolve();
-                return;
-            }
-            Prism.plugins.autoloader.loadLanguages(language, () => {
-                loadedLanguages.add(language);
-                resolve();
-            });
-        });
-    }
-
-    const debouncedHighlight = Utils.debounce(() => {
-        if (state.isActive) {
-            EditorUI.applySyntaxHighlighting(state.currentContent, state.fileMode);
-        }
-    }, 100);
-
-    async function enter(filePath, fileContent, onExitCallback) {
+    function enter(filePath, fileContent, onExitCallback) {
         if (state.isActive) {
             console.warn("EditorManager.enter called while already active.");
             return;
@@ -59,7 +38,6 @@ const EditorManager = (() => {
         const wordWrapSetting = StorageManager.loadItem(Config.STORAGE_KEYS.EDITOR_WORD_WRAP_ENABLED, "Editor Word Wrap", false);
         const fileMode = _getFileMode(filePath);
         const initialViewMode = (fileMode === 'markdown' || fileMode === 'html') ? 'split' : 'editor';
-        await _ensureLanguageLoaded(fileMode);
 
         state = {
             isActive: true,
@@ -116,34 +94,9 @@ const EditorManager = (() => {
 
     function _getFileMode(filePath) {
         const extension = Utils.getFileExtension(filePath);
-        switch (extension) {
-            case 'md':
-                return 'markdown';
-            case 'html':
-                return 'html';
-            case 'css':
-                return 'css';
-            case 'js':
-                return 'javascript';
-            case 'json':
-                return 'json';
-            case 'py':
-                return 'python';
-            case 'sh':
-                return 'bash';
-            case 'sql':
-                return 'sql';
-            case 'c':
-                return 'c';
-            case 'cpp':
-                return 'cpp';
-            case 'cs':
-                return 'csharp';
-            case 'java':
-                return 'java';
-            default:
-                return 'text'; // Fallback for unknown types
-        }
+        if (extension === 'md') return 'markdown';
+        if (extension === 'html') return 'html';
+        return 'text';
     }
 
     async function saveContent() {
@@ -187,11 +140,13 @@ const EditorManager = (() => {
         }
     }
 
+    // Define the debounced function before the callbacks object that uses it.
     const debouncedSaveUndo = Utils.debounce(() => {
         if (state.undoStack.at(-1) !== state.currentContent) {
             state.undoStack.push(state.currentContent);
             if (state.undoStack.length > 50) state.undoStack.shift();
             state.redoStack = [];
+            // Make sure the UI reflects that the undo stack has changed
             if (state.isActive) {
                 EditorUI.updateStatusBar(state);
             }
@@ -204,18 +159,17 @@ const EditorManager = (() => {
             state.currentContent = newContent;
             state.isDirty = state.currentContent !== state.originalContent;
 
+            // Re-run find to keep matches fresh
             state.findState.matches = _findMatches(state.findState.query, state.currentContent, state.findState.isCaseSensitive, state.findState.isRegex);
 
+            // Update UI elements
             EditorUI.updateFindUI(state.findState);
             EditorUI.updateStatusBar(state);
             EditorUI.renderPreview(state.fileMode, state.currentContent);
             EditorUI.updateLineNumbers(state.currentContent);
 
+            // Now, safely call the debounced function
             debouncedSaveUndo();
-            debouncedHighlight();
-        },
-        getState: () => {
-            return state;
         },
         onSaveRequest: async () => { await saveContent(); _performExit(); },
         onExitRequest: () => { exit(); },
@@ -261,14 +215,14 @@ const EditorManager = (() => {
         onFindNext: () => {
             if (state.findState.matches.length > 0) {
                 state.findState.currentIndex = (state.findState.currentIndex + 1) % state.findState.matches.length;
-                EditorUI.updateFindUI(state.findState);
+                EditorUI.updateFindUI(state.findState); // Update the UI with the new index
                 EditorUI.highlightMatch(state.findState.matches[state.findState.currentIndex]);
             }
         },
         onFindPrev: () => {
             if (state.findState.matches.length > 0) {
                 state.findState.currentIndex = (state.findState.currentIndex - 1 + state.findState.matches.length) % state.findState.matches.length;
-                EditorUI.updateFindUI(state.findState);
+                EditorUI.updateFindUI(state.findState); // Update the UI with the new index
                 EditorUI.highlightMatch(state.findState.matches[state.findState.currentIndex]);
             }
         },

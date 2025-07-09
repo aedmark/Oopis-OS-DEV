@@ -168,18 +168,6 @@
     resize: none;
     white-space: pre; /* Default to no wrap */
     overflow: auto; /* Enable scrolling */
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    caret-color: var(--color-text-primary);
-}
-
-/* --- CORRECTED --- */
-.editor-textarea > code {
-    display: block; /* Change to block */
-    min-height: 100%;
-    outline: none;
-    /* min-width is removed to allow wrapping */
 }
 
 .editor-preview {

@@ -1,4 +1,3 @@
-/* aedmark/oopis-os-dev/Oopis-OS-DEV-ceda4a72262ac328f6fd002f92ef22f88475156b/scripts/apps/editor/editor_ui.js */
 /**
  * @file Manages the DOM and user interaction for the OopisOS text editor.
  * This module is the "hands" of the editor; it only renders state and forwards events.
@@ -10,41 +9,31 @@ const EditorUI = (() => {
 
     let elements = {};
     let managerCallbacks = {};
-    let prismButtonsRegistered = false; // Add a flag to track registration
 
     function buildAndShow(initialState, callbacks) {
         managerCallbacks = callbacks;
-        prismButtonsRegistered = false; // Reset flag on new editor instance
 
         elements.container = Utils.createElement('div', { id: 'editor-container', className: 'editor-container' });
 
         // Header and Toolbar
         elements.fileName = Utils.createElement('div', { className: 'editor-filename' });
+        elements.wordWrapButton = Utils.createElement('button', {className: 'btn', textContent: 'Wrap'});
+        elements.previewButton = Utils.createElement('button', {className: 'btn', textContent: 'Preview'});
+        elements.findButton = Utils.createElement('button', {className: 'btn', textContent: 'Find'});
 
-        // The formatting toolbar is no longer needed here.
-        elements.header = Utils.createElement('header', {className: 'editor-header'}, [elements.fileName]);
+        // Build the formatting toolbar (initially hidden)
+        _buildFormattingToolbar();
+
+        const rightToolbar = Utils.createElement('div', {className: 'editor-toolbar'}, [elements.findButton, elements.wordWrapButton, elements.previewButton]);
+        elements.header = Utils.createElement('header', {className: 'editor-header'}, [elements.fileName, elements.formattingToolbar, rightToolbar]);
+
 
         // Find/Replace Bar
         _buildFindBar();
 
-        elements.codeArea = Utils.createElement('code', {
-            id: 'editor-code-area',
-            className: `language-${initialState.fileMode}`
-        });
-
-        // The pre tag needs the 'code-toolbar' class for Prism to find it.
-        elements.textArea = Utils.createElement('pre', {
-            id: 'editor-text-area',
-            className: 'editor-textarea code-toolbar', // Add code-toolbar class
-            contenteditable: 'true',
-            spellcheck: 'false',
-            'data-prismjs-copy': 'Copy',
-            'data-prismjs-copy-success': 'Copied!',
-            'data-prismjs-copy-error': 'Ctrl+C to copy'
-        }, [elements.codeArea]);
-
         // Main content area
         elements.lineNumbers = Utils.createElement('div', { className: 'editor-linenumbers' });
+        elements.textArea = Utils.createElement('textarea', {className: 'editor-textarea', spellcheck: 'false'});
         const editorWrapper = Utils.createElement('div', {className: 'editor-pane-wrapper'}, [elements.lineNumbers, elements.textArea]);
         elements.previewPane = Utils.createElement('div', { className: 'editor-preview' });
         elements.mainArea = Utils.createElement('main', { className: 'editor-main' }, [editorWrapper, elements.previewPane]);
@@ -65,87 +54,21 @@ const EditorUI = (() => {
         elements.textArea.focus();
     }
 
-    function _registerPrismToolbarButtons() {
-        if (!Prism.plugins.toolbar) return;
-        if (!Prism.plugins.toolbar.buttons) {
-            Prism.plugins.toolbar.buttons = {};
-        }
-
-        if (prismButtonsRegistered) {
-            return;
-        }
-
+    function _buildFormattingToolbar() {
         const createButton = (text, title, action) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.textContent = text;
-            if (title) button.title = title;
-            button.addEventListener('click', () => action());
+            const button = Utils.createElement('button', {className: 'btn', textContent: text, title});
+            button.addEventListener('click', action);
             return button;
         };
 
-        // --- Universal Buttons ---
-        Prism.plugins.toolbar.registerButton('save', env => createButton('Save & Exit', 'Save & Exit (Ctrl+S)', () => managerCallbacks.onSaveRequest()));
-        Prism.plugins.toolbar.registerButton('find', env => createButton('Find', 'Find (Ctrl+F)', () => {
-            elements.findBar.classList.toggle('hidden');
-            if (!elements.findBar.classList.contains('hidden')) {
-                elements.findInput.focus();
-                elements.findInput.select();
-            }
-        }));
-        Prism.plugins.toolbar.registerButton('wrap', env => createButton('Wrap', 'Toggle Word Wrap', () => managerCallbacks.onToggleWordWrap()));
-
-        // --- Context-Aware Buttons ---
-        Prism.plugins.toolbar.registerButton('preview', env => {
-            if (env.language === 'markdown' || env.language === 'html') {
-                return createButton('Preview', 'Toggle Preview (Ctrl+P)', () => managerCallbacks.onToggleViewMode());
-            }
-            return null;
-        });
-
-        Prism.plugins.toolbar.registerButton('bold', env => {
-            if (env.language === 'markdown') {
-                return createButton('B', 'Bold (Ctrl+B)', () => _wrapSelection('**'));
-            }
-            return null;
-        });
-
-        Prism.plugins.toolbar.registerButton('italic', env => {
-            if (env.language === 'markdown') {
-                return createButton('I', 'Italic (Ctrl+I)', () => _wrapSelection('*'));
-            }
-            return null;
-        });
-
-        Prism.plugins.toolbar.registerButton('heading', env => {
-            if (env.language === 'markdown') {
-                return createButton('H', 'Heading (Ctrl+H)', () => _prefixLine('# '));
-            }
-            return null;
-        });
-
-        Prism.plugins.toolbar.registerButton('blockquote', env => {
-            if (env.language === 'markdown') {
-                return createButton('“', 'Blockquote', () => _prefixLine('> '));
-            }
-            return null;
-        });
-
-        Prism.plugins.toolbar.registerButton('link', env => {
-            if (env.language === 'markdown') {
-                return createButton('🔗', 'Link', () => _insertLink());
-            }
-            return null;
-        });
-
-        Prism.plugins.toolbar.registerButton('image', env => {
-            if (env.language === 'markdown') {
-                return createButton('img', 'Image', () => _insertImage());
-            }
-            return null;
-        });
-
-        prismButtonsRegistered = true;
+        elements.formattingToolbar = Utils.createElement('div', {className: 'editor-toolbar editor-format-toolbar hidden'}, [
+            createButton('B', 'Bold (Ctrl+B)', () => _wrapSelection('**')),
+            createButton('I', 'Italic (Ctrl+I)', () => _wrapSelection('*')),
+            createButton('H', 'Heading (Ctrl+H)', () => _prefixLine('# ')),
+            createButton('“', 'Blockquote', () => _prefixLine('> ')),
+            createButton('🔗', 'Link', () => _insertLink()),
+            createButton('img', 'Image', () => _insertImage()),
+        ]);
     }
 
 
@@ -172,47 +95,37 @@ const EditorUI = (() => {
         managerCallbacks = {};
     }
 
-    function _render(initialState) {
-        elements.fileName.textContent = initialState.currentFilePath;
-        elements.codeArea.textContent = initialState.currentContent;
-        _applySyntaxHighlighting(initialState.currentContent, initialState.fileMode); // Apply initial highlighting
-
-        updateStatusBar(initialState);
-        updateLineNumbers(initialState.currentContent);
-        renderPreview(initialState.fileMode, initialState.currentContent);
-        applySettings(initialState.editorSettings);
-        applyViewMode(initialState.viewMode);
+    function _render(state) {
+        elements.fileName.textContent = state.currentFilePath;
+        elements.textArea.value = state.currentContent;
+        // Conditionally show/hide UI elements based on the file mode
+        elements.formattingToolbar.classList.toggle('hidden', state.fileMode !== 'markdown');
+        elements.previewButton.classList.toggle('hidden', state.fileMode !== 'markdown' && state.fileMode !== 'html');
+        updateStatusBar(state);
+        updateLineNumbers(state.currentContent);
+        renderPreview(state.fileMode, state.currentContent);
+        applySettings(state.editorSettings);
+        applyViewMode(state.viewMode);
     }
 
     function updateStatusBar(state) {
-        if (!elements.statusFileName || !state) return;
+        if (!elements.statusFileName || !state) return; // Added a check for the state object itself
 
         elements.statusFileName.textContent = state.currentFilePath || '...';
         elements.statusDirty.textContent = state.isDirty ? '*' : '';
 
+        // Ensure currentContent is a string before calling .split on it.
         const content = state.currentContent || "";
         const lineCount = content.split('\n').length;
         const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
-
-        // --- Start of Corrected Logic ---
-        let cursorPos = '';
-        if (elements.textArea) {
-            // Use the existing helper to get the character offset
-            const charPos = _getCursorPosition();
-            // Use the known state content to calculate line and column
-            const textToCursor = content.substring(0, charPos);
-            const linesToCursor = textToCursor.split('\n');
-            const lineNum = linesToCursor.length;
-            const colNum = linesToCursor.length > 0 ? linesToCursor[linesToCursor.length - 1].length + 1 : 1;
-            cursorPos = `Ln ${lineNum}, Col ${colNum}`;
-        }
-        // --- End of Corrected Logic ---
+        const cursorPos = elements.textArea ? `Ln ${elements.textArea.value.substring(0, elements.textArea.selectionStart).split('\n').length}, Col ${elements.textArea.selectionStart - elements.textArea.value.lastIndexOf('\n', elements.textArea.selectionStart - 1)}` : '';
 
         elements.statusInfo.textContent = `Lines: ${lineCount} | Words: ${wordCount} | ${cursorPos}`;
 
         if (state.statusMessage) {
             elements.statusInfo.textContent += ` | ${state.statusMessage}`;
             setTimeout(() => {
+                // Check if state is still valid before clearing the message
                 if (elements.statusInfo && state && !state.statusMessage.startsWith("Error")) {
                     updateStatusBar({ ...state, statusMessage: null });
                 }
@@ -243,131 +156,59 @@ const EditorUI = (() => {
         elements.textArea.style.whiteSpace = settings.wordWrap ? 'pre-wrap' : 'pre';
         elements.textArea.style.overflowWrap = settings.wordWrap ? 'break-word' : 'normal';
         elements.textArea.style.wordBreak = 'normal';
+        elements.wordWrapButton.classList.toggle('active', settings.wordWrap);
     }
 
     function applyViewMode(viewMode) {
         if (!elements.mainArea) return;
         elements.mainArea.dataset.viewMode = viewMode;
+        elements.previewButton.classList.toggle('active', viewMode !== 'editor');
     }
 
     function setContent(content) {
-        if (!elements.codeArea) return;
-        const cursorPos = _getCursorPosition();
-        elements.codeArea.textContent = content; // Set raw text
-        _applySyntaxHighlighting(content, managerCallbacks.getState().fileMode); // Re-highlight
-        _setCursorPosition(cursorPos);
-        managerCallbacks.onContentUpdate(elements.textArea.textContent);
-    }
-
-    function _getCursorPosition() {
-        const selection = window.getSelection();
-        if (selection.rangeCount === 0) return 0;
-        const range = selection.getRangeAt(0);
-        const preCaretRange = range.cloneRange();
-        preCaretRange.selectNodeContents(elements.textArea);
-        preCaretRange.setEnd(range.endContainer, range.endOffset);
-        return preCaretRange.toString().length;
-    }
-
-    function _setCursorPosition(pos) {
-        const selection = window.getSelection();
-        const range = document.createRange();
-        let charCount = 0;
-        let foundNode = false;
-
-        function findTextNode(node) {
-            if (foundNode) return;
-            if (node.nodeType === Node.TEXT_NODE) {
-                const nextCharCount = charCount + node.length;
-                if (pos >= charCount && pos <= nextCharCount) {
-                    range.setStart(node, pos - charCount);
-                    range.collapse(true);
-                    foundNode = true;
-                }
-                charCount = nextCharCount;
-            } else {
-                for (const child of node.childNodes) {
-                    findTextNode(child);
-                }
-            }
-        }
-
-        findTextNode(elements.textArea);
-        selection.removeAllRanges();
-        selection.addRange(range);
-    }
-
-    function _applySyntaxHighlighting(content, language) {
-        if (!Prism.languages[language]) {
-            elements.codeArea.innerHTML = Utils.escapeHtml(content); // Fallback for unloaded languages
-            return;
-        }
-        _registerPrismToolbarButtons();
-        // Highlight the content.
-        const highlightedHtml = Prism.highlight(content, Prism.languages[language], language);
-        // Directly apply the highlighted HTML.
-        elements.codeArea.innerHTML = highlightedHtml;
+        if (!elements.textArea) return;
+        const cursorPos = elements.textArea.selectionStart;
+        elements.textArea.value = content;
+        elements.textArea.selectionStart = elements.textArea.selectionEnd = cursorPos;
+        managerCallbacks.onContentUpdate(content);
     }
 
     function _wrapSelection(wrapper, defaultText = 'text') {
         const { textArea } = elements;
-        const selection = window.getSelection();
-        if (selection.rangeCount === 0) return;
+        const start = textArea.selectionStart;
+        const end = textArea.selectionEnd;
+        const text = textArea.value;
+        const selectedText = text.substring(start, end);
 
-        const range = selection.getRangeAt(0);
-        const selectedText = range.toString();
         const textToInsert = selectedText || defaultText;
+        const newText = `${text.substring(0, start)}${wrapper}${textToInsert}${wrapper}${text.substring(end)}`;
 
-        range.deleteContents();
-        range.insertNode(document.createTextNode(wrapper + textToInsert + wrapper));
+        setContent(newText);
 
-        // Move the cursor to select the inserted text
-        if (selectedText) {
-            range.setStart(range.endContainer, range.endOffset - wrapper.length - selectedText.length);
-            range.setEnd(range.endContainer, range.endOffset - wrapper.length);
-        } else {
-            range.setStart(range.endContainer, range.endOffset - wrapper.length - defaultText.length);
-            range.setEnd(range.endContainer, range.endOffset - wrapper.length);
-        }
-
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        managerCallbacks.onContentUpdate(textArea.textContent);
+        // After setting content, re-focus and select the inserted text
+        setTimeout(() => {
+            textArea.focus();
+            if (selectedText) {
+                textArea.setSelectionRange(start + wrapper.length, start + wrapper.length + selectedText.length);
+            } else {
+                textArea.setSelectionRange(start + wrapper.length, start + wrapper.length + defaultText.length);
+            }
+        }, 0);
     }
 
     function _prefixLine(prefix) {
         const { textArea } = elements;
-        const selection = window.getSelection();
-        if (selection.rangeCount === 0) return;
+        const start = textArea.selectionStart;
+        const text = textArea.value;
+        const lineStart = text.lastIndexOf('\n', start - 1) + 1;
 
-        const range = selection.getRangeAt(0);
-        const startContainer = range.startContainer;
-        let lineStartNode = startContainer;
-        let offset = 0;
+        const newText = `${text.substring(0, lineStart)}${prefix}${text.substring(lineStart)}`;
+        setContent(newText);
 
-        while (lineStartNode) {
-            if (lineStartNode.nodeType === Node.TEXT_NODE) {
-                const index = lineStartNode.textContent.lastIndexOf('\n');
-                if (index !== -1) {
-                    offset = index + 1;
-                    break;
-                }
-            } else if (lineStartNode === textArea) {
-                break;
-            }
-            if (lineStartNode.previousSibling) {
-                lineStartNode = lineStartNode.previousSibling;
-            } else {
-                lineStartNode = lineStartNode.parentNode;
-            }
-        }
-
-        const insertRange = document.createRange();
-        insertRange.setStart(lineStartNode, offset);
-        insertRange.insertNode(document.createTextNode(prefix));
-
-        managerCallbacks.onContentUpdate(textArea.textContent);
+        setTimeout(() => {
+            textArea.focus();
+            textArea.setSelectionRange(start + prefix.length, start + prefix.length);
+        }, 0);
     }
 
     async function _insertLink() {
@@ -395,12 +236,10 @@ const EditorUI = (() => {
 
     function highlightMatch(match) {
         if (!elements.textArea || !match) return;
-        _setCursorPosition(match.start);
-        const selection = window.getSelection();
-        const range = selection.getRangeAt(0);
-        range.setEnd(range.startContainer, range.startOffset + (match.end - match.start));
-        selection.removeAllRanges();
-        selection.addRange(range);
+        elements.textArea.setSelectionRange(match.start, match.end);
+        const lines = elements.textArea.value.substring(0, match.start).split('\n').length;
+        const lineHeight = elements.textArea.scrollHeight / elements.textArea.value.split('\n').length;
+        elements.textArea.scrollTop = (lines - 5) * lineHeight;
     }
 
     function updateFindUI(findState) {
@@ -421,13 +260,23 @@ const EditorUI = (() => {
     }
 
     function _addEventListeners() {
-        elements.textArea.addEventListener('input', () => {
-            managerCallbacks.onContentUpdate(elements.textArea.textContent);
-        });
+        elements.textArea.addEventListener('input', () => managerCallbacks.onContentUpdate(elements.textArea.value));
         elements.textArea.addEventListener('scroll', () => { elements.lineNumbers.scrollTop = elements.textArea.scrollTop; });
         elements.textArea.addEventListener('keyup', () => updateStatusBar(managerCallbacks.getState ? managerCallbacks.getState() : {}));
         elements.textArea.addEventListener('click', () => updateStatusBar(managerCallbacks.getState ? managerCallbacks.getState() : {}));
 
+        // Toolbar
+        elements.findButton.addEventListener('click', () => {
+            elements.findBar.classList.toggle('hidden');
+            if (!elements.findBar.classList.contains('hidden')) {
+                elements.findInput.focus();
+                elements.findInput.select();
+            }
+        });
+        elements.wordWrapButton.addEventListener('click', () => managerCallbacks.onToggleWordWrap());
+        elements.previewButton.addEventListener('click', () => managerCallbacks.onToggleViewMode());
+
+        // Find Bar
         // Find Bar
         const triggerFind = () => {
             managerCallbacks.onFind(elements.findInput.value, {
@@ -436,11 +285,14 @@ const EditorUI = (() => {
             });
         };
 
+        // Trigger a find ONLY when the user types in the input box.
         elements.findInput.addEventListener('input', triggerFind);
 
+        // Handle Enter key for quick navigation.
         elements.findInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                // If there are matches, go to the next one. If not, trigger a new find.
                 if (managerCallbacks.getState && managerCallbacks.getState().findState.matches.length > 0) {
                     managerCallbacks.onFindNext();
                 } else {
@@ -449,9 +301,11 @@ const EditorUI = (() => {
             }
         });
 
+        // Navigation buttons should NOT trigger a new search.
         elements.findNextButton.addEventListener('click', () => managerCallbacks.onFindNext());
         elements.findPrevButton.addEventListener('click', () => managerCallbacks.onFindPrev());
 
+        // Toggles SHOULD trigger a find to update matches based on new criteria.
         elements.caseSensitiveToggle.addEventListener('click', (e) => {
             e.currentTarget.classList.toggle('active');
             triggerFind();
@@ -505,7 +359,6 @@ const EditorUI = (() => {
         renderPreview,
         updateLineNumbers,
         highlightMatch,
-        updateFindUI,
-        applySyntaxHighlighting: _applySyntaxHighlighting
+        updateFindUI
     };
 })();
