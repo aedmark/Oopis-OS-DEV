@@ -1,0 +1,93 @@
+(() => {
+    "use strict";
+
+    const headCommandDefinition = {
+        commandName: "head",
+        flagDefinitions: [
+            { name: "lines", short: "-n", long: "--lines", takesValue: true },
+            { name: "bytes", short: "-c", long: "--bytes", takesValue: true },
+        ],
+        coreLogic: async (context) => {
+            const { args, flags } = context;
+
+            if (flags.lines && flags.bytes) {
+                return { success: false, error: "head: cannot use both -n and -c" };
+            }
+
+            let lineCount = 10;
+            if (flags.lines) {
+                const linesResult = Utils.parseNumericArg(flags.lines, { allowFloat: false, allowNegative: false });
+                if (linesResult.error) {
+                    return { success: false, error: `head: invalid number of lines: '${flags.lines}'` };
+                }
+                lineCount = linesResult.value;
+            }
+
+            let byteCount = null;
+            if (flags.bytes) {
+                const bytesResult = Utils.parseNumericArg(flags.bytes, { allowFloat: false, allowNegative: false });
+                if (bytesResult.error) {
+                    return { success: false, error: `head: invalid number of bytes: '${flags.bytes}'` };
+                }
+                byteCount = bytesResult.value;
+            }
+
+            const processContent = (content) => {
+                if (byteCount !== null) {
+                    return content.substring(0, byteCount);
+                }
+                return content.split('\n').slice(0, lineCount).join('\n');
+            };
+
+            const outputParts = [];
+            let fileCount = 0;
+
+            for await (const item of Utils.generateInputContent(context)) {
+                if (!item.success) {
+                    outputParts.push(item.error);
+                    continue;
+                }
+
+                if (args.length > 1) {
+                    if (fileCount > 0) {
+                        outputParts.push('');
+                    }
+                    outputParts.push(`==> ${item.sourceName} <==`);
+                }
+
+                outputParts.push(processContent(item.content));
+                fileCount++;
+            }
+
+            return { success: true, output: outputParts.join('\n') };
+        },
+    };
+
+    const headDescription = "Outputs the first part of files.";
+    const headHelpText = `Usage: head [OPTION]... [FILE]...
+
+Print the first 10 lines of each FILE to standard output.
+With more than one FILE, precede each with a header giving the file name.
+
+DESCRIPTION
+       The head command displays the beginning of a text file. It is a quick
+       way to preview a file's content without opening it in an editor.
+
+OPTIONS
+       -n, --lines=COUNT
+              Print the first COUNT lines instead of the first 10.
+       -c, --bytes=COUNT
+              Print the first COUNT bytes of each file.
+
+EXAMPLES
+       head /etc/motd
+              Displays the first 10 lines of the message of the day file.
+
+       head -n 5 README.md
+              Displays the first 5 lines of the README.md file.
+
+       ls | head -n 3
+              Displays the first 3 files or directories in the current location.`;
+
+    CommandRegistry.register("head", headCommandDefinition, headDescription, headHelpText);
+})();
