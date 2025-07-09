@@ -74,11 +74,8 @@ const EditorUI = (() => {
 
     function _buildFindBar() {
         elements.findInput = Utils.createElement('input', { type: 'text', placeholder: 'Find...', className: 'editor-find-input' });
-        elements.replaceInput = Utils.createElement('input', { type: 'text', placeholder: 'Replace...', className: 'editor-find-input' });
         elements.findNextButton = Utils.createElement('button', { className: 'btn', textContent: 'Next' });
         elements.findPrevButton = Utils.createElement('button', { className: 'btn', textContent: 'Prev' });
-        elements.replaceButton = Utils.createElement('button', { className: 'btn', textContent: 'Replace' });
-        elements.replaceAllButton = Utils.createElement('button', { className: 'btn', textContent: 'All' });
         elements.findCloseButton = Utils.createElement('button', { className: 'btn', textContent: '×' });
         elements.findInfo = Utils.createElement('span', { className: 'editor-find-info' });
         elements.findError = Utils.createElement('span', { className: 'editor-find-error' });
@@ -87,7 +84,6 @@ const EditorUI = (() => {
 
         elements.findBar = Utils.createElement('div', { className: 'editor-findbar hidden' }, [
             elements.findInput, elements.findPrevButton, elements.findNextButton, elements.findInfo,
-            elements.replaceInput, elements.replaceButton, elements.replaceAllButton,
             elements.caseSensitiveToggle, elements.regexToggle, elements.findError,
             elements.findCloseButton
         ]);
@@ -298,9 +294,6 @@ const EditorUI = (() => {
         // Navigation buttons should NOT trigger a new search.
         elements.findNextButton.addEventListener('click', () => managerCallbacks.onFindNext());
         elements.findPrevButton.addEventListener('click', () => managerCallbacks.onFindPrev());
-
-        elements.replaceButton.addEventListener('click', () => managerCallbacks.onReplace(elements.replaceInput.value));
-        elements.replaceAllButton.addEventListener('click', () => managerCallbacks.onReplaceAll(elements.replaceInput.value));
 
         // Toggles SHOULD trigger a find to update matches based on new criteria.
         elements.caseSensitiveToggle.addEventListener('click', (e) => {
