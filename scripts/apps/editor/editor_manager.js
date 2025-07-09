@@ -25,6 +25,8 @@ const EditorManager = (() => {
         state.originalContent = fileContent || "";
         state.currentContent = fileContent || "";
         state.fileMode = _getFileMode(filePath);
+        state.isPreviewMode = (state.fileMode === 'markdown' || state.fileMode === 'html');
+
 
         // Initial state for undo
         state.undoStack.push(state.currentContent);
@@ -59,6 +61,11 @@ const EditorManager = (() => {
 
             // Debounced push to undo stack
             _debouncedPushUndo(newContent);
+
+            // If in preview mode, tell the UI to update the preview pane
+            if (state.isPreviewMode) {
+                EditorUI.renderPreview(state.currentContent, state.fileMode);
+            }
         },
         onSaveRequest: async () => {
             if (!state.isActive || !state.isDirty) return;
@@ -96,7 +103,7 @@ const EditorManager = (() => {
         onExitRequest: exit,
         onTogglePreview: () => {
             state.isPreviewMode = !state.isPreviewMode;
-            EditorUI.togglePreview(state.isPreviewMode, state.fileMode);
+            EditorUI.togglePreview(state.isPreviewMode, state.fileMode, state.currentContent);
         },
         onUndo: () => {
             if (state.undoStack.length > 1) {
@@ -104,6 +111,9 @@ const EditorManager = (() => {
                 state.redoStack.push(currentState);
                 state.currentContent = state.undoStack[state.undoStack.length - 1];
                 EditorUI.setContent(state.currentContent);
+                if (state.isPreviewMode) {
+                    EditorUI.renderPreview(state.currentContent, state.fileMode);
+                }
             }
         },
         onRedo: () => {
@@ -112,6 +122,9 @@ const EditorManager = (() => {
                 state.undoStack.push(nextState);
                 state.currentContent = nextState;
                 EditorUI.setContent(state.currentContent);
+                if (state.isPreviewMode) {
+                    EditorUI.renderPreview(state.currentContent, state.fileMode);
+                }
             }
         },
         onWordWrapToggle: () => {

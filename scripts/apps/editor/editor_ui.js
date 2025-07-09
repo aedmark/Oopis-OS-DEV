@@ -37,8 +37,8 @@ const EditorUI = (() => {
             className: 'editor-textarea',
             value: initialState.currentContent
         });
-        elements.preview = Utils.createElement('div', {id: 'editor-preview', className: 'editor-preview hidden'});
-        const mainArea = Utils.createElement('main', {className: 'editor-main'}, [elements.textarea, elements.preview]);
+        elements.preview = Utils.createElement('div', {id: 'editor-preview', className: 'editor-preview'});
+        elements.main = Utils.createElement('main', {className: 'editor-main'}, [elements.textarea, elements.preview]);
 
         // --- Footer ---
         elements.dirtyStatus = Utils.createElement('span', {id: 'editor-dirty-status'});
@@ -46,16 +46,54 @@ const EditorUI = (() => {
         const footer = Utils.createElement('footer', {className: 'editor-footer'}, [elements.dirtyStatus, elements.statusMessage]);
 
         // --- Assemble ---
-        elements.container.append(header, toolbar, mainArea, footer);
+        elements.container.append(header, toolbar, elements.main, footer);
 
         _addEventListeners();
         updateDirtyStatus(initialState.isDirty);
         updateWindowTitle(initialState.currentFilePath);
         setWordWrap(initialState.wordWrap);
-        togglePreview(initialState.isPreviewMode, initialState.fileMode);
+        togglePreview(initialState.isPreviewMode, initialState.fileMode, initialState.currentContent);
 
         AppLayerManager.show(elements.container); // Use AppLayerManager to display
         elements.textarea.focus();
+    }
+
+    function renderPreview(content, mode) {
+        if (!elements.preview) return;
+        if (mode === 'markdown') {
+            elements.preview.innerHTML = DOMPurify.sanitize(marked.parse(content));
+        } else if (mode === 'html') {
+            const iframe = Utils.createElement('iframe', {style: 'width: 100%; height: 100%; border: none;'});
+            elements.preview.innerHTML = '';
+            elements.preview.appendChild(iframe);
+            iframe.contentWindow.document.open();
+            // Sanitize HTML content before writing to iframe to prevent security issues
+            iframe.contentWindow.document.write(DOMPurify.sanitize(content));
+            iframe.contentWindow.document.close();
+        }
+    }
+
+    function togglePreview(isPreview, mode, content) {
+        if (!elements.preview || !elements.textarea) return;
+
+        // Disable preview button for plain text files.
+        if (mode === 'text') {
+            elements.previewBtn.disabled = true;
+            isPreview = false; // Force preview off
+        } else {
+            elements.previewBtn.disabled = false;
+        }
+
+        elements.previewBtn.classList.toggle('active', isPreview);
+
+        if (isPreview) {
+            // Show preview, let flexbox handle sizing
+            elements.preview.style.display = 'block';
+            renderPreview(content, mode);
+        } else {
+            // Hide preview, textarea will expand via flexbox
+            elements.preview.style.display = 'none';
+        }
     }
 
     function hideAndReset() {
@@ -86,31 +124,9 @@ const EditorUI = (() => {
         }
     }
 
-    function togglePreview(isPreview, mode) {
-        if (!elements.preview || !elements.textarea) return;
-        if (mode === 'text') {
-            elements.preview.classList.add('hidden');
-            elements.textarea.classList.remove('hidden');
-            elements.textarea.style.width = '100%';
-            elements.previewBtn.disabled = true;
-            return;
-        }
-
-        elements.previewBtn.disabled = false;
-        if (isPreview) {
-            elements.textarea.classList.add('hidden');
-            elements.preview.classList.remove('hidden');
-            _renderPreviewContent(mode);
-        } else {
-            elements.textarea.classList.remove('hidden');
-            elements.preview.classList.add('hidden');
-        }
-    }
-
     function setContent(content) {
         if (elements.textarea) {
             elements.textarea.value = content;
-            _renderPreviewContent(state.fileMode);
         }
     }
 
@@ -122,28 +138,9 @@ const EditorUI = (() => {
         }
     }
 
-
-    function _renderPreviewContent(mode) {
-        if (!elements.preview) return;
-        const content = elements.textarea.value;
-        if (mode === 'markdown') {
-            elements.preview.innerHTML = DOMPurify.sanitize(marked.parse(content));
-        } else if (mode === 'html') {
-            const iframe = Utils.createElement('iframe', {style: {width: '100%', height: '100%', border: 'none'}});
-            elements.preview.innerHTML = '';
-            elements.preview.appendChild(iframe);
-            iframe.contentWindow.document.open();
-            iframe.contentWindow.document.write(content);
-            iframe.contentWindow.document.close();
-        }
-    }
-
     function _addEventListeners() {
         elements.textarea.addEventListener('input', () => {
             managerCallbacks.onContentChange(elements.textarea.value);
-            if (state.isPreviewMode) {
-                _renderPreviewContent(state.fileMode);
-            }
         });
 
         elements.saveBtn.addEventListener('click', () => managerCallbacks.onSaveRequest());
@@ -189,6 +186,7 @@ const EditorUI = (() => {
         updateStatusMessage,
         updateWindowTitle,
         togglePreview,
+        renderPreview,
         setContent,
         setWordWrap
     };

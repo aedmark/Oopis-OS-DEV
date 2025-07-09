@@ -62,8 +62,7 @@
 }
 
 .editor-textarea, .editor-preview {
-    flex-basis: 50%;
-    width: 50%;
+    flex: 1; /* Occupy space gracefully */
     height: 100%;
     padding: var(--spacing-md);
     border: 1px solid var(--color-border-primary);
@@ -73,8 +72,15 @@
     font-size: 16px;
     line-height: 1.6;
     outline: none;
-    resize: none;
     transition: all 0.2s ease-in-out;
+}
+
+.editor-textarea {
+    resize: none;
+}
+
+.editor-preview {
+    overflow-y: auto;
 }
 
 .editor-textarea:focus, .editor-preview:focus {
@@ -82,9 +88,49 @@
     box-shadow: 0 0 5px var(--color-info);
 }
 
-.editor-preview {
-    overflow-y: auto;
+/* Preview pane specific styles */
+.editor-preview h1,
+.editor-preview h2,
+.editor-preview h3 {
+    border-bottom: 1px solid var(--color-border-primary);
+    padding-bottom: .3em;
+    margin-top: 1.5em;
+    margin-bottom: 1em;
+    color: var(--color-info);
 }
+
+.editor-preview p {
+    margin-bottom: 1em;
+}
+
+.editor-preview code:not(pre > code) {
+    background-color: var(--color-background-light);
+    color: var(--color-accent-amber);
+    padding: .2em .4em;
+    border-radius: 3px;
+}
+
+.editor-preview pre {
+    background-color: #000;
+    padding: 1em;
+    border-radius: 4px;
+    overflow-x: auto;
+    color: #fff; /* Ensure code in pre is visible on black background */
+}
+
+.editor-preview blockquote {
+    border-left: 4px solid var(--color-info);
+    padding-left: 1em;
+    margin-left: 0;
+    color: var(--color-text-subtle);
+}
+
+.editor-preview ul,
+.editor-preview ol {
+    padding-left: 2em;
+    margin-bottom: 1em;
+}
+
 
 .editor-footer {
     flex-shrink: 0;
