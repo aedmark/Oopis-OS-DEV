@@ -285,12 +285,19 @@ base64 -d b64_encoded.txt
 rm b64_test.txt b64_encoded.txt
 echo "base64 tests complete."
 delay 400
-echo "--- Test: ocrypt (encrypt/decrypt) ---"
-echo "Harmony and order." > ocrypt_test.txt
-ocrypt diag_pass ocrypt_test.txt > ocrypt_encrypted.txt
-ocrypt diag_pass ocrypt_encrypted.txt
-rm ocrypt_test.txt ocrypt_encrypted.txt
-echo "ocrypt tests complete."
+echo "--- Test: xor (encrypt/decrypt) ---"
+echo "Harmony and order." > xor_test.txt
+xor diag_pass xor_test.txt > xor_encrypted.txt
+xor diag_pass xor_encrypted.txt
+rm xor_test.txt xor_encrypted.txt
+echo "xor tests complete."
+delay 400
+echo "--- Test: ocrypt (secure encrypt/decrypt) ---"
+echo "A truly secure message." > ocrypt_test.txt
+ocrypt -e diag_secure_pass ocrypt_test.txt
+ocrypt -d diag_secure_pass ocrypt_test.txt | grep "A truly secure message."
+rm ocrypt_test.txt
+echo "ocrypt secure tests complete."
 delay 400
 echo "--- Test: cksum and sync ---"
 echo "A well-written program is its own Heaven." > cksum_test.txt

@@ -41,7 +41,8 @@ Beyond the system's built-in protections, OopisOS provides you with the tools to
 |---|---|---|
 |`cksum`|**Verification:** Calculates a checksum (a unique digital fingerprint) for a file. This allows you to verify that a file has not been altered or corrupted.|`cksum my_script.sh`|
 |`base64`|**Transformation:** Encodes binary data into plain text. This is essential for safely sending or storing complex files in text-based systems without data loss.|`cat photo.oopic \| base64 > photo.txt`|
-|`ocrypt`|**Obscurity (Educational):** A simple password-based cipher for obscuring data. **This is not secure encryption**, but serves to demonstrate the principles of data transformation.|`ocrypt mypass secret.txt > hidden.dat`|
+|`ocrypt`|**Encryption:** Provides strong, password-based encryption using the modern AES-GCM standard. This is the recommended tool for securing sensitive files.|`ocrypt -e myPass secret.dat`|
+|`xor`|**Obscurity (Educational):** A simple password-based XOR cipher. **This is not secure encryption**, but serves to demonstrate the principles of data transformation.|`xor mypass secret.txt > hidden.dat`|
 |`sync`|**Persistence:** Manually forces all pending filesystem changes to be written to the database, ensuring data integrity before a critical operation.|`sync`|
 
 This suite of tools embodies the OopisOS philosophy: security is not just something the system _has_, it is something the user _does_. By combining these commands, you can create a verifiable workflow to ensure your data remains exactly as you intended.
