@@ -230,7 +230,6 @@ const EditorUI = (() => {
 
     function highlightMatch(match) {
         if (!elements.textArea || !match) return;
-        elements.textArea.focus();
         elements.textArea.setSelectionRange(match.start, match.end);
         const lines = elements.textArea.value.substring(0, match.start).split('\n').length;
         const lineHeight = elements.textArea.scrollHeight / elements.textArea.value.split('\n').length;
