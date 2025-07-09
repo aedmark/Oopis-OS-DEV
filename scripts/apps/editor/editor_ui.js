@@ -158,7 +158,8 @@ const EditorUI = (() => {
     function applySettings(settings) {
         if (!elements.textArea) return;
         elements.textArea.style.whiteSpace = settings.wordWrap ? 'pre-wrap' : 'pre';
-        elements.textArea.style.wordBreak = settings.wordWrap ? 'break-all' : 'normal';
+        elements.textArea.style.overflowWrap = settings.wordWrap ? 'break-word' : 'normal';
+        elements.textArea.style.wordBreak = 'normal';
         elements.wordWrapButton.classList.toggle('active', settings.wordWrap);
     }
 
