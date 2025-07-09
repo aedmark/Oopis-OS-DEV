@@ -272,6 +272,7 @@ const EditorUI = (() => {
         elements.previewButton.addEventListener('click', () => managerCallbacks.onToggleViewMode());
 
         // Find Bar
+        // Find Bar
         const triggerFind = () => {
             managerCallbacks.onFind(elements.findInput.value, {
                 isCaseSensitive: elements.caseSensitiveToggle.classList.contains('active'),
@@ -279,30 +280,30 @@ const EditorUI = (() => {
             });
         };
 
-        // The 'input' listener is removed entirely.
-        // The 'keydown' listener now handles the "Enter" key explicitly.
+        // Trigger a find ONLY when the user types in the input box.
+        elements.findInput.addEventListener('input', triggerFind);
+
+        // Handle Enter key for quick navigation.
         elements.findInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                triggerFind(); // Trigger the search on Enter...
-                managerCallbacks.onFindNext(); // ...and immediately move to the first result.
+                // If there are matches, go to the next one. If not, trigger a new find.
+                if (managerCallbacks.getState && managerCallbacks.getState().findState.matches.length > 0) {
+                    managerCallbacks.onFindNext();
+                } else {
+                    triggerFind();
+                }
             }
         });
 
-        // We modify the button listeners to also trigger a fresh search.
-        elements.findNextButton.addEventListener('click', () => {
-            triggerFind();
-            managerCallbacks.onFindNext();
-        });
-        elements.findPrevButton.addEventListener('click', () => {
-            triggerFind();
-            managerCallbacks.onFindPrev();
-        });
+        // Navigation buttons should NOT trigger a new search.
+        elements.findNextButton.addEventListener('click', () => managerCallbacks.onFindNext());
+        elements.findPrevButton.addEventListener('click', () => managerCallbacks.onFindPrev());
 
         elements.replaceButton.addEventListener('click', () => managerCallbacks.onReplace(elements.replaceInput.value));
         elements.replaceAllButton.addEventListener('click', () => managerCallbacks.onReplaceAll(elements.replaceInput.value));
 
-        // Toggles still trigger a find to update the matches based on new criteria.
+        // Toggles SHOULD trigger a find to update matches based on new criteria.
         elements.caseSensitiveToggle.addEventListener('click', (e) => {
             e.currentTarget.classList.toggle('active');
             triggerFind();
