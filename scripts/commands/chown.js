@@ -30,10 +30,10 @@
                 };
             }
 
-            if (currentUser !== "root") {
+            if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
                 return {
                     success: false,
-                    error: `chown: changing ownership of '${pathArg}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX} (only root can change ownership)`,
+                    error: `chown: changing ownership of '${pathArg}': Operation not permitted`,
                 };
             }
 
