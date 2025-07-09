@@ -1,3 +1,5 @@
+// scripts/config.js
+
 const Config = (() => {
     "use strict";
 
@@ -159,7 +161,7 @@ const Config = (() => {
             "removeuser", "reset", "restore", "rm", "rmdir", "run", "savefs",
             "savestate", "set", "shuf", "sort", "su", "sudo", "sync", "tail", "touch",
             "tree", "unalias", "uniq", "unset", "unzip", "upload", "useradd", "usermod",
-            "visudo", "wc", "wget", "whoami", "zip", "xargs"
+            "visudo", "wc", "wget", "whoami", "xor", "zip", "xargs"
         ],
     };
 
