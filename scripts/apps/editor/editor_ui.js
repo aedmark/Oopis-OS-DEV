@@ -1,3 +1,4 @@
+/* aedmark/oopis-os-dev/Oopis-OS-DEV-ceda4a72262ac328f6fd002f92ef22f88475156b/scripts/apps/editor/editor_ui.js */
 /**
  * @file Manages the DOM and user interaction for the OopisOS text editor.
  * This module is the "hands" of the editor; it only renders state and forwards events.
@@ -17,16 +18,13 @@ const EditorUI = (() => {
 
         // Header and Toolbar
         elements.fileName = Utils.createElement('div', { className: 'editor-filename' });
-        elements.wordWrapButton = Utils.createElement('button', { className: 'btn', textContent: 'Wrap' });
-        elements.previewButton = Utils.createElement('button', { className: 'btn', textContent: 'Preview' });
-        elements.findButton = Utils.createElement('button', { className: 'btn', textContent: 'Find' });
 
         // Build the formatting toolbar (initially hidden)
         _buildFormattingToolbar();
 
-        const rightToolbar = Utils.createElement('div', { className: 'editor-toolbar' }, [elements.findButton, elements.wordWrapButton, elements.previewButton]);
-        elements.header = Utils.createElement('header', { className: 'editor-header' }, [elements.fileName, elements.formattingToolbar, rightToolbar]);
-
+        // The Prism toolbar will be dynamically added to the <pre> element's parent.
+        // We no longer build the right-side toolbar manually.
+        elements.header = Utils.createElement('header', {className: 'editor-header'}, [elements.fileName, elements.formattingToolbar]);
 
         // Find/Replace Bar
         _buildFindBar();
@@ -35,16 +33,30 @@ const EditorUI = (() => {
             id: 'editor-code-area',
             className: `language-${initialState.fileMode}` // Set initial language for Prism
         });
+
+        // MODIFIED: Added the code-toolbar wrapper div
+        elements.toolbarWrapper = Utils.createElement('div', {
+            className: 'code-toolbar',
+        });
+
         elements.textArea = Utils.createElement('pre', {
             id: 'editor-text-area',
-            className: 'editor-textarea', // Keep class for styling
+            className: 'editor-textarea',
             contenteditable: 'true',
-            spellcheck: 'false'
+            spellcheck: 'false',
+            // Add attributes for the copy-to-clipboard plugin
+            'data-prismjs-copy': 'Copy',
+            'data-prismjs-copy-success': 'Copied!',
+            'data-prismjs-copy-error': 'Ctrl+C to copy'
         }, [elements.codeArea]);
+
+        // Append the <pre> to the new toolbar wrapper
+        elements.toolbarWrapper.appendChild(elements.textArea);
+
 
         // Main content area
         elements.lineNumbers = Utils.createElement('div', { className: 'editor-linenumbers' });
-        const editorWrapper = Utils.createElement('div', { className: 'editor-pane-wrapper' }, [elements.lineNumbers, elements.textArea]);
+        const editorWrapper = Utils.createElement('div', {className: 'editor-pane-wrapper'}, [elements.lineNumbers, elements.toolbarWrapper]); // Use toolbarWrapper here
         elements.previewPane = Utils.createElement('div', { className: 'editor-preview' });
         elements.mainArea = Utils.createElement('main', { className: 'editor-main' }, [editorWrapper, elements.previewPane]);
 
@@ -57,12 +69,63 @@ const EditorUI = (() => {
 
         elements.container.append(elements.header, elements.findBar, elements.mainArea, elements.statusBar);
 
+        _registerPrismToolbarButtons(); // New function to register buttons
         _addEventListeners();
         _render(initialState);
 
         AppLayerManager.show(elements.container);
         elements.textArea.focus();
     }
+
+    function _registerPrismToolbarButtons() {
+        if (!Prism.plugins.toolbar) {
+            return;
+        }
+
+        // Register a 'Save' button
+        if (!Prism.plugins.toolbar.buttons.save) {
+            Prism.plugins.toolbar.registerButton('save', {
+                text: 'Save & Exit',
+                onClick: function (env) {
+                    managerCallbacks.onSaveRequest();
+                }
+            });
+        }
+
+        // Register a 'Find' button
+        if (!Prism.plugins.toolbar.buttons.find) {
+            Prism.plugins.toolbar.registerButton('find', {
+                text: 'Find',
+                onClick: function (env) {
+                    elements.findBar.classList.toggle('hidden');
+                    if (!elements.findBar.classList.contains('hidden')) {
+                        elements.findInput.focus();
+                        elements.findInput.select();
+                    }
+                }
+            });
+        }
+        // Register a 'Wrap' button
+        if (!Prism.plugins.toolbar.buttons.wrap) {
+            Prism.plugins.toolbar.registerButton('wrap', {
+                text: 'Wrap',
+                onClick: function (env) {
+                    managerCallbacks.onToggleWordWrap();
+                }
+            });
+        }
+
+        // Register a 'Preview' button
+        if (!Prism.plugins.toolbar.buttons.preview) {
+            Prism.plugins.toolbar.registerButton('preview', {
+                text: 'Preview',
+                onClick: function (env) {
+                    managerCallbacks.onToggleViewMode();
+                }
+            });
+        }
+    }
+
 
     function _buildFormattingToolbar() {
         const createButton = (text, title, action) => {
@@ -105,18 +168,18 @@ const EditorUI = (() => {
         managerCallbacks = {};
     }
 
-    function _render(state) {
-        elements.fileName.textContent = state.currentFilePath;
-        elements.codeArea.textContent = state.currentContent;
-        _applySyntaxHighlighting(state.currentContent, state.fileMode); // Apply initial highlighting
+    function _render(initialState) {
+        elements.fileName.textContent = initialState.currentFilePath;
+        elements.codeArea.textContent = initialState.currentContent;
+        _applySyntaxHighlighting(initialState.currentContent, initialState.fileMode); // Apply initial highlighting
 
-        elements.formattingToolbar.classList.toggle('hidden', state.fileMode !== 'markdown');
-        elements.previewButton.classList.toggle('hidden', state.fileMode !== 'markdown' && state.fileMode !== 'html');
-        updateStatusBar(state);
-        updateLineNumbers(state.currentContent);
-        renderPreview(state.fileMode, state.currentContent);
-        applySettings(state.editorSettings);
-        applyViewMode(state.viewMode);
+        elements.formattingToolbar.classList.toggle('hidden', initialState.fileMode !== 'markdown');
+        // elements.previewButton.classList.toggle('hidden', initialState.fileMode !== 'markdown' && initialState.fileMode !== 'html');
+        updateStatusBar(initialState);
+        updateLineNumbers(initialState.currentContent);
+        renderPreview(initialState.fileMode, initialState.currentContent);
+        applySettings(initialState.editorSettings);
+        applyViewMode(initialState.viewMode);
     }
 
     function updateStatusBar(state) {
@@ -178,13 +241,13 @@ const EditorUI = (() => {
         elements.textArea.style.whiteSpace = settings.wordWrap ? 'pre-wrap' : 'pre';
         elements.textArea.style.overflowWrap = settings.wordWrap ? 'break-word' : 'normal';
         elements.textArea.style.wordBreak = 'normal';
-        elements.wordWrapButton.classList.toggle('active', settings.wordWrap);
+        // elements.wordWrapButton.classList.toggle('active', settings.wordWrap);
     }
 
     function applyViewMode(viewMode) {
         if (!elements.mainArea) return;
         elements.mainArea.dataset.viewMode = viewMode;
-        elements.previewButton.classList.toggle('active', viewMode !== 'editor');
+        // elements.previewButton.classList.toggle('active', viewMode !== 'editor');
     }
 
     function setContent(content) {
@@ -364,16 +427,7 @@ const EditorUI = (() => {
         elements.textArea.addEventListener('keyup', () => updateStatusBar(managerCallbacks.getState ? managerCallbacks.getState() : {}));
         elements.textArea.addEventListener('click', () => updateStatusBar(managerCallbacks.getState ? managerCallbacks.getState() : {}));
 
-        // Toolbar
-        elements.findButton.addEventListener('click', () => {
-            elements.findBar.classList.toggle('hidden');
-            if (!elements.findBar.classList.contains('hidden')) {
-                elements.findInput.focus();
-                elements.findInput.select();
-            }
-        });
-        elements.wordWrapButton.addEventListener('click', () => managerCallbacks.onToggleWordWrap());
-        elements.previewButton.addEventListener('click', () => managerCallbacks.onToggleViewMode());
+        // Toolbar buttons are now handled by Prism's toolbar plugin
 
         // Find Bar
         const triggerFind = () => {
