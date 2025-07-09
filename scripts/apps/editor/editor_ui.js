@@ -10,9 +10,11 @@ const EditorUI = (() => {
 
     let elements = {};
     let managerCallbacks = {};
+    let prismButtonsRegistered = false; // Add a flag to track registration
 
     function buildAndShow(initialState, callbacks) {
         managerCallbacks = callbacks;
+        prismButtonsRegistered = false; // Reset flag on new editor instance
 
         elements.container = Utils.createElement('div', { id: 'editor-container', className: 'editor-container' });
 
@@ -22,8 +24,6 @@ const EditorUI = (() => {
         // Build the formatting toolbar (initially hidden)
         _buildFormattingToolbar();
 
-        // The Prism toolbar will be dynamically added to the <pre> element's parent.
-        // We no longer build the right-side toolbar manually.
         elements.header = Utils.createElement('header', {className: 'editor-header'}, [elements.fileName, elements.formattingToolbar]);
 
         // Find/Replace Bar
@@ -31,32 +31,23 @@ const EditorUI = (() => {
 
         elements.codeArea = Utils.createElement('code', {
             id: 'editor-code-area',
-            className: `language-${initialState.fileMode}` // Set initial language for Prism
+            className: `language-${initialState.fileMode}`
         });
 
-        // MODIFIED: Added the code-toolbar wrapper div
-        elements.toolbarWrapper = Utils.createElement('div', {
-            className: 'code-toolbar',
-        });
-
+        // The pre tag needs the 'code-toolbar' class for Prism to find it.
         elements.textArea = Utils.createElement('pre', {
             id: 'editor-text-area',
-            className: 'editor-textarea',
+            className: 'editor-textarea code-toolbar', // Add code-toolbar class
             contenteditable: 'true',
             spellcheck: 'false',
-            // Add attributes for the copy-to-clipboard plugin
             'data-prismjs-copy': 'Copy',
             'data-prismjs-copy-success': 'Copied!',
             'data-prismjs-copy-error': 'Ctrl+C to copy'
         }, [elements.codeArea]);
 
-        // Append the <pre> to the new toolbar wrapper
-        elements.toolbarWrapper.appendChild(elements.textArea);
-
-
         // Main content area
         elements.lineNumbers = Utils.createElement('div', { className: 'editor-linenumbers' });
-        const editorWrapper = Utils.createElement('div', {className: 'editor-pane-wrapper'}, [elements.lineNumbers, elements.toolbarWrapper]); // Use toolbarWrapper here
+        const editorWrapper = Utils.createElement('div', {className: 'editor-pane-wrapper'}, [elements.lineNumbers, elements.textArea]);
         elements.previewPane = Utils.createElement('div', { className: 'editor-preview' });
         elements.mainArea = Utils.createElement('main', { className: 'editor-main' }, [editorWrapper, elements.previewPane]);
 
@@ -69,7 +60,6 @@ const EditorUI = (() => {
 
         elements.container.append(elements.header, elements.findBar, elements.mainArea, elements.statusBar);
 
-        _registerPrismToolbarButtons(); // New function to register buttons
         _addEventListeners();
         _render(initialState);
 
@@ -78,52 +68,41 @@ const EditorUI = (() => {
     }
 
     function _registerPrismToolbarButtons() {
-        if (!Prism.plugins.toolbar) {
+        if (!Prism.plugins.toolbar || prismButtonsRegistered) {
             return;
         }
 
-        // Register a 'Save' button
-        if (!Prism.plugins.toolbar.buttons.save) {
-            Prism.plugins.toolbar.registerButton('save', {
+        const buttonsToRegister = {
+            'save': {
                 text: 'Save & Exit',
-                onClick: function (env) {
-                    managerCallbacks.onSaveRequest();
-                }
-            });
-        }
-
-        // Register a 'Find' button
-        if (!Prism.plugins.toolbar.buttons.find) {
-            Prism.plugins.toolbar.registerButton('find', {
+                onClick: () => managerCallbacks.onSaveRequest()
+            },
+            'find': {
                 text: 'Find',
-                onClick: function (env) {
+                onClick: () => {
                     elements.findBar.classList.toggle('hidden');
                     if (!elements.findBar.classList.contains('hidden')) {
                         elements.findInput.focus();
                         elements.findInput.select();
                     }
                 }
-            });
-        }
-        // Register a 'Wrap' button
-        if (!Prism.plugins.toolbar.buttons.wrap) {
-            Prism.plugins.toolbar.registerButton('wrap', {
+            },
+            'wrap': {
                 text: 'Wrap',
-                onClick: function (env) {
-                    managerCallbacks.onToggleWordWrap();
-                }
-            });
-        }
-
-        // Register a 'Preview' button
-        if (!Prism.plugins.toolbar.buttons.preview) {
-            Prism.plugins.toolbar.registerButton('preview', {
+                onClick: () => managerCallbacks.onToggleWordWrap()
+            },
+            'preview': {
                 text: 'Preview',
-                onClick: function (env) {
-                    managerCallbacks.onToggleViewMode();
-                }
-            });
+                onClick: () => managerCallbacks.onToggleViewMode()
+            }
+        };
+
+        for (const key in buttonsToRegister) {
+            if (!Prism.plugins.toolbar.buttons[key]) {
+                Prism.plugins.toolbar.registerButton(key, buttonsToRegister[key]);
+            }
         }
+        prismButtonsRegistered = true;
     }
 
 
@@ -174,7 +153,6 @@ const EditorUI = (() => {
         _applySyntaxHighlighting(initialState.currentContent, initialState.fileMode); // Apply initial highlighting
 
         elements.formattingToolbar.classList.toggle('hidden', initialState.fileMode !== 'markdown');
-        // elements.previewButton.classList.toggle('hidden', initialState.fileMode !== 'markdown' && initialState.fileMode !== 'html');
         updateStatusBar(initialState);
         updateLineNumbers(initialState.currentContent);
         renderPreview(initialState.fileMode, initialState.currentContent);
@@ -241,13 +219,11 @@ const EditorUI = (() => {
         elements.textArea.style.whiteSpace = settings.wordWrap ? 'pre-wrap' : 'pre';
         elements.textArea.style.overflowWrap = settings.wordWrap ? 'break-word' : 'normal';
         elements.textArea.style.wordBreak = 'normal';
-        // elements.wordWrapButton.classList.toggle('active', settings.wordWrap);
     }
 
     function applyViewMode(viewMode) {
         if (!elements.mainArea) return;
         elements.mainArea.dataset.viewMode = viewMode;
-        // elements.previewButton.classList.toggle('active', viewMode !== 'editor');
     }
 
     function setContent(content) {
@@ -306,6 +282,7 @@ const EditorUI = (() => {
         const pos = _getCursorPosition();
         elements.codeArea.innerHTML = highlightedHtml;
         _setCursorPosition(pos);
+        _registerPrismToolbarButtons(); // MODIFIED: Call registration after highlight
     }
 
     function _wrapSelection(wrapper, defaultText = 'text') {
@@ -426,8 +403,6 @@ const EditorUI = (() => {
         elements.textArea.addEventListener('scroll', () => { elements.lineNumbers.scrollTop = elements.textArea.scrollTop; });
         elements.textArea.addEventListener('keyup', () => updateStatusBar(managerCallbacks.getState ? managerCallbacks.getState() : {}));
         elements.textArea.addEventListener('click', () => updateStatusBar(managerCallbacks.getState ? managerCallbacks.getState() : {}));
-
-        // Toolbar buttons are now handled by Prism's toolbar plugin
 
         // Find Bar
         const triggerFind = () => {
