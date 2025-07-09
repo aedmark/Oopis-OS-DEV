@@ -10,7 +10,7 @@ const EditorManager = (() => {
         currentContent: "",
         isDirty: false,
         fileMode: 'text', // 'text', 'markdown', 'html'
-        isPreviewMode: false,
+        viewMode: 'split', // 'edit', 'split', 'preview'
         undoStack: [],
         redoStack: [],
         wordWrap: false
@@ -25,8 +25,6 @@ const EditorManager = (() => {
         state.originalContent = fileContent || "";
         state.currentContent = fileContent || "";
         state.fileMode = _getFileMode(filePath);
-        state.isPreviewMode = (state.fileMode === 'markdown' || state.fileMode === 'html');
-
 
         // Initial state for undo
         state.undoStack.push(state.currentContent);
@@ -37,11 +35,20 @@ const EditorManager = (() => {
         EditorUI.buildAndShow(state, callbacks);
     }
 
-    function exit() {
+    async function exit() {
         if (!state.isActive) return;
 
         if (state.isDirty) {
-            const confirmed = confirm(Config.MESSAGES.EDITOR_DISCARD_CONFIRM);
+            const confirmed = await new Promise(resolve => {
+                ModalManager.request({
+                    context: 'graphical',
+                    messageLines: ["You have unsaved changes that will be lost.", "Are you sure you want to exit?"],
+                    confirmText: "Discard Changes",
+                    cancelText: "Cancel",
+                    onConfirm: () => resolve(true),
+                    onCancel: () => resolve(false)
+                });
+            });
             if (!confirmed) return;
         }
         _performExit();
@@ -62,22 +69,32 @@ const EditorManager = (() => {
             // Debounced push to undo stack
             _debouncedPushUndo(newContent);
 
-            // If in preview mode, tell the UI to update the preview pane
-            if (state.isPreviewMode) {
+            if (state.viewMode !== 'edit') {
                 EditorUI.renderPreview(state.currentContent, state.fileMode);
             }
         },
         onSaveRequest: async () => {
-            if (!state.isActive || !state.isDirty) return;
+            if (!state.isActive) return;
 
             let savePath = state.currentFilePath;
             if (!savePath) {
-                // Simplified: prompt for a name. In a real scenario, this would be a file dialog.
-                savePath = prompt("Save as:", "/home/Guest/untitled.txt");
-                if (!savePath) {
+                const newName = await new Promise(resolve => {
+                    ModalManager.request({
+                        context: 'graphical-input',
+                        messageLines: ["Save New File"],
+                        placeholder: "/home/Guest/untitled.txt",
+                        confirmText: "Save",
+                        cancelText: "Cancel",
+                        onConfirm: (value) => resolve(value),
+                        onCancel: () => resolve(null)
+                    });
+                });
+
+                if (!newName) {
                     EditorUI.updateStatusMessage("Save cancelled.");
                     return;
                 }
+                savePath = newName;
                 state.currentFilePath = savePath;
                 state.fileMode = _getFileMode(savePath);
                 EditorUI.updateWindowTitle(savePath);
@@ -102,8 +119,14 @@ const EditorManager = (() => {
         },
         onExitRequest: exit,
         onTogglePreview: () => {
-            state.isPreviewMode = !state.isPreviewMode;
-            EditorUI.togglePreview(state.isPreviewMode, state.fileMode, state.currentContent);
+            if (state.fileMode === 'text') {
+                state.viewMode = 'edit';
+            } else {
+                const modes = ['split', 'edit', 'preview'];
+                const currentIndex = modes.indexOf(state.viewMode);
+                state.viewMode = modes[(currentIndex + 1) % modes.length];
+            }
+            EditorUI.setViewMode(state.viewMode, state.fileMode, state.currentContent);
         },
         onUndo: () => {
             if (state.undoStack.length > 1) {
@@ -111,7 +134,7 @@ const EditorManager = (() => {
                 state.redoStack.push(currentState);
                 state.currentContent = state.undoStack[state.undoStack.length - 1];
                 EditorUI.setContent(state.currentContent);
-                if (state.isPreviewMode) {
+                if (state.viewMode !== 'edit') {
                     EditorUI.renderPreview(state.currentContent, state.fileMode);
                 }
             }
@@ -122,7 +145,7 @@ const EditorManager = (() => {
                 state.undoStack.push(nextState);
                 state.currentContent = nextState;
                 EditorUI.setContent(state.currentContent);
-                if (state.isPreviewMode) {
+                if (state.viewMode !== 'edit') {
                     EditorUI.renderPreview(state.currentContent, state.fileMode);
                 }
             }
@@ -141,7 +164,6 @@ const EditorManager = (() => {
         }
         state.redoStack = []; // Clear redo on new action
     }, 500);
-
 
     function _getFileMode(filePath) {
         if (!filePath) return 'text';

@@ -61,8 +61,20 @@
     gap: var(--spacing-md);
 }
 
+/* New CSS for view modes */
+.editor-main--split .editor-textarea,
+.editor-main--split .editor-preview {
+    flex: 1;
+    width: 50%;
+}
+
+.editor-main--full .editor-textarea,
+.editor-main--full .editor-preview {
+    flex: 1;
+    width: 100%;
+}
+
 .editor-textarea, .editor-preview {
-    flex: 1; /* Occupy space gracefully */
     height: 100%;
     padding: var(--spacing-md);
     border: 1px solid var(--color-border-primary);
@@ -73,14 +85,11 @@
     line-height: 1.6;
     outline: none;
     transition: all 0.2s ease-in-out;
+    overflow-y: auto; /* Added for consistency */
 }
 
 .editor-textarea {
     resize: none;
-}
-
-.editor-preview {
-    overflow-y: auto;
 }
 
 .editor-textarea:focus, .editor-preview:focus {
@@ -130,7 +139,6 @@
     padding-left: 2em;
     margin-bottom: 1em;
 }
-
 
 .editor-footer {
     flex-shrink: 0;

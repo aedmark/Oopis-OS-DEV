@@ -20,14 +20,14 @@ const EditorUI = (() => {
         const header = Utils.createElement('header', {className: 'editor-header'}, [elements.titleInput]);
 
         // --- Toolbar ---
-        elements.saveBtn = Utils.createElement('button', {className: 'btn', textContent: 'Save (Ctrl+S)'});
-        elements.exitBtn = Utils.createElement('button', {className: 'btn', textContent: 'Exit (Ctrl+O)'});
-        elements.previewBtn = Utils.createElement('button', {className: 'btn', textContent: 'Toggle Preview (Ctrl+P)'});
+        elements.saveBtn = Utils.createElement('button', {className: 'btn', textContent: 'Save'});
+        elements.exitBtn = Utils.createElement('button', {className: 'btn', textContent: 'Exit'});
+        elements.previewBtn = Utils.createElement('button', {className: 'btn', textContent: 'View Mode'});
         elements.undoBtn = Utils.createElement('button', {className: 'btn', textContent: 'Undo'});
         elements.redoBtn = Utils.createElement('button', {className: 'btn', textContent: 'Redo'});
         elements.wordWrapBtn = Utils.createElement('button', {className: 'btn', textContent: 'Word Wrap'});
 
-        const toolbarGroup = Utils.createElement('div', {className: 'editor-toolbar-group'}, [elements.saveBtn, elements.previewBtn, elements.undoBtn, elements.redoBtn, elements.wordWrapBtn, elements.exitBtn]);
+        const toolbarGroup = Utils.createElement('div', {className: 'editor-toolbar-group'}, [elements.previewBtn, elements.wordWrapBtn, elements.undoBtn, elements.redoBtn, elements.saveBtn, elements.exitBtn]);
         const toolbar = Utils.createElement('div', {className: 'editor-toolbar'}, [toolbarGroup]);
 
 
@@ -52,7 +52,7 @@ const EditorUI = (() => {
         updateDirtyStatus(initialState.isDirty);
         updateWindowTitle(initialState.currentFilePath);
         setWordWrap(initialState.wordWrap);
-        togglePreview(initialState.isPreviewMode, initialState.fileMode, initialState.currentContent);
+        setViewMode(initialState.viewMode, initialState.fileMode, initialState.currentContent);
 
         AppLayerManager.show(elements.container); // Use AppLayerManager to display
         elements.textarea.focus();
@@ -60,39 +60,56 @@ const EditorUI = (() => {
 
     function renderPreview(content, mode) {
         if (!elements.preview) return;
+
+        // Ensure a predictable, clean slate for rendering.
+        elements.preview.innerHTML = '';
+
         if (mode === 'markdown') {
             elements.preview.innerHTML = DOMPurify.sanitize(marked.parse(content));
         } else if (mode === 'html') {
+            // Create and append a new iframe for each render to ensure a clean context
             const iframe = Utils.createElement('iframe', {style: 'width: 100%; height: 100%; border: none;'});
-            elements.preview.innerHTML = '';
             elements.preview.appendChild(iframe);
-            iframe.contentWindow.document.open();
-            // Sanitize HTML content before writing to iframe to prevent security issues
-            iframe.contentWindow.document.write(DOMPurify.sanitize(content));
-            iframe.contentWindow.document.close();
+
+            // Access contentWindow *after* appending to the DOM
+            const iframeDoc = iframe.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write(DOMPurify.sanitize(content)); // Sanitize before writing
+            iframeDoc.close();
         }
     }
 
-    function togglePreview(isPreview, mode, content) {
-        if (!elements.preview || !elements.textarea) return;
 
-        // Disable preview button for plain text files.
-        if (mode === 'text') {
-            elements.previewBtn.disabled = true;
-            isPreview = false; // Force preview off
-        } else {
-            elements.previewBtn.disabled = false;
+    function setViewMode(viewMode, fileMode, content) {
+        if (!elements.preview || !elements.textarea || !elements.main) return;
+
+        elements.previewBtn.disabled = fileMode === 'text';
+
+        if (fileMode === 'text') {
+            viewMode = 'edit'; // Force editor-only mode for plain text
         }
 
-        elements.previewBtn.classList.toggle('active', isPreview);
+        elements.textarea.style.display = 'none';
+        elements.preview.style.display = 'none';
+        elements.main.classList.remove('editor-main--split', 'editor-main--full');
 
-        if (isPreview) {
-            // Show preview, let flexbox handle sizing
-            elements.preview.style.display = 'block';
-            renderPreview(content, mode);
-        } else {
-            // Hide preview, textarea will expand via flexbox
-            elements.preview.style.display = 'none';
+        switch (viewMode) {
+            case 'edit':
+                elements.textarea.style.display = 'block';
+                elements.main.classList.add('editor-main--full');
+                break;
+            case 'preview':
+                elements.preview.style.display = 'block';
+                elements.main.classList.add('editor-main--full');
+                renderPreview(content, fileMode);
+                break;
+            case 'split':
+            default:
+                elements.textarea.style.display = 'block';
+                elements.preview.style.display = 'block';
+                elements.main.classList.add('editor-main--split');
+                renderPreview(content, fileMode);
+                break;
         }
     }
 
@@ -185,7 +202,7 @@ const EditorUI = (() => {
         updateDirtyStatus,
         updateStatusMessage,
         updateWindowTitle,
-        togglePreview,
+        setViewMode,
         renderPreview,
         setContent,
         setWordWrap
