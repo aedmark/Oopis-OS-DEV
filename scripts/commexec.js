@@ -1,6 +1,5 @@
 const CommandExecutor = (() => {
   "use strict";
-  let scriptExecutionInProgress = false;
   let backgroundProcessIdCounter = 0;
   let activeJobs = {};
   const commands = {};
@@ -548,7 +547,7 @@ const CommandExecutor = (() => {
   async function processSingleCommand(rawCommandText, options = {}) {
     const { isInteractive = true, scriptingContext = null, suppressOutput = false } = options;
 
-    if (scriptExecutionInProgress && isInteractive && !ModalManager.isAwaiting()) {
+    if (options.scriptingContext && isInteractive && !ModalManager.isAwaiting()) {
       await OutputManager.appendToOutput("Script execution in progress. Input suspended.", { typeClass: Config.CSS_CLASSES.WARNING_MSG });
       return { success: false, error: "Script execution in progress." };
     }
@@ -634,7 +633,7 @@ const CommandExecutor = (() => {
       overallResult = result;
     }
 
-    if (isInteractive && !scriptExecutionInProgress) {
+    if (isInteractive && !scriptingContext) {
       await _finalizeInteractiveModeUI(rawCommandText);
     }
 
@@ -645,20 +644,10 @@ const CommandExecutor = (() => {
     return commands;
   }
 
-  function isScriptRunning() {
-    return scriptExecutionInProgress;
-  }
-
-  function setScriptExecutionInProgress(status) {
-    scriptExecutionInProgress = status;
-  }
-
   return {
     initialize: () => {},
     processSingleCommand,
     getCommands,
-    isScriptRunning,
-    setScriptExecutionInProgress,
     getActiveJobs,
     killJob,
     _ensureCommandLoaded,
