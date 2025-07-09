@@ -68,7 +68,15 @@ const EditorUI = (() => {
     }
 
     function _registerPrismToolbarButtons() {
-        if (!Prism.plugins.toolbar || prismButtonsRegistered) {
+        // Defensive check to ensure the toolbar plugin and its buttons object are ready.
+        if (!Prism.plugins.toolbar) {
+            return;
+        }
+        if (!Prism.plugins.toolbar.buttons) {
+            Prism.plugins.toolbar.buttons = {};
+        }
+
+        if (prismButtonsRegistered) {
             return;
         }
 
@@ -98,6 +106,7 @@ const EditorUI = (() => {
         };
 
         for (const key in buttonsToRegister) {
+            // This check is now safe.
             if (!Prism.plugins.toolbar.buttons[key]) {
                 Prism.plugins.toolbar.registerButton(key, buttonsToRegister[key]);
             }
@@ -278,11 +287,11 @@ const EditorUI = (() => {
             elements.codeArea.innerHTML = Utils.escapeHtml(content); // Fallback for unloaded languages
             return;
         }
+        _registerPrismToolbarButtons();
+        // Highlight the content.
         const highlightedHtml = Prism.highlight(content, Prism.languages[language], language);
-        const pos = _getCursorPosition();
+        // Directly apply the highlighted HTML.
         elements.codeArea.innerHTML = highlightedHtml;
-        _setCursorPosition(pos);
-        _registerPrismToolbarButtons(); // MODIFIED: Call registration after highlight
     }
 
     function _wrapSelection(wrapper, defaultText = 'text') {
