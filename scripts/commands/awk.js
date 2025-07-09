@@ -63,11 +63,13 @@
 
     const awkCommandDefinition = {
         commandName: "awk",
+        isInputStream: true,
+        firstFileArgIndex: 1,
         flagDefinitions: [
             { name: "fieldSeparator", short: "-F", takesValue: true }
         ],
         coreLogic: async (context) => {
-            const { flags, args: remainingArgs, input } = context;
+            const {flags, args: remainingArgs, inputItems, inputError} = context;
 
             if (remainingArgs.length === 0) {
                 return { success: false, error: "awk: missing program" };
@@ -80,7 +82,7 @@
                 return { success: false, error: `awk: program error: ${program.error}` };
             }
 
-            if (input === null) {
+            if (inputError) {
                 return { success: false, error: "awk: No readable input provided." };
             }
 
@@ -95,28 +97,29 @@
                 }
             }
 
-            const lines = input.split('\n');
-            for (const line of lines) {
-                if (line === '' && lines.at(-1) === '') continue;
+            for (const item of inputItems) {
+                const lines = item.content.split('\n');
+                for (const line of lines) {
+                    if (line === '' && lines.at(-1) === '') continue;
 
-                nr++;
+                    nr++;
 
-                const trimmedLine = line.trim();
-                let fields = trimmedLine === '' ? [] : trimmedLine.split(separator);
+                    const trimmedLine = line.trim();
+                    let fields = trimmedLine === '' ? [] : trimmedLine.split(separator);
 
-                if (!Array.isArray(fields)) {
-                    console.error("AWK internal error: 'fields' was not an array for line:", line);
-                    fields = [];
-                }
+                    if (!Array.isArray(fields)) {
+                        fields = [];
+                    }
 
-                const allFields = [line, ...fields];
-                const vars = { NR: nr, NF: fields.length };
+                    const allFields = [line, ...fields];
+                    const vars = {NR: nr, NF: fields.length};
 
-                for (const rule of program.rules) {
-                    if (rule.pattern.test(line)) {
-                        const actionResult = _executeAction(rule.action, allFields, vars);
-                        if (actionResult !== null) {
-                            outputLines.push(actionResult);
+                    for (const rule of program.rules) {
+                        if (rule.pattern.test(line)) {
+                            const actionResult = _executeAction(rule.action, allFields, vars);
+                            if (actionResult !== null) {
+                                outputLines.push(actionResult);
+                            }
                         }
                     }
                 }

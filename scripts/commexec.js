@@ -5,7 +5,7 @@ const CommandExecutor = (() => {
   const commands = {};
   const loadingPromises = {};
 
-  async function* _generateInputContent(context) {
+  async function* _generateInputContent(context, firstFileArgIndex = 0) {
     const { args, options, currentUser } = context;
 
     if (options.stdinContent !== null && options.stdinContent !== undefined) {
@@ -13,7 +13,7 @@ const CommandExecutor = (() => {
       return;
     }
 
-    const fileArgs = args.filter(arg => !arg.startsWith('-'));
+    const fileArgs = args.slice(firstFileArgIndex);
     if (fileArgs.length === 0) {
       return;
     }
@@ -115,21 +115,30 @@ const CommandExecutor = (() => {
         signal: options.signal,
       };
 
-      const inputParts = [];
-      let hadError = false;
-      for await (const item of _generateInputContent(context)) {
-        if (!item.success) {
-          await OutputManager.appendToOutput(item.error, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
-          hadError = true;
-        } else {
-          inputParts.push(item.content);
-        }
-      }
+      if (definition.isInputStream) {
+        const inputParts = [];
+        let hadError = false;
+        let fileCount = 0;
+        let firstSourceName = null;
 
-      if (hadError && inputParts.length === 0) {
-        context.input = null; // Indicate that input failed and was empty
-      } else {
-        context.input = inputParts.join('\n');
+        const firstFileArgIndex = definition.firstFileArgIndex || 0;
+
+        for await (const item of _generateInputContent(context, firstFileArgIndex)) {
+          fileCount++;
+          if (firstSourceName === null) firstSourceName = item.sourceName;
+
+          if (!item.success) {
+            await OutputManager.appendToOutput(item.error, {typeClass: Config.CSS_CLASSES.ERROR_MSG});
+            hadError = true;
+          } else {
+            inputParts.push({content: item.content, sourceName: item.sourceName});
+          }
+        }
+
+        context.inputItems = inputParts;
+        context.inputError = hadError;
+        context.inputFileCount = fileCount;
+        context.firstSourceName = firstSourceName;
       }
 
 
