@@ -187,14 +187,12 @@ const EditorManager = (() => {
         }
     }
 
-    // Define the debounced function before the callbacks object that uses it.
     const debouncedSaveUndo = Utils.debounce(() => {
         if (state.undoStack.at(-1) !== state.currentContent) {
             state.undoStack.push(state.currentContent);
             if (state.undoStack.length > 50) state.undoStack.shift();
             state.redoStack = [];
-            // Make sure the UI reflects that the undo stack has changed
-            if(state.isActive) {
+            if (state.isActive) {
                 EditorUI.updateStatusBar(state);
             }
         }
@@ -206,16 +204,13 @@ const EditorManager = (() => {
             state.currentContent = newContent;
             state.isDirty = state.currentContent !== state.originalContent;
 
-            // Re-run find to keep matches fresh
             state.findState.matches = _findMatches(state.findState.query, state.currentContent, state.findState.isCaseSensitive, state.findState.isRegex);
 
-            // Update UI elements
             EditorUI.updateFindUI(state.findState);
             EditorUI.updateStatusBar(state);
             EditorUI.renderPreview(state.fileMode, state.currentContent);
             EditorUI.updateLineNumbers(state.currentContent);
 
-            // Now, safely call the debounced function
             debouncedSaveUndo();
             debouncedHighlight();
         },
@@ -266,14 +261,14 @@ const EditorManager = (() => {
         onFindNext: () => {
             if (state.findState.matches.length > 0) {
                 state.findState.currentIndex = (state.findState.currentIndex + 1) % state.findState.matches.length;
-                EditorUI.updateFindUI(state.findState); // Update the UI with the new index
+                EditorUI.updateFindUI(state.findState);
                 EditorUI.highlightMatch(state.findState.matches[state.findState.currentIndex]);
             }
         },
         onFindPrev: () => {
             if (state.findState.matches.length > 0) {
                 state.findState.currentIndex = (state.findState.currentIndex - 1 + state.findState.matches.length) % state.findState.matches.length;
-                EditorUI.updateFindUI(state.findState); // Update the UI with the new index
+                EditorUI.updateFindUI(state.findState);
                 EditorUI.highlightMatch(state.findState.matches[state.findState.currentIndex]);
             }
         },

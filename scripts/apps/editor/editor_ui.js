@@ -247,61 +247,96 @@ const EditorUI = (() => {
 
     function _wrapSelection(wrapper, defaultText = 'text') {
         const { textArea } = elements;
-        const start = textArea.selectionStart;
-        const end = textArea.selectionEnd;
-        const text = textArea.value;
-        const selectedText = text.substring(start, end);
+        const selection = window.getSelection();
+        if (selection.rangeCount === 0) return;
 
+        const range = selection.getRangeAt(0);
+        const selectedText = range.toString();
         const textToInsert = selectedText || defaultText;
-        const newText = `${text.substring(0, start)}${wrapper}${textToInsert}${wrapper}${text.substring(end)}`;
 
-        setContent(newText);
+        range.deleteContents();
+        range.insertNode(document.createTextNode(wrapper + textToInsert + wrapper));
 
-        // After setting content, re-focus and select the inserted text
-        setTimeout(() => {
-            textArea.focus();
-            if (selectedText) {
-                textArea.setSelectionRange(start + wrapper.length, start + wrapper.length + selectedText.length);
-            } else {
-                textArea.setSelectionRange(start + wrapper.length, start + wrapper.length + defaultText.length);
-            }
-        }, 0);
+        // Move the cursor to select the inserted text
+        if (selectedText) {
+            range.setStart(range.endContainer, range.endOffset - wrapper.length - selectedText.length);
+            range.setEnd(range.endContainer, range.endOffset - wrapper.length);
+        } else {
+            range.setStart(range.endContainer, range.endOffset - wrapper.length - defaultText.length);
+            range.setEnd(range.endContainer, range.endOffset - wrapper.length);
+        }
+
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        managerCallbacks.onContentUpdate(textArea.textContent);
     }
 
     function _prefixLine(prefix) {
         const { textArea } = elements;
-        const start = textArea.selectionStart;
-        const text = textArea.value;
-        const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+        const selection = window.getSelection();
+        if (selection.rangeCount === 0) return;
 
-        const newText = `${text.substring(0, lineStart)}${prefix}${text.substring(lineStart)}`;
-        setContent(newText);
+        const range = selection.getRangeAt(0);
+        const startContainer = range.startContainer;
+        let lineStartNode = startContainer;
+        let offset = 0;
 
-        setTimeout(() => {
-            textArea.focus();
-            textArea.setSelectionRange(start + prefix.length, start + prefix.length);
-        }, 0);
+        while (lineStartNode) {
+            if (lineStartNode.nodeType === Node.TEXT_NODE) {
+                const index = lineStartNode.textContent.lastIndexOf('\n');
+                if (index !== -1) {
+                    offset = index + 1;
+                    break;
+                }
+            } else if (lineStartNode === textArea) {
+                break;
+            }
+            if (lineStartNode.previousSibling) {
+                lineStartNode = lineStartNode.previousSibling;
+            } else {
+                lineStartNode = lineStartNode.parentNode;
+            }
+        }
+
+        const insertRange = document.createRange();
+        insertRange.setStart(lineStartNode, offset);
+        insertRange.insertNode(document.createTextNode(prefix));
+
+        managerCallbacks.onContentUpdate(textArea.textContent);
     }
 
     async function _insertLink() {
-        const url = await new Promise(r => ModalManager.request({ context: 'graphical-input', messageLines: ["Enter URL:"], onConfirm: r, onCancel: () => r(null)}));
-        if(!url) return;
+        const url = await new Promise(r => ModalManager.request({
+            context: 'graphical-input',
+            messageLines: ["Enter URL:"],
+            onConfirm: r,
+            onCancel: () => r(null)
+        }));
+        if (!url) return;
         _wrapSelection(`[`, `link text](${url})`);
     }
 
     async function _insertImage() {
-        const url = await new Promise(r => ModalManager.request({ context: 'graphical-input', messageLines: ["Enter Image URL:"], onConfirm: r, onCancel: () => r(null)}));
-        if(!url) return;
+        const url = await new Promise(r => ModalManager.request({
+            context: 'graphical-input',
+            messageLines: ["Enter Image URL:"],
+            onConfirm: r,
+            onCancel: () => r(null)
+        }));
+        if (!url) return;
         _wrapSelection(`![`, `alt text](${url})`);
     }
 
 
     function highlightMatch(match) {
         if (!elements.textArea || !match) return;
-        elements.textArea.setSelectionRange(match.start, match.end);
-        const lines = elements.textArea.value.substring(0, match.start).split('\n').length;
-        const lineHeight = elements.textArea.scrollHeight / elements.textArea.value.split('\n').length;
-        elements.textArea.scrollTop = (lines - 5) * lineHeight;
+        _setCursorPosition(match.start);
+        const selection = window.getSelection();
+        const range = selection.getRangeAt(0);
+        range.setEnd(range.startContainer, range.startOffset + (match.end - match.start));
+        selection.removeAllRanges();
+        selection.addRange(range);
     }
 
     function updateFindUI(findState) {
@@ -341,7 +376,6 @@ const EditorUI = (() => {
         elements.previewButton.addEventListener('click', () => managerCallbacks.onToggleViewMode());
 
         // Find Bar
-        // Find Bar
         const triggerFind = () => {
             managerCallbacks.onFind(elements.findInput.value, {
                 isCaseSensitive: elements.caseSensitiveToggle.classList.contains('active'),
@@ -349,14 +383,11 @@ const EditorUI = (() => {
             });
         };
 
-        // Trigger a find ONLY when the user types in the input box.
         elements.findInput.addEventListener('input', triggerFind);
 
-        // Handle Enter key for quick navigation.
         elements.findInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                // If there are matches, go to the next one. If not, trigger a new find.
                 if (managerCallbacks.getState && managerCallbacks.getState().findState.matches.length > 0) {
                     managerCallbacks.onFindNext();
                 } else {
@@ -365,11 +396,9 @@ const EditorUI = (() => {
             }
         });
 
-        // Navigation buttons should NOT trigger a new search.
         elements.findNextButton.addEventListener('click', () => managerCallbacks.onFindNext());
         elements.findPrevButton.addEventListener('click', () => managerCallbacks.onFindPrev());
 
-        // Toggles SHOULD trigger a find to update matches based on new criteria.
         elements.caseSensitiveToggle.addEventListener('click', (e) => {
             e.currentTarget.classList.toggle('active');
             triggerFind();
