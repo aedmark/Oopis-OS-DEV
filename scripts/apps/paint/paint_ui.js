@@ -20,8 +20,8 @@ const PaintUI = (() => {
             elements.rectBtn = createToolBtn('rect', 'r')
         ]);
 
-        const colorSwatches = initialState.PALETTE.map(color =>
-            Utils.createElement('div', { className: 'paint-color-swatch', style: { backgroundColor: color }, 'data-color': color })
+        const colorSwatches = initialState.PALETTE.map((color, index) =>
+            Utils.createElement('div', { className: 'paint-color-swatch', style: { backgroundColor: color }, 'data-color': color, title: `Color ${index + 1}` })
         );
         const colorGroup = Utils.createElement('div', { className: 'paint-tool-group' }, colorSwatches);
 
@@ -35,7 +35,10 @@ const PaintUI = (() => {
         elements.undoBtn = Utils.createElement('button', { className: 'btn', textContent: 'Undo' });
         elements.redoBtn = Utils.createElement('button', { className: 'btn', textContent: 'Redo' });
         elements.gridBtn = Utils.createElement('button', { className: 'btn', textContent: 'Grid' });
-        const historyGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [elements.undoBtn, elements.redoBtn, elements.gridBtn]);
+        // **FIX: Create the save button and add it to the elements object**
+        elements.saveBtn = Utils.createElement('button', { className: 'btn', textContent: 'Save' });
+        const historyGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [elements.undoBtn, elements.redoBtn, elements.gridBtn, elements.saveBtn]);
+
 
         const toolbar = Utils.createElement('header', { className: 'paint-toolbar' }, [ toolGroup, colorGroup, brushGroup, elements.charInput, historyGroup ]);
 
@@ -63,7 +66,7 @@ const PaintUI = (() => {
         _addEventListeners();
 
         AppLayerManager.show(elements.container);
-        elements.container.focus();
+        elements.container.focus(); // Focus container for keyboard events
     }
 
     function hideAndReset() {
@@ -104,7 +107,6 @@ const PaintUI = (() => {
     }
 
     function updatePreviewCanvas(cellsToUpdate) {
-        // Clear previous preview
         Array.from(elements.previewCanvas.children).forEach(child => {
             if (child.textContent !== ' ') {
                 child.textContent = ' ';
@@ -112,7 +114,6 @@ const PaintUI = (() => {
             }
         });
 
-        // Draw new preview
         cellsToUpdate.forEach(data => {
             const cell = document.getElementById(`preview-cell-${data.x}-${data.y}`);
             if (cell) {
@@ -133,13 +134,15 @@ const PaintUI = (() => {
         elements.charInput.value = state.currentCharacter;
         elements.undoBtn.disabled = state.undoStack.length <= 1;
         elements.redoBtn.disabled = state.redoStack.length === 0;
+        // **FIX: The saveBtn now exists and can be safely accessed.**
+        elements.saveBtn.disabled = !state.isDirty;
     }
 
     function updateStatusBar(state, coords = null) {
         elements.statusTool.textContent = `Tool: ${state.currentTool}`;
-        elements.statusChar.textContent = `Char: ${state.currentCharacter}`;
-        elements.statusBrush.textContent = `Brush: ${state.brushSize}`;
-        elements.statusCoords.textContent = coords ? `Coords: ${coords.x}, ${coords.y}` : '';
+        elements.statusChar.textContent = `Char: '${state.currentCharacter}'`;
+        elements.statusBrush.textContent = `Brush: ${state.brushSize}x${state.brushSize}`;
+        elements.statusCoords.textContent = coords ? `Coords: ${coords.x}, ${coords.y}` : 'Coords: --, --';
     }
 
     function toggleGrid(visible) {
@@ -147,13 +150,14 @@ const PaintUI = (() => {
     }
 
     function _getCoordsFromEvent(e) {
+        if (!elements.canvas || !elements.canvas.firstChild) return null;
         const rect = elements.canvas.getBoundingClientRect();
         const charWidth = elements.canvas.firstChild.offsetWidth;
         const charHeight = elements.canvas.firstChild.offsetHeight;
-        if(charWidth === 0 || charHeight === 0) return null;
+        if (charWidth === 0 || charHeight === 0) return null;
         const x = Math.floor((e.clientX - rect.left) / charWidth);
         const y = Math.floor((e.clientY - rect.top) / charHeight);
-        return {x, y};
+        return { x, y };
     }
 
     function _addEventListeners() {
@@ -174,37 +178,47 @@ const PaintUI = (() => {
         elements.container.querySelector('.paint-brush-controls .btn:nth-child(3)').addEventListener('click', () => managerCallbacks.onBrushSizeChange(parseInt(elements.brushSizeInput.value, 10) + 1));
         elements.charInput.addEventListener('input', (e) => managerCallbacks.onCharChange(e.target.value));
 
-        // History and Grid
+        // History, Grid, and Save
         elements.undoBtn.addEventListener('click', () => managerCallbacks.onUndo());
         elements.redoBtn.addEventListener('click', () => managerCallbacks.onRedo());
         elements.gridBtn.addEventListener('click', () => managerCallbacks.onToggleGrid());
+        // **FIX: Add event listener for the new save button**
+        elements.saveBtn.addEventListener('click', () => managerCallbacks.onSaveRequest());
+
 
         // Canvas mouse events
-        elements.canvas.addEventListener('mousedown', (e) => {
+        elements.previewCanvas.addEventListener('mousedown', (e) => {
             const coords = _getCoordsFromEvent(e);
-            if(coords) managerCallbacks.onCanvasMouseDown(coords);
+            if (coords) managerCallbacks.onCanvasMouseDown(coords);
         });
-        elements.canvas.addEventListener('mousemove', (e) => {
+        elements.previewCanvas.addEventListener('mousemove', (e) => {
             const coords = _getCoordsFromEvent(e);
-            if(coords) managerCallbacks.onCanvasMouseMove(coords);
+            if (coords) managerCallbacks.onCanvasMouseMove(coords);
         });
-        document.addEventListener('mouseup', (e) => {
-            // Listen on document to catch mouse-ups outside canvas
-            const coords = _getCoordsFromEvent(e);
-            if(coords) managerCallbacks.onCanvasMouseUp(coords);
+        document.addEventListener('mouseup', () => {
+            managerCallbacks.onCanvasMouseUp();
         });
-        elements.canvas.addEventListener('mouseleave', () => updateStatusBar({ currentTool: elements.statusTool.textContent, currentCharacter: elements.statusChar.textContent, brushSize: elements.statusBrush.textContent}));
+        elements.previewCanvas.addEventListener('mouseleave', () => {
+            updateStatusBar({ currentTool: elements.statusTool.textContent.split(': ')[1], currentCharacter: elements.statusChar.textContent.split(': ')[1].replace(/'/g, ''), brushSize: parseInt(elements.statusBrush.textContent.split(': ')[1])});
+            updatePreviewCanvas([]);
+        });
+
 
         // Keyboard shortcuts
         elements.container.addEventListener('keydown', (e) => {
-            if(e.target.tagName === 'INPUT') return; // Don't hijack input fields
+            if (e.target.tagName === 'INPUT') return;
 
             if (e.ctrlKey || e.metaKey) {
                 switch (e.key.toLowerCase()) {
                     case 's': e.preventDefault(); managerCallbacks.onSaveRequest(); break;
-                    case 'o': e.preventDefault(); managerCallbacks.onExitRequest(); break;
                     case 'z': e.preventDefault(); e.shiftKey ? managerCallbacks.onRedo() : managerCallbacks.onUndo(); break;
                     case 'y': e.preventDefault(); managerCallbacks.onRedo(); break;
+                }
+            } else if (!isNaN(parseInt(e.key)) && parseInt(e.key) >= 1 && parseInt(e.key) <= 7) {
+                e.preventDefault();
+                const colorSwatches = Array.from(document.querySelectorAll('.paint-color-swatch'));
+                if(colorSwatches[parseInt(e.key) - 1]) {
+                    managerCallbacks.onColorSelect(colorSwatches[parseInt(e.key) - 1].dataset.color);
                 }
             } else {
                 switch (e.key.toLowerCase()) {
@@ -214,10 +228,19 @@ const PaintUI = (() => {
                     case 'r': managerCallbacks.onToolSelect('rect'); break;
                     case 'g': managerCallbacks.onToggleGrid(); break;
                     case 'escape': managerCallbacks.onExitRequest(); break;
+                    case '=':
+                    case '+':
+                        e.preventDefault();
+                        managerCallbacks.onBrushSizeChange(parseInt(elements.brushSizeInput.value, 10) + 1);
+                        break;
+                    case '-':
+                    case '_':
+                        e.preventDefault();
+                        managerCallbacks.onBrushSizeChange(parseInt(elements.brushSizeInput.value, 10) - 1);
+                        break;
                 }
             }
         });
-        // Make container focusable
         elements.container.setAttribute('tabindex', '-1');
     }
 
