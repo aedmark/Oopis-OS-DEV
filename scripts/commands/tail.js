@@ -3,12 +3,18 @@
 
     const tailCommandDefinition = {
         commandName: "tail",
+        isInputStream: true,
         flagDefinitions: [
             { name: "lines", short: "-n", long: "--lines", takesValue: true },
             { name: "bytes", short: "-c", long: "--bytes", takesValue: true },
         ],
         coreLogic: async (context) => {
-            const { flags, input } = context;
+            const {flags, inputItems, inputError} = context; // Now uses inputItems
+
+            if (inputError) {
+                return {success: false, error: "tail: No readable input provided."};
+            }
+            const input = inputItems.map(item => item.content).join('\n');
 
             if (flags.lines && flags.bytes) {
                 return { success: false, error: "tail: cannot use both -n and -c" };

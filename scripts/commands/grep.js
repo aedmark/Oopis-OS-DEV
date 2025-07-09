@@ -4,6 +4,7 @@
     const grepCommandDefinition = {
         commandName: "grep",
         isInputStream: true, // Correctly declare as an input stream consumer
+        firstFileArgIndex: 1,
         flagDefinitions: [
             { name: "ignoreCase", short: "-i", long: "--ignore-case" },
             { name: "invertMatch", short: "-v", long: "--invert-match" },

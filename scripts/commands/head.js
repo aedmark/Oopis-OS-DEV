@@ -3,12 +3,18 @@
 
     const headCommandDefinition = {
         commandName: "head",
+        isInputStream: true,
         flagDefinitions: [
             { name: "lines", short: "-n", long: "--lines", takesValue: true },
             { name: "bytes", short: "-c", long: "--bytes", takesValue: true },
         ],
         coreLogic: async (context) => {
-            const { args, flags, input } = context;
+            const {flags, inputItems, inputError} = context; // Now uses inputItems
+
+            if (inputError) {
+                return {success: false, error: "head: No readable input provided."};
+            }
+            const input = inputItems.map(item => item.content).join('\n');
 
             if (flags.lines && flags.bytes) {
                 return { success: false, error: "head: cannot use both -n and -c" };
