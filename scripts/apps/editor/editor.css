@@ -1,0 +1,98 @@
+/* OopisOS v4.0 Editor Style Sheet */
+/* ========================================================================== */
+
+.editor-container {
+    display: flex;
+    flex-direction: column;
+    width: 95%;
+    max-width: 1200px;
+    height: 95%;
+    background-color: var(--color-background-medium);
+    border: var(--border-width-thick) solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-inset-dark), var(--shadow-drop-medium);
+    font-family: var(--font-family-sans), sans-serif;
+    color: var(--color-text-secondary);
+}
+
+.editor-header {
+    flex-shrink: 0;
+    margin-bottom: var(--spacing-sm);
+}
+
+.editor-title-input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    background-color: var(--color-background-dark);
+    color: var(--color-text-primary);
+    outline: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.editor-title-input:focus {
+    border-color: var(--color-info);
+    box-shadow: 0 0 5px var(--color-info);
+}
+
+.editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+    gap: var(--spacing-sm);
+}
+
+.editor-toolbar-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.editor-main {
+    flex-grow: 1;
+    display: flex;
+    min-height: 0;
+    gap: var(--spacing-md);
+}
+
+.editor-textarea, .editor-preview {
+    flex-basis: 50%;
+    width: 50%;
+    height: 100%;
+    padding: var(--spacing-md);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--border-radius-sm);
+    background-color: var(--color-background-dark);
+    color: var(--color-text-primary);
+    font-size: 16px;
+    line-height: 1.6;
+    outline: none;
+    resize: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.editor-textarea:focus, .editor-preview:focus {
+    border-color: var(--color-info);
+    box-shadow: 0 0 5px var(--color-info);
+}
+
+.editor-preview {
+    overflow-y: auto;
+}
+
+.editor-footer {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--color-border-secondary);
+    font-size: var(--font-size-sm);
+}
