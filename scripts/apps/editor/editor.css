@@ -174,11 +174,12 @@
     caret-color: var(--color-text-primary);
 }
 
+/* --- CORRECTED --- */
 .editor-textarea > code {
-    display: inline-block; /* Or block, depending on desired behavior */
-    min-width: 100%;
+    display: block; /* Change to block */
     min-height: 100%;
     outline: none;
+    /* min-width is removed to allow wrapping */
 }
 
 .editor-preview {
