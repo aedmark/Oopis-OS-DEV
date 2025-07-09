@@ -29,7 +29,28 @@ const EditorManager = (() => {
         }
     };
 
-    function enter(filePath, fileContent, onExitCallback) {
+    const loadedLanguages = new Set(['markup', 'css', 'clike', 'javascript']); // Prism core
+
+    function _ensureLanguageLoaded(language) {
+        return new Promise((resolve) => {
+            if (!language || loadedLanguages.has(language) || !Prism.plugins.autoloader) {
+                resolve();
+                return;
+            }
+            Prism.plugins.autoloader.loadLanguages(language, () => {
+                loadedLanguages.add(language);
+                resolve();
+            });
+        });
+    }
+
+    const debouncedHighlight = Utils.debounce(() => {
+        if (state.isActive) {
+            EditorUI.applySyntaxHighlighting(state.currentContent, state.fileMode);
+        }
+    }, 100);
+
+    async function enter(filePath, fileContent, onExitCallback) {
         if (state.isActive) {
             console.warn("EditorManager.enter called while already active.");
             return;
@@ -38,6 +59,7 @@ const EditorManager = (() => {
         const wordWrapSetting = StorageManager.loadItem(Config.STORAGE_KEYS.EDITOR_WORD_WRAP_ENABLED, "Editor Word Wrap", false);
         const fileMode = _getFileMode(filePath);
         const initialViewMode = (fileMode === 'markdown' || fileMode === 'html') ? 'split' : 'editor';
+        await _ensureLanguageLoaded(fileMode);
 
         state = {
             isActive: true,
@@ -52,7 +74,7 @@ const EditorManager = (() => {
             editorSettings: {
                 wordWrap: wordWrapSetting
             },
-            findState: { query: "", matches: [], currentIndex: -1, isCaseSensitive: false, isRegex: false, error: null }
+            findState: {query: "", matches: [], currentIndex: -1, isCaseSensitive: false, isRegex: false, error: null}
         };
 
         EditorUI.buildAndShow(state, callbacks);
@@ -94,9 +116,34 @@ const EditorManager = (() => {
 
     function _getFileMode(filePath) {
         const extension = Utils.getFileExtension(filePath);
-        if (extension === 'md') return 'markdown';
-        if (extension === 'html') return 'html';
-        return 'text';
+        switch (extension) {
+            case 'md':
+                return 'markdown';
+            case 'html':
+                return 'html';
+            case 'css':
+                return 'css';
+            case 'js':
+                return 'javascript';
+            case 'json':
+                return 'json';
+            case 'py':
+                return 'python';
+            case 'sh':
+                return 'bash';
+            case 'sql':
+                return 'sql';
+            case 'c':
+                return 'c';
+            case 'cpp':
+                return 'cpp';
+            case 'cs':
+                return 'csharp';
+            case 'java':
+                return 'java';
+            default:
+                return 'text'; // Fallback for unknown types
+        }
     }
 
     async function saveContent() {
@@ -170,6 +217,10 @@ const EditorManager = (() => {
 
             // Now, safely call the debounced function
             debouncedSaveUndo();
+            debouncedHighlight();
+        },
+        getState: () => {
+            return state;
         },
         onSaveRequest: async () => { await saveContent(); _performExit(); },
         onExitRequest: () => { exit(); },
