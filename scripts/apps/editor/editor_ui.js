@@ -102,7 +102,9 @@ const EditorUI = (() => {
     function _render(state) {
         elements.fileName.textContent = state.currentFilePath;
         elements.textArea.value = state.currentContent;
+        // Conditionally show/hide UI elements based on the file mode
         elements.formattingToolbar.classList.toggle('hidden', state.fileMode !== 'markdown');
+        elements.previewButton.classList.toggle('hidden', state.fileMode !== 'markdown' && state.fileMode !== 'html');
         updateStatusBar(state);
         updateLineNumbers(state.currentContent);
         renderPreview(state.fileMode, state.currentContent);
