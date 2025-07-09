@@ -1,33 +1,44 @@
+// Corrected File: aedmark/oopis-os-dev/Oopis-OS-DEV-d433f2298e4704d53000b05f98b059a46e2196eb/scripts/commands/uniq.js
 (() => {
     "use strict";
 
     const uniqCommandDefinition = {
         commandName: "uniq",
+        isInputStream: true, // ADDED: Declares compliance with the new architecture.
         flagDefinitions: [
             { name: "count", short: "-c", long: "--count" },
             { name: "repeated", short: "-d", long: "--repeated" },
             { name: "unique", short: "-u", long: "--unique" },
         ],
         argValidation: {
-            max: 1,
+            max: 1, // No change needed here.
         },
         coreLogic: async (context) => {
-            const { flags, input } = context;
+            // MODIFIED: Destructures the correct properties.
+            const {flags, inputItems, inputError} = context;
 
             if (flags.repeated && flags.unique) {
                 return { success: false, error: "uniq: printing only unique and repeated lines is mutually exclusive" };
             }
 
-            if (input === null) {
-                return { success: false, error: "uniq: No readable input provided." };
+            // ADDED: Handles input stream errors.
+            if (inputError) {
+                return {success: false, error: "uniq: No readable input provided or permission denied."};
             }
 
-            let lines = input.split('\n');
+            // MODIFIED: Processes the inputItems array.
+            const input = inputItems.map(item => item.content).join('\\n');
+
+            if (input === null || input === undefined) {
+                return {success: true, output: ""};
+            }
+
+            let lines = input.split('\\n');
 
             if (lines.length === 0 || (lines.length === 1 && lines[0] === '')) {
                 return { success: true, output: "" };
             }
-
+            // The rest of the core logic remains sound and operates on the corrected 'lines' variable.
             const outputLines = [];
             let currentLine = lines[0];
             let count = 1;
@@ -60,7 +71,7 @@
                 outputLines.push(currentLine);
             }
 
-            return { success: true, output: outputLines.join('\n') };
+            return {success: true, output: outputLines.join('\\n')};
         }
     };
 

@@ -1,13 +1,23 @@
+// Corrected File: aedmark/oopis-os-dev/Oopis-OS-DEV-d433f2298e4704d53000b05f98b059a46e2196eb/scripts/commands/cksum.js
 (() => {
     "use strict";
 
     const cksumCommandDefinition = {
         commandName: "cksum",
+        isInputStream: true, // ADDED
         flagDefinitions: [],
         coreLogic: async (context) => {
-            const { args, input } = context;
+            // MODIFIED
+            const {args, inputItems, inputError} = context;
 
-            if (input === null) {
+            if (inputError) {
+                return {success: false, error: "cksum: No readable input provided or permission denied."};
+            }
+
+            // MODIFIED
+            const input = inputItems.map(item => item.content).join('\\n');
+
+            if (input === null || input === undefined) {
                 return { success: false, error: "cksum: No readable input provided." };
             }
 
@@ -29,7 +39,7 @@
 
             const checksum = crc32(input);
             const byteCount = input.length;
-            const fileName = args.length > 0 ? ` ${args[0]}`: '';
+            const fileName = inputItems.length === 1 && inputItems[0].sourceName !== 'stdin' ? `${inputItems[0].sourceName}` : '';
 
             return {
                 success: true,

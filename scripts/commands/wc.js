@@ -1,17 +1,27 @@
+// Corrected File: aedmark/oopis-os-dev/Oopis-OS-DEV-d433f2298e4704d53000b05f98b059a46e2196eb/scripts/commands/wc.js
 (() => {
     "use strict";
 
     const wcCommandDefinition = {
         commandName: "wc",
+        isInputStream: true, // ADDED
         flagDefinitions: [
             { name: "lines", short: "-l", long: "--lines" },
             { name: "words", short: "-w", long: "--words" },
             { name: "bytes", short: "-c", long: "--bytes" },
         ],
         coreLogic: async (context) => {
-            const { args, flags, input } = context;
+            // MODIFIED: Destructures correct context properties.
+            const {args, flags, inputItems, inputError} = context;
 
-            if (input === null) {
+            if (inputError) {
+                return {success: false, error: "wc: No readable input provided or permission denied."};
+            }
+
+            // MODIFIED: Processes the inputItems array.
+            const input = inputItems.map(item => item.content).join('\\n');
+
+            if (input === null || input === undefined) {
                 return { success: false, error: "wc: No readable input provided." };
             }
 
@@ -29,13 +39,21 @@
                 return line;
             };
 
+            // Corrected line counting for empty inputs
+            const lineCount = input ? (input.match(/\\n/g) || []).length : 0;
+            if (input && !input.endsWith('\\n') && input.length > 0) {
+                // lineCount++; // This behavior is debatable, but common. Let's stick to newline counting.
+            }
+
+
             const counts = {
-                lines: (input.match(/\n/g) || []).length,
-                words: input.trim() === '' ? 0 : input.trim().split(/\s+/).length,
+                lines: lineCount,
+                words: input.trim() === '' ? 0 : input.trim().split(/\\s+/).length,
                 bytes: input.length
             };
 
-            const fileName = args.length > 0 ? args[0] : '';
+            // Simplified to show a single total count, filename display is omitted for piped input.
+            const fileName = inputItems.length === 1 && inputItems[0].sourceName !== 'stdin' ? inputItems[0].sourceName : '';
             const output = formatOutput(counts, fileName);
 
             return {
