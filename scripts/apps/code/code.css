@@ -1,0 +1,114 @@
+/* OopisOS v4.0 Code Editor Style Sheet */
+/* ========================================================================== */
+
+.code-editor-container {
+    display: flex;
+    flex-direction: column;
+    width: 95%;
+    max-width: 1400px;
+    height: 95%;
+    background-color: var(--color-background-medium);
+    border: var(--border-width-thick) solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-inset-dark), var(--shadow-drop-medium);
+    font-family: var(--font-family-mono), monospace;
+    color: var(--color-text-secondary);
+    gap: var(--spacing-sm);
+}
+
+.code-editor-header {
+    flex-shrink: 0;
+}
+
+.code-editor-title-input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    background-color: var(--color-background-dark);
+    color: var(--color-text-primary);
+    outline: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.code-editor-title-input:focus {
+    border-color: var(--color-info);
+    box-shadow: 0 0 5px var(--color-info);
+}
+
+.code-editor-main-area {
+    flex-grow: 1;
+    position: relative;
+    min-height: 0; /* Important for flex-grow in a flex column */
+    overflow: hidden; /* <-- Add this line */
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--border-radius-sm);
+    background-color: #282c34; /* A common editor background color */
+}
+
+.code-editor-textarea,
+#code-editor-pre {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 1rem;
+    font-family: var(--font-family-mono), monospace;
+    font-size: 16px;
+    line-height: 1.5;
+    overflow: auto;
+    border-radius: var(--border-radius-sm);
+}
+
+.code-editor-textarea {
+    z-index: 1;
+    background: transparent;
+    color: transparent;
+    caret-color: white;
+    resize: none;
+    border: none;
+    outline: none;
+}
+
+#code-editor-pre {
+    z-index: 0;
+    pointer-events: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.code-editor-footer {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--color-border-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.code-editor-btn {
+    background-color: transparent;
+    border: 1px solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+}
+
+.code-editor-btn.active {
+    background-color: var(--color-info);
+    color: var(--color-background-darkest);
+    border-color: var(--color-info);
+}
+
+
+#code-editor-pre code[class*="language-"],
+#code-editor-pre pre[class*="language-"] {
+    text-shadow: none; /* Override prism's default text shadow for better clarity */
+}
