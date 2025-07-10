@@ -1,9 +1,10 @@
 (() => {
     "use strict";
 
-    async function getMarkdownFiles(startPath, startNode, currentUser) {
+    async function _getFilesForAnalysis(startPath, startNode, currentUser) {
         const files = [];
         const visited = new Set();
+        const SUPPORTED_EXTENSIONS = new Set(['md', 'txt', 'js', 'sh']);
 
         async function recurse(currentPath, node) {
             if (visited.has(currentPath)) return;
@@ -14,7 +15,8 @@
             }
 
             if (node.type === Config.FILESYSTEM.DEFAULT_FILE_TYPE) {
-                if (currentPath.toLowerCase().endsWith('.md')) {
+                const extension = Utils.getFileExtension(currentPath);
+                if (SUPPORTED_EXTENSIONS.has(extension)) {
                     files.push({
                         name: currentPath.split('/').pop(),
                         path: currentPath,
@@ -34,11 +36,6 @@
         }
 
         await recurse(startPath, startNode);
-
-        if (startNode.type === Config.FILESYSTEM.DEFAULT_FILE_TYPE && files.length === 0) {
-            throw new Error('Specified file is not a Markdown (.md) file.');
-        }
-
         return files;
     }
 
@@ -123,6 +120,7 @@
 
             let files = [];
             let hadErrors = false;
+            const SUPPORTED_EXTENSIONS = new Set(['md', 'txt', 'js', 'sh']);
 
             if (options.stdinContent) {
                 if (args.length > 0) {
@@ -155,7 +153,8 @@
                         continue;
                     }
 
-                    if (pathValidation.resolvedPath.toLowerCase().endsWith('.md')) {
+                    const extension = Utils.getFileExtension(pathValidation.resolvedPath);
+                    if (SUPPORTED_EXTENSIONS.has(extension)) {
                         files.push({
                             name: pathValidation.resolvedPath.split('/').pop(),
                             path: pathValidation.resolvedPath,
@@ -183,7 +182,7 @@
                 }
 
                 try {
-                    files = await getMarkdownFiles(startPath, startNode, currentUser);
+                    files = await _getFilesForAnalysis(startPath, startNode, currentUser);
                 } catch (error) {
                     return {
                         success: false,
@@ -195,7 +194,7 @@
             if (files.length === 0) {
                 return {
                     success: true,
-                    output: `No valid markdown (.md) files found to open.`
+                    output: `No supported files (.md, .txt, .js, .sh) found to open.`
                 };
             }
 
@@ -214,31 +213,32 @@
         }
     };
 
-    const description = "Opens the Chidi.md Markdown reader for a specified file or directory.";
+    const description = "Opens the Chidi.md document and code analyst.";
     const helpText = `
 Usage: chidi [-n] [path] | <command> | chidi [-n]
 
 DESCRIPTION
-    Launches a modal application to read and analyze Markdown (.md) files.
+    Launches a modal application to read and analyze documents. Chidi
+    supports Markdown (.md), text (.txt), JavaScript (.js), and shell
+    scripts (.sh). For code files, it analyzes the comments.
 
-    In the first form, 'chidi' will recursively find all .md files within the
-    optional [path] (or the current directory if no path is given).
+    In the first form, 'chidi' will recursively find all supported files
+    within the optional [path] (or the current directory if no path is given).
 
     In the second form, 'chidi' reads a newline-separated list of file
     paths from standard input (e.g., from 'find') and uses that as its
-    corpus, ignoring the file system's recursive discovery.
+    corpus.
 
 OPTIONS
     -n, --new
           Start a new session. This clears any cached state in the application.
 
 EXAMPLES
-    chidi /docs
-        Opens all .md files found inside the /docs directory.
+    chidi /src
+        Opens all supported documents found inside the /src directory.
 
-    find . -name "*.md" | chidi
-        Opens all .md files found by the 'find' command in the current
-        directory and its subdirectories.
+    find . -name "*.js" | chidi
+        Opens all .js files found by the 'find' command for analysis.
 `;
 
     CommandRegistry.register(chidiCommandDefinition.commandName, chidiCommandDefinition, description, helpText);

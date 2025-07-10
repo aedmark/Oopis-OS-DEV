@@ -1,6 +1,36 @@
 const Utils = (() => {
     "use strict";
 
+    function extractComments(content, fileExtension) {
+        let comments = [];
+        let regex;
+
+        switch (fileExtension) {
+            case 'js':
+                regex = /(\/\*[\s\S]*?\*\/|\/\/.+)/g;
+                break;
+            case 'sh':
+                regex = /(^|\s)#. +/g;
+                break;
+            default:
+                return ""; // Return empty for unsupported types
+        }
+
+        const matches = content.match(regex);
+        if (matches) {
+            comments = matches.map(comment => {
+                if (comment.startsWith('/*')) {
+                    // Clean up multi-line comment markers
+                    return comment.replace(/^\/\*+/, '').replace(/\*\/$/, '').trim();
+                } else {
+                    // Clean up single-line comment markers
+                    return comment.replace(/^\/\//, '').replace(/^#/, '').trim();
+                }
+            });
+        }
+        return comments.join('\n');
+    }
+
     function debounce(func, delay) {
         let timeout;
         return function(...args) {
@@ -340,6 +370,7 @@ const Utils = (() => {
         callLlmApi,
         globToRegex,
         debounce,
+        extractComments
     };
 })();
 

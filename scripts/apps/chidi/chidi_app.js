@@ -13,39 +13,45 @@ const ChidiApp = {
         return this.state.isModalOpen;
     },
 
-    launch(files, callbacks) {
+    launch(initialFiles, callbacks) {
         if (this.state.isModalOpen) {
             console.warn("ChidiApp is already open.");
             return;
         }
 
         this.state.isModalOpen = true;
-        this.state.loadedFiles = files;
-        this.state.currentIndex = files.length > 0 ? 0 : -1;
         this.callbacks = callbacks;
 
+        // The command now provides pre-filtered files.
+        // We just need to flag which ones are code.
+        this.state.loadedFiles = initialFiles.map(file => {
+            const extension = Utils.getFileExtension(file.name);
+            return {
+                ...file,
+                isCode: extension === 'js' || extension === 'sh'
+            };
+        });
+
+        this.state.currentIndex = this.state.loadedFiles.length > 0 ? 0 : -1;
+
         const chidiElement = this.createModal();
-        AppLayerManager.show(chidiElement); // Directive: Use AppLayerManager to show the UI.
+        AppLayerManager.show(chidiElement);
 
         this.cacheDOMElements();
         this._populateFileDropdown();
         this.setupEventListeners();
-
         this.updateUI();
 
         if (callbacks.isNewSession) {
             this.showMessage("New session started. AI interaction history is cleared.", true);
         } else {
-            this.showMessage("Chidi.md initialized. " + files.length + " files loaded.", true);
+            this.showMessage(`Chidi.md initialized. ${this.state.loadedFiles.length} files loaded for analysis.`, true);
         }
     },
 
     close() {
         if (!this.state.isModalOpen) return;
-
-        AppLayerManager.hide(); // Directive: Use AppLayerManager to hide the UI.
-
-        // Reset state
+        AppLayerManager.hide();
         this.state = {
             loadedFiles: [],
             currentIndex: -1,
@@ -54,14 +60,12 @@ const ChidiApp = {
         };
         this.elements = {};
         this.callbacks = {};
-
         if (typeof this.callbacks.onExit === 'function') {
             this.callbacks.onExit();
         }
     },
 
     createModal() {
-        // This function now just creates the element, it doesn't manage its visibility.
         const appContainer = Utils.createElement('div', {
             id: 'chidi-console-panel',
             className: 'chidi-console-panel'
@@ -111,12 +115,16 @@ const ChidiApp = {
         this.elements.askBtn.disabled = !hasFiles;
 
         if (currentFile) {
-            this.elements.mainTitle.textContent = currentFile.name.replace(/\.md$/i, '');
+            this.elements.mainTitle.textContent = currentFile.name.replace(/\.(md|txt|js|sh)$/i, '');
             this.elements.markdownDisplay.className = 'chidi-markdown-content';
 
-            if (currentFile.name.toLowerCase().endsWith('.txt')) {
-                this.elements.markdownDisplay.innerHTML = `<pre>${currentFile.content || ''}</pre>`;
-            } else {
+            // Corrected and safe display logic for all file types
+            if (currentFile.isCode || Utils.getFileExtension(currentFile.name) === 'txt') {
+                this.elements.markdownDisplay.innerHTML = ''; // Clear previous content
+                const pre = document.createElement('pre');
+                pre.textContent = currentFile.content || ''; // Use textContent to safely escape HTML
+                this.elements.markdownDisplay.appendChild(pre);
+            } else { // It's a markdown file
                 try {
                     this.elements.markdownDisplay.innerHTML = marked.parse(currentFile.content);
                 } catch (error) {
@@ -200,7 +208,11 @@ const ChidiApp = {
         this.elements.summarizeBtn.addEventListener('click', async () => {
             const currentFile = this.getCurrentFile();
             if (!currentFile) return;
-            const prompt = `Please provide a concise summary of the following document:\n\n---\n\n${currentFile.content}`;
+            const contentToSummarize = currentFile.isCode
+                ? Utils.extractComments(currentFile.content, Utils.getFileExtension(currentFile.name))
+                : currentFile.content;
+
+            const prompt = `Please provide a concise summary of the following document:\n\n---\n\n${contentToSummarize}`;
             this.toggleLoader(true);
             this.showMessage("Contacting Gemini API...");
             const summary = await this.callGeminiApi([{ role: 'user', parts: [{ text: prompt }] }]);
@@ -211,7 +223,11 @@ const ChidiApp = {
         this.elements.studyBtn.addEventListener('click', async () => {
             const currentFile = this.getCurrentFile();
             if (!currentFile) return;
-            const prompt = `Based on the following document, what are some insightful questions a user might ask?\n\n---\n\n${currentFile.content}`;
+            const contentForQuestions = currentFile.isCode
+                ? Utils.extractComments(currentFile.content, Utils.getFileExtension(currentFile.name))
+                : currentFile.content;
+
+            const prompt = `Based on the following document, what are some insightful questions a user might ask?\n\n---\n\n${contentForQuestions}`;
             this.toggleLoader(true);
             this.showMessage("Contacting Gemini API...");
             const questions = await this.callGeminiApi([{ role: 'user', parts: [{ text: prompt }] }]);
@@ -219,7 +235,6 @@ const ChidiApp = {
             this.appendAiOutput("Suggested Questions", questions);
         });
 
-        // Directive: Use ModalManager for asking questions.
         this.elements.askBtn.addEventListener('click', async () => {
             if (!this.getCurrentFile()) return;
             const userQuestion = await new Promise(resolve => {
@@ -335,7 +350,19 @@ const ChidiApp = {
             this.showMessage(`Found ${relevantFiles.length} relevant files. Asking Gemini...`);
             let promptContext = "Based on the following documents, please provide a comprehensive answer to the user's question. Prioritize information from the first document if it is relevant, but use all provided documents to form your answer.\n\n";
             relevantFiles.forEach(file => {
-                promptContext += `--- START OF DOCUMENT: ${file.name} ---\n\n${file.content}\n\n--- END OF DOCUMENT: ${file.name} ---\n\n`;
+                const extension = Utils.getFileExtension(file.name);
+                const isCode = extension === 'js' || extension === 'sh';
+                let fileTypeDescription = "Content from";
+                let contentForPrompt = file.content;
+
+                if (isCode) {
+                    fileTypeDescription = "Comments from";
+                    contentForPrompt = Utils.extractComments(file.content, extension);
+                }
+
+                promptContext += `--- START OF DOCUMENT: ${fileTypeDescription} ${file.name} ---\n\n`;
+                promptContext += `${contentForPrompt}\n\n`;
+                promptContext += `--- END OF DOCUMENT: ${file.name} ---\n\n`;
             });
             const finalPrompt = `${promptContext}User's Question: "${userQuestion}"`;
             this.appendAiOutput(
@@ -355,6 +382,7 @@ const ChidiApp = {
             this.toggleLoader(false);
         }
     },
+
 
     _selectFileByIndex(indexStr) {
         const index = parseInt(indexStr, 10);
