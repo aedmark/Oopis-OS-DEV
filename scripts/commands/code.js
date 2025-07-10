@@ -7,10 +7,8 @@
 'use strict';
 
 (function () {
+    // The core definition object, now stripped of metadata which is passed separately.
     const codeCommandDefinition = {
-        commandName: 'code',
-        description: 'Opens a file in the Code editor. A new file is created if the path does not exist.',
-        helpText: 'Usage: code [file_path]\n\nOpens the specified file in a dedicated code editor with syntax highlighting. If no file path is provided, it opens an empty, untitled editor.',
         argValidation: {
             max: 1
         },
@@ -54,20 +52,25 @@
             }
 
             // Hand off control to the main application logic.
-            // This is its only purpose.
             CodeManager.enter(filePath, fileContent);
 
-            // The command itself resolves once the editor is opened.
-            // The editor's lifecycle is managed by CodeManager and CodeUI.
             return {
                 success: true,
-                // No output is necessary for the command line itself.
             };
         }
     };
 
-    // Register the command with the system.
+    // The metadata is now defined separately, following the correct pattern.
+    const codeDescription = 'Opens a file in the Code editor. A new file is created if the path does not exist.';
+    const codeHelpText = `Usage: code [file_path]
+
+Opens the specified file in a dedicated code editor with syntax highlighting.
+If no file path is provided, it opens an empty, untitled editor.
+
+The editor supports syntax highlighting for JavaScript (.js) and Markdown (.md) files.`;
+
+    // The correct registration method, as shown in the 'help.js' example.
     if (typeof CommandRegistry !== 'undefined') {
-        CommandRegistry.registerCommand(codeCommandDefinition);
+        CommandRegistry.register("code", codeCommandDefinition, codeDescription, codeHelpText);
     }
 })();
