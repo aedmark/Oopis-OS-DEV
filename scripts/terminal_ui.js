@@ -243,11 +243,10 @@ const ModalManager = (() => {
 
 const AppLayerManager = (() => {
     "use strict";
-    let isActive = false;
     let currentAppContainer = null;
 
     function show(appContainerElement, session = TerminalManager.getActiveSession()) {
-        if (isActive || !appContainerElement || !session || !session.domElements.appLayer) {
+        if (session.isAppLayerActive || !appContainerElement || !session || !session.domElements.appLayer) {
             console.warn("AppLayerManager: Cannot show new app, one is already active or elements are missing.");
             return;
         }
@@ -263,11 +262,11 @@ const AppLayerManager = (() => {
         currentAppContainer = appContainerElement;
         appLayer.appendChild(currentAppContainer);
         appLayer.classList.remove('hidden');
-        isActive = true;
+        session.isAppLayerActive = true;
     }
 
     function hide(session = TerminalManager.getActiveSession()) {
-        if (!isActive || !session || !session.domElements.appLayer) return;
+        if (!session.isAppLayerActive || !session || !session.domElements.appLayer) return;
 
         const {appLayer, input, inputLine, output} = session.domElements;
 
@@ -288,12 +287,15 @@ const AppLayerManager = (() => {
         OutputManager.setEditorActive(false);
         input.focus();
 
-        isActive = false;
+        session.isAppLayerActive = false;
     }
 
     return {
         show,
         hide,
-        isActive: () => isActive,
+        isActive: () => {
+            const session = TerminalManager.getActiveSession();
+            return session ? session.isAppLayerActive : false;
+        },
     };
 })();

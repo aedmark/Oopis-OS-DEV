@@ -36,7 +36,8 @@ const TerminalManager = (() => {
             history: new HistoryManager(),
             environment: new EnvironmentManager(user.name),
             domElements: {},
-            isNavigatingHistory: false
+            isNavigatingHistory: false,
+            isAppLayerActive: false
         };
 
         const outputDiv = Utils.createElement('div', {className: 'terminal__output'});
