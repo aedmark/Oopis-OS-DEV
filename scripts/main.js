@@ -48,17 +48,6 @@ window.onload = async () => {
     AliasManager.initialize();
     SessionManager.initializeStack();
 
-    const guestHome = `/home/${Config.USER.DEFAULT_NAME}`;
-    const initialSession = TerminalManager.getActiveSession();
-    if (initialSession && !FileSystemManager.getNodeByPath(initialSession.currentPath)) {
-      if (FileSystemManager.getNodeByPath(guestHome)) {
-        initialSession.currentPath = guestHome;
-      } else {
-        initialSession.currentPath = Config.FILESYSTEM.ROOT_PATH;
-      }
-      FileSystemManager.setCurrentPath(initialSession.currentPath);
-    }
-
     // Initial prompt update for the first session
     TerminalManager.updatePrompt();
 

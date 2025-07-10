@@ -1,4 +1,3 @@
-// aedmark/oopis-os-dev/Oopis-OS-DEV-33c780ad7f3af576fec163e3a060e1960f4bc842/scripts/terminal_manager.js
 const TerminalManager = (() => {
     "use strict";
 
@@ -31,9 +30,17 @@ const TerminalManager = (() => {
         const sessionId = nextSessionId++;
         const user = UserManager.getCurrentUser();
 
+        // --- MODIFICATION START ---
+        // Determine the correct starting path for the user's new session.
+        // It should be their home directory, or root if the home directory somehow doesn't exist.
+        const homePath = `/home/${user.name}`;
+        const startingPath = FileSystemManager.getNodeByPath(homePath) ? homePath : Config.FILESYSTEM.ROOT_PATH;
+        // --- MODIFICATION END ---
+
         const session = {
             id: sessionId,
-            currentPath: FileSystemManager.getCurrentPath(),
+            // MODIFIED: Use the determined startingPath instead of the global currentPath.
+            currentPath: startingPath,
             history: new HistoryManager(),
             environment: new EnvironmentManager(user.name),
             domElements: {},
