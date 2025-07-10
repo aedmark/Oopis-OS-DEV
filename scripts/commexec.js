@@ -9,7 +9,22 @@ const CommandExecutor = (() => {
     const { args, options, currentUser } = context;
 
     if (options.stdinContent !== null && options.stdinContent !== undefined) {
-      yield { success: true, content: options.stdinContent, sourceName: 'stdin' };
+      const pathsFromStdin = options.stdinContent.trim().split('\n');
+      for (const pathArg of pathsFromStdin) {
+        if (!pathArg) continue;
+        const pathValidation = FileSystemManager.validatePath("input stream", pathArg, {expectedType: 'file'});
+        if (pathValidation.error) {
+          yield {success: false, error: pathValidation.error, sourceName: pathArg};
+          continue;
+        }
+
+        if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
+          yield {success: false, error: `Permission denied: ${pathArg}`, sourceName: pathArg};
+          continue;
+        }
+
+        yield {success: true, content: pathValidation.node.content || "", sourceName: pathArg};
+      }
       return;
     }
 
