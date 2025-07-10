@@ -87,8 +87,6 @@ const IndexedDBManager = (() => {
 
     let dbInstance = null;
 
-    let hasLoggedNormalInitialization = false;
-
     function init() {
         return new Promise((resolve, reject) => {
             if (dbInstance) {
@@ -96,16 +94,9 @@ const IndexedDBManager = (() => {
                 return;
             }
             if (!window.indexedDB) {
-                const errorMsg =
-                    "Error: IndexedDB is not supported by your browser. File system features will be unavailable.";
-                if (
-                    typeof OutputManager !== "undefined" &&
-                    typeof OutputManager.appendToOutput === "function"
-                )
-                    void OutputManager.appendToOutput(errorMsg, {
-                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                    });
-                else console.error(errorMsg);
+                const errorMsg = "Error: IndexedDB is not supported by your browser. File system features will be unavailable.";
+                // Log to console only, not to the UI which may not exist yet.
+                console.error(errorMsg);
                 reject(new Error("IndexedDB not supported."));
                 return;
             }
@@ -124,38 +115,13 @@ const IndexedDBManager = (() => {
 
             request.onsuccess = (event) => {
                 dbInstance = event.target.result;
-                if (!hasLoggedNormalInitialization) {
-                    if (
-                        typeof OutputManager !== "undefined" &&
-                        typeof OutputManager.appendToOutput === "function"
-                    )
-                        setTimeout(
-                            () =>
-                                OutputManager.appendToOutput("FileSystem DB initialized.", {
-                                    typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
-                                }),
-                            100
-                        );
-                    else
-                        console.log(
-                            "FileSystem DB initialized (OutputManager not ready for terminal log)."
-                        );
-                    hasLoggedNormalInitialization = true;
-                }
+                console.log("FileSystem DB initialized."); // Log to developer console
                 resolve(dbInstance);
             };
 
             request.onerror = (event) => {
-                const errorMsg =
-                    "Error: OopisOs could not access its file system storage. This might be due to browser settings (e.g., private Browse mode, disabled storage, or full storage). Please check your browser settings and try again. Some features may be unavailable.";
-                if (
-                    typeof OutputManager !== "undefined" &&
-                    typeof OutputManager.appendToOutput === "function"
-                )
-                    void OutputManager.appendToOutput(errorMsg, {
-                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                    });
-                else console.error(errorMsg);
+                const errorMsg = "Error: OopisOs could not access its file system storage. This might be due to browser settings (e.g., private Browse mode, disabled storage, or full storage). Please check your browser settings and try again. Some features may be unavailable.";
+                console.error(errorMsg);
                 console.error("IndexedDB Database error details: ", event.target.error);
                 reject(event.target.error);
             };
@@ -165,16 +131,8 @@ const IndexedDBManager = (() => {
 
     function getDbInstance() {
         if (!dbInstance) {
-            const errorMsg =
-                "Error: OopisOs file system storage (IndexedDB) is not available. Please ensure browser storage is enabled and the page is reloaded.";
-            if (
-                typeof OutputManager !== "undefined" &&
-                typeof OutputManager.appendToOutput === "function"
-            )
-                void OutputManager.appendToOutput(errorMsg, {
-                    typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                });
-            else console.error(errorMsg);
+            const errorMsg = "Error: OopisOs file system storage (IndexedDB) is not available. Please ensure browser storage is enabled and the page is reloaded.";
+            console.error(errorMsg);
             throw new Error(Config.INTERNAL_ERRORS.DB_NOT_INITIALIZED_FS_LOAD);
         }
         return dbInstance;

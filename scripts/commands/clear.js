@@ -9,7 +9,7 @@
 
         coreLogic: async (context) => {
             if (context.options.isInteractive) {
-                OutputManager.clearOutput();
+                OutputManager.clearOutput(context.sessionContext);
             }
             return {
                 success: true,
