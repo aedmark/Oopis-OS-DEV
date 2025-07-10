@@ -96,6 +96,14 @@ const CodeUI = (() => {
         }
     }
 
+    function highlightContent(content, language) {
+        if (elements.codePre && elements.codeBlock) {
+            elements.codeBlock.textContent = content;
+            elements.codeBlock.className = 'language-' + language;
+            Prism.highlightElement(elements.codeBlock);
+        }
+    }
+
     function _addEventListeners() {
         elements.textarea.addEventListener('input', () => {
             managerCallbacks.onContentChange(elements.textarea.value);
@@ -132,6 +140,7 @@ const CodeUI = (() => {
         updateDirtyStatus,
         updateStatusMessage,
         updateWindowTitle,
+        highlightContent,
         setContent,
     };
 })();
