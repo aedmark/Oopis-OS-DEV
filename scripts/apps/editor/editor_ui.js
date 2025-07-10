@@ -35,8 +35,8 @@ const EditorUI = (() => {
         elements.textarea = Utils.createElement('textarea', {
             id: 'editor-textarea',
             className: 'editor-textarea',
-            value: initialState.currentContent
         });
+        elements.textarea.value = initialState.currentContent;
         elements.preview = Utils.createElement('div', {id: 'editor-preview', className: 'editor-preview'});
         elements.main = Utils.createElement('main', {className: 'editor-main'}, [elements.textarea, elements.preview]);
 
