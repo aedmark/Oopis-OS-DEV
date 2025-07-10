@@ -44,15 +44,16 @@ window.onload = async () => {
 
   try {
     await IndexedDBManager.init();
+
+    // --- FIX: Initialize UI Manager first ---
+    TerminalManager.initialize();
+
     await FileSystemManager.load();
     await UserManager.initializeDefaultUsers();
     await Config.loadFromFile();
     GroupManager.initialize();
     AliasManager.initialize();
     SessionManager.initializeStack();
-
-    // The new initialization point for the entire terminal UI
-    TerminalManager.initialize();
 
     // The rest of the logic needs to be adapted to the new session-based model
     const guestHome = `/home/${Config.USER.DEFAULT_NAME}`;
