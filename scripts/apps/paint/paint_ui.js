@@ -20,13 +20,14 @@ const PaintUI = (() => {
             title: `${name.charAt(0).toUpperCase() + name.slice(1)} (${key.toUpperCase()})`
         });
 
-        // MODIFICATION: Added Circle button
         const toolGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [
             elements.pencilBtn = createToolBtn('pencil', 'p', '✎'),
             elements.eraserBtn = createToolBtn('eraser', 'e', '✐'),
             elements.lineBtn = createToolBtn('line', 'l', '—'),
             elements.rectBtn = createToolBtn('rect', 'r', '▢'),
-            elements.circleBtn = createToolBtn('circle', 'c', '◯')
+            elements.circleBtn = createToolBtn('circle', 'c', '◯'),
+            elements.fillBtn = createToolBtn('fill', 'f', '⛁'),
+            elements.selectBtn = createToolBtn('select', 's', '⬚'),
         ]);
 
         const colorSwatches = initialState.PALETTE.map(color =>
@@ -46,6 +47,19 @@ const PaintUI = (() => {
         elements.gridBtn = Utils.createElement('button', {className: 'btn', textContent: '▦'});
         const historyGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [elements.undoBtn, elements.redoBtn, elements.gridBtn]);
 
+        elements.cutBtn = Utils.createElement('button', {className: 'btn', textContent: 'Cut', title: 'Cut (Ctrl+X)'});
+        elements.copyBtn = Utils.createElement('button', {
+            className: 'btn',
+            textContent: 'Copy',
+            title: 'Copy (Ctrl+C)'
+        });
+        elements.pasteBtn = Utils.createElement('button', {
+            className: 'btn',
+            textContent: 'Paste',
+            title: 'Paste (Ctrl+V)'
+        });
+        const clipboardGroup = Utils.createElement('div', {className: 'paint-tool-group'}, [elements.cutBtn, elements.copyBtn, elements.pasteBtn]);
+
         elements.zoomInBtn = Utils.createElement('button', {
             className: 'btn',
             textContent: '➕'
@@ -56,12 +70,13 @@ const PaintUI = (() => {
         });
         const zoomGroup = Utils.createElement('div', {className: 'paint-tool-group'}, [elements.zoomOutBtn, elements.zoomInBtn]);
 
-        const toolbar = Utils.createElement('header', {className: 'paint-toolbar'}, [toolGroup, colorGroup, brushGroup, elements.charInput, historyGroup, zoomGroup]);
+        const toolbar = Utils.createElement('header', {className: 'paint-toolbar'}, [toolGroup, colorGroup, brushGroup, elements.charInput, historyGroup, clipboardGroup, zoomGroup]);
 
         // --- Canvas ---
         elements.canvas = Utils.createElement('div', { className: 'paint-canvas', id: 'paint-canvas' });
         elements.previewCanvas = Utils.createElement('div', { className: 'paint-preview-canvas', id: 'paint-preview-canvas' });
-        const canvasContainer = Utils.createElement('div', { className: 'paint-canvas-container' }, [elements.canvas, elements.previewCanvas]);
+        elements.selectionRect = Utils.createElement('div', {className: 'paint-selection-rect hidden'});
+        const canvasContainer = Utils.createElement('div', {className: 'paint-canvas-container'}, [elements.canvas, elements.previewCanvas, elements.selectionRect]);
         const mainArea = Utils.createElement('main', { className: 'paint-main' }, [canvasContainer]);
 
         // --- Status Bar ---
@@ -143,9 +158,8 @@ const PaintUI = (() => {
         });
     }
 
-    // MODIFICATION: Added 'circle' to the list of tools
     function updateToolbar(state) {
-        ['pencil', 'eraser', 'line', 'rect', 'circle'].forEach(tool => {
+        ['pencil', 'eraser', 'line', 'rect', 'circle', 'fill', 'select'].forEach(tool => {
             elements[`${tool}Btn`].classList.toggle('active', state.currentTool === tool);
         });
         document.querySelectorAll('.paint-color-swatch').forEach(swatch => {
@@ -183,6 +197,24 @@ const PaintUI = (() => {
         }
     }
 
+    function showSelectionRect(rect) {
+        if (!elements.selectionRect) return;
+        const charWidth = elements.canvas.firstChild.offsetWidth;
+        const charHeight = elements.canvas.firstChild.offsetHeight;
+
+        elements.selectionRect.style.left = `${rect.x * charWidth}px`;
+        elements.selectionRect.style.top = `${rect.y * charHeight}px`;
+        elements.selectionRect.style.width = `${rect.width * charWidth}px`;
+        elements.selectionRect.style.height = `${rect.height * charHeight}px`;
+        elements.selectionRect.classList.remove('hidden');
+    }
+
+    function hideSelectionRect() {
+        if (elements.selectionRect) {
+            elements.selectionRect.classList.add('hidden');
+        }
+    }
+
 
     function _getCoordsFromEvent(e) {
         if (!elements.canvas || !elements.canvas.firstChild) return null;
@@ -201,7 +233,9 @@ const PaintUI = (() => {
         elements.eraserBtn.addEventListener('click', () => managerCallbacks.onToolSelect('eraser'));
         elements.lineBtn.addEventListener('click', () => managerCallbacks.onToolSelect('line'));
         elements.rectBtn.addEventListener('click', () => managerCallbacks.onToolSelect('rect'));
-        elements.circleBtn.addEventListener('click', () => managerCallbacks.onToolSelect('circle')); // MODIFICATION: Added listener for Circle button
+        elements.circleBtn.addEventListener('click', () => managerCallbacks.onToolSelect('circle'));
+        elements.fillBtn.addEventListener('click', () => managerCallbacks.onToolSelect('fill'));
+        elements.selectBtn.addEventListener('click', () => managerCallbacks.onToolSelect('select'));
 
         // Color selection
         elements.container.querySelectorAll('.paint-color-swatch').forEach(swatch => {
@@ -218,6 +252,11 @@ const PaintUI = (() => {
         elements.undoBtn.addEventListener('click', () => managerCallbacks.onUndo());
         elements.redoBtn.addEventListener('click', () => managerCallbacks.onRedo());
         elements.gridBtn.addEventListener('click', () => managerCallbacks.onToggleGrid());
+
+        elements.cutBtn.addEventListener('click', () => managerCallbacks.onCut());
+        elements.copyBtn.addEventListener('click', () => managerCallbacks.onCopy());
+        elements.pasteBtn.addEventListener('click', () => managerCallbacks.onPaste());
+
 
         // Zoom
         elements.zoomInBtn.addEventListener('click', () => managerCallbacks.onZoomIn());
@@ -267,6 +306,15 @@ const PaintUI = (() => {
                     case '-':
                         managerCallbacks.onZoomOut();
                         break;
+                    case 'x':
+                        managerCallbacks.onCut();
+                        break;
+                    case 'c':
+                        managerCallbacks.onCopy();
+                        break;
+                    case 'v':
+                        managerCallbacks.onPaste();
+                        break;
                 }
             } else {
                 switch (e.key.toLowerCase()) {
@@ -276,7 +324,13 @@ const PaintUI = (() => {
                     case 'r': managerCallbacks.onToolSelect('rect'); break;
                     case 'c':
                         managerCallbacks.onToolSelect('circle');
-                        break; // MODIFICATION: Added shortcut for Circle tool
+                        break;
+                    case 'f':
+                        managerCallbacks.onToolSelect('fill');
+                        break;
+                    case 's':
+                        managerCallbacks.onToolSelect('select');
+                        break;
                     case 'g': managerCallbacks.onToggleGrid(); break;
                     case 'escape': managerCallbacks.onExitRequest(); break;
                 }
@@ -294,6 +348,8 @@ const PaintUI = (() => {
         updateStatusBar,
         toggleGrid,
         updateZoom,
-        renderCanvas: renderInitialCanvas
+        renderCanvas: renderInitialCanvas,
+        showSelectionRect,
+        hideSelectionRect
     };
 })();

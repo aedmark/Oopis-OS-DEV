@@ -91,7 +91,7 @@
     align-items: center;
     background-color: #000;
     min-height: 0;
-    overflow: auto; /* Blueprint Phase 2.1 CSS */
+    overflow: auto;
 }
 
 .paint-canvas-container {
@@ -105,8 +105,8 @@
     font-size: 20px; /* This determines the cell size */
     line-height: 1;
     cursor: crosshair;
-    width: fit-content; /* Blueprint Phase 2.1 CSS */
-    height: fit-content; /* Blueprint Phase 2.1 CSS */
+    width: fit-content;
+    height: fit-content;
 }
 
 .paint-preview-canvas {
@@ -131,6 +131,20 @@
     white-space: pre;
     color: #fff;
 }
+
+/* MODIFICATION: Styles for selection rectangle */
+.paint-selection-rect {
+    position: absolute;
+    border: 1px dashed #FFFFFF;
+    pointer-events: none; /* Allows clicks to pass through to the canvas */
+    z-index: 10;
+    box-sizing: border-box;
+}
+
+.paint-selection-rect.hidden {
+    display: none;
+}
+
 
 .paint-statusbar {
     flex-shrink: 0;
