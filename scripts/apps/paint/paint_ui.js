@@ -1,3 +1,5 @@
+// scripts/apps/paint/paint_ui.js
+
 const PaintUI = (() => {
     "use strict";
 
@@ -11,18 +13,18 @@ const PaintUI = (() => {
         elements.container = Utils.createElement('div', { id: 'paint-container', className: 'paint-container' });
 
         // --- Toolbar ---
-        const createToolBtn = (name, key) => Utils.createElement('button', {
+        const createToolBtn = (name, key, iconClass) => Utils.createElement('button', {
             id: `paint-tool-${name}`,
             className: 'btn',
-            textContent: name.charAt(0).toUpperCase() + name.slice(1),
-            title: `${name} (${key.toUpperCase()})`
+            innerHTML: `<i class="fas ${iconClass}"></i>`,
+            title: `${name.charAt(0).toUpperCase() + name.slice(1)} (${key.toUpperCase()})`
         });
 
         const toolGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [
-            elements.pencilBtn = createToolBtn('pencil', 'p'),
-            elements.eraserBtn = createToolBtn('eraser', 'e'),
-            elements.lineBtn = createToolBtn('line', 'l'),
-            elements.rectBtn = createToolBtn('rect', 'r')
+            elements.pencilBtn = createToolBtn('pencil', 'p', 'fa-pencil-alt'),
+            elements.eraserBtn = createToolBtn('eraser', 'e', 'fa-eraser'),
+            elements.lineBtn = createToolBtn('line', 'l', 'fa-minus'),
+            elements.rectBtn = createToolBtn('rect', 'r', 'fa-square')
         ]);
 
         const colorSwatches = initialState.PALETTE.map(color =>
@@ -37,12 +39,23 @@ const PaintUI = (() => {
 
         elements.charInput = Utils.createElement('input', { type: 'text', className: 'paint-char-selector', value: initialState.currentCharacter, maxLength: 1 });
 
-        elements.undoBtn = Utils.createElement('button', {className: 'btn', textContent: 'Undo'});
-        elements.redoBtn = Utils.createElement('button', {className: 'btn', textContent: 'Redo'});
-        elements.gridBtn = Utils.createElement('button', {className: 'btn', textContent: 'Grid'});
+        elements.undoBtn = Utils.createElement('button', {className: 'btn', innerHTML: '<i class="fas fa-undo"></i>'});
+        elements.redoBtn = Utils.createElement('button', {className: 'btn', innerHTML: '<i class="fas fa-redo"></i>'});
+        elements.gridBtn = Utils.createElement('button', {className: 'btn', innerHTML: '<i class="fas fa-th"></i>'});
         const historyGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [elements.undoBtn, elements.redoBtn, elements.gridBtn]);
 
-        const toolbar = Utils.createElement('header', {className: 'paint-toolbar'}, [toolGroup, colorGroup, brushGroup, elements.charInput, historyGroup]);
+        // Blueprint Phase 2.1
+        elements.zoomInBtn = Utils.createElement('button', {
+            className: 'btn',
+            innerHTML: '<i class="fas fa-search-plus"></i>'
+        });
+        elements.zoomOutBtn = Utils.createElement('button', {
+            className: 'btn',
+            innerHTML: '<i class="fas fa-search-minus"></i>'
+        });
+        const zoomGroup = Utils.createElement('div', {className: 'paint-tool-group'}, [elements.zoomOutBtn, elements.zoomInBtn]);
+
+        const toolbar = Utils.createElement('header', {className: 'paint-toolbar'}, [toolGroup, colorGroup, brushGroup, elements.charInput, historyGroup, zoomGroup]);
 
         // --- Canvas ---
         elements.canvas = Utils.createElement('div', { className: 'paint-canvas', id: 'paint-canvas' });
@@ -55,8 +68,9 @@ const PaintUI = (() => {
         elements.statusChar = Utils.createElement('span');
         elements.statusBrush = Utils.createElement('span');
         elements.statusCoords = Utils.createElement('span');
+        elements.statusZoom = Utils.createElement('span'); // Blueprint Phase 2.3
         elements.statusBar = Utils.createElement('footer', { className: 'paint-statusbar' }, [
-            elements.statusTool, elements.statusChar, elements.statusBrush, elements.statusCoords
+            elements.statusTool, elements.statusChar, elements.statusBrush, elements.statusCoords, elements.statusZoom
         ]);
 
         // --- Assemble & Show ---
@@ -65,6 +79,7 @@ const PaintUI = (() => {
         renderInitialCanvas(initialState.canvasData, initialState.canvasDimensions);
         updateToolbar(initialState);
         updateStatusBar(initialState);
+        updateZoom(initialState.zoomLevel); // Apply initial zoom
         _addEventListeners();
 
         AppLayerManager.show(elements.container);
@@ -145,13 +160,31 @@ const PaintUI = (() => {
         elements.statusChar.textContent = `Char: ${state.currentCharacter}`;
         elements.statusBrush.textContent = `Brush: ${state.brushSize}`;
         elements.statusCoords.textContent = coords ? `Coords: ${coords.x}, ${coords.y}` : '';
+        elements.statusZoom.textContent = `Zoom: ${state.zoomLevel}%`; // Blueprint Phase 2.3
     }
 
     function toggleGrid(visible) {
         elements.canvas.classList.toggle('grid-visible', visible);
     }
 
+    // Blueprint Phase 2.2
+    function updateZoom(zoomLevel) {
+        const baseFontSize = 20;
+        const newSize = baseFontSize * (zoomLevel / 100);
+        const gridShouldBeVisible = zoomLevel >= 70 && managerCallbacks.isGridVisible ? managerCallbacks.isGridVisible() : false;
+
+        if (elements.canvas) {
+            elements.canvas.style.fontSize = `${newSize}px`;
+            elements.canvas.classList.toggle('grid-visible', gridShouldBeVisible);
+        }
+        if (elements.previewCanvas) {
+            elements.previewCanvas.style.fontSize = `${newSize}px`;
+        }
+    }
+
+
     function _getCoordsFromEvent(e) {
+        if (!elements.canvas || !elements.canvas.firstChild) return null;
         const rect = elements.canvas.getBoundingClientRect();
         const charWidth = elements.canvas.firstChild.offsetWidth;
         const charHeight = elements.canvas.firstChild.offsetHeight;
@@ -184,6 +217,10 @@ const PaintUI = (() => {
         elements.redoBtn.addEventListener('click', () => managerCallbacks.onRedo());
         elements.gridBtn.addEventListener('click', () => managerCallbacks.onToggleGrid());
 
+        // Zoom
+        elements.zoomInBtn.addEventListener('click', () => managerCallbacks.onZoomIn());
+        elements.zoomOutBtn.addEventListener('click', () => managerCallbacks.onZoomOut());
+
         // Canvas mouse events
         elements.canvas.addEventListener('mousedown', (e) => {
             const coords = _getCoordsFromEvent(e);
@@ -195,13 +232,13 @@ const PaintUI = (() => {
         });
         document.addEventListener('mouseup', (e) => {
             // Listen on document to catch mouse-ups outside canvas
-            const coords = _getCoordsFromEvent(e);
-            if (coords) managerCallbacks.onCanvasMouseUp(coords);
+            managerCallbacks.onCanvasMouseUp(null); // Pass null as coords are not relevant on global mouseup
         });
         elements.canvas.addEventListener('mouseleave', () => updateStatusBar({
             currentTool: elements.statusTool.textContent,
             currentCharacter: elements.statusChar.textContent,
-            brushSize: elements.statusBrush.textContent
+            brushSize: elements.statusBrush.textContent,
+            zoomLevel: parseInt(elements.statusZoom.textContent.replace(/\D/g, ''))
         }));
 
         // Keyboard shortcuts
@@ -209,23 +246,26 @@ const PaintUI = (() => {
             if (e.target.tagName === 'INPUT') return; // Don't hijack input fields
 
             if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
                 switch (e.key.toLowerCase()) {
                     case 's':
-                        e.preventDefault();
                         managerCallbacks.onSaveRequest();
                         break;
                     case 'o':
-                        e.preventDefault();
                         managerCallbacks.onExitRequest();
                         break;
                     case 'z':
-                        e.preventDefault();
                         e.shiftKey ? managerCallbacks.onRedo() : managerCallbacks.onUndo();
                         break;
                     case 'y':
-                        e.preventDefault();
                         managerCallbacks.onRedo();
                         break;
+                    case '=':
+                        managerCallbacks.onZoomIn();
+                        break; // Blueprint Phase 3.1
+                    case '-':
+                        managerCallbacks.onZoomOut();
+                        break; // Blueprint Phase 3.1
                 }
             } else {
                 switch (e.key.toLowerCase()) {
@@ -250,6 +290,7 @@ const PaintUI = (() => {
         updateToolbar,
         updateStatusBar,
         toggleGrid,
+        updateZoom,
         renderCanvas: renderInitialCanvas
     };
 })();
