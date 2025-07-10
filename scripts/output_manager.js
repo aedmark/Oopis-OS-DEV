@@ -12,13 +12,15 @@ const OutputManager = (() => {
     }
 
     async function appendToOutput(text, options = {}) {
+        const outputDiv = options.outputEl || DOM.outputDiv; // MODIFIED: Use specific output element if provided
+
         if (
             isEditorActive &&
             options.typeClass !== Config.CSS_CLASSES.EDITOR_MSG &&
             !options.isCompletionSuggestion
         )
             return;
-        if (!DOM.outputDiv) {
+        if (!outputDiv) { // MODIFIED: Check the targeted outputDiv
             originalConsoleError(
                 "OutputManager.appendToOutput: DOM.outputDiv is not defined. Message:",
                 text
@@ -27,20 +29,26 @@ const OutputManager = (() => {
         }
         const { typeClass = null, isBackground = false } = options;
 
+        // This background handling logic needs to be aware of sessions now.
+        // For now, we assume it's for the "active" one if no specific session is given.
+        const activeSession = typeof TerminalManager !== 'undefined' ? TerminalManager.getActiveSession() : null;
+        const inputLineContainer = activeSession ? activeSession.domElements.inputLine : DOM.inputLineContainerDiv;
+        const promptContainer = activeSession ? activeSession.domElements.prompt : DOM.promptContainer;
+
         if (
             isBackground &&
-            DOM.inputLineContainerDiv &&
-            !DOM.inputLineContainerDiv.classList.contains(Config.CSS_CLASSES.HIDDEN)
+            inputLineContainer &&
+            !inputLineContainer.classList.contains(Config.CSS_CLASSES.HIDDEN)
         ) {
 
-            const promptText = DOM.promptContainer ? DOM.promptContainer.textContent : '> ';
+            const promptText = promptContainer ? promptContainer.textContent : '> ';
+            const currentInputVal = activeSession ? activeSession.domElements.input.textContent : TerminalUI.getCurrentInputValue();
 
-            const currentInputVal = TerminalUI.getCurrentInputValue();
             const echoLine = Utils.createElement("div", {
                 className: Config.CSS_CLASSES.OUTPUT_LINE,
                 textContent: `${promptText}${currentInputVal}`,
             });
-            DOM.outputDiv.appendChild(echoLine);
+            outputDiv.appendChild(echoLine);
         }
 
         const lines = String(text).split("\n");
@@ -62,15 +70,17 @@ const OutputManager = (() => {
             fragment.appendChild(Utils.createElement("div", lineAttributes));
         }
 
-        DOM.outputDiv.appendChild(fragment);
-        DOM.outputDiv.scrollTop = DOM.outputDiv.scrollHeight;
+        outputDiv.appendChild(fragment);
+        outputDiv.scrollTop = outputDiv.scrollHeight;
     }
 
-    function clearOutput() {
-        if (!isEditorActive && DOM.outputDiv) DOM.outputDiv.innerHTML = "";
+    function clearOutput(session) {
+        const outputDiv = session ? session.domElements.output : DOM.outputDiv;
+        if (!isEditorActive && outputDiv) outputDiv.innerHTML = "";
     }
 
     function _consoleLogOverride(...args) {
+        const activeSession = typeof TerminalManager !== 'undefined' ? TerminalManager.getActiveSession() : null;
         if (
             DOM.outputDiv &&
             typeof Utils !== "undefined" &&
@@ -78,11 +88,13 @@ const OutputManager = (() => {
         )
             void appendToOutput(`LOG: ${Utils.formatConsoleArgs(args)}`, {
                 typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
+                outputEl: activeSession ? activeSession.domElements.output : null
             });
         originalConsoleLog.apply(console, args);
     }
 
     function _consoleWarnOverride(...args) {
+        const activeSession = typeof TerminalManager !== 'undefined' ? TerminalManager.getActiveSession() : null;
         if (
             DOM.outputDiv &&
             typeof Utils !== "undefined" &&
@@ -90,11 +102,13 @@ const OutputManager = (() => {
         )
             void appendToOutput(`WARN: ${Utils.formatConsoleArgs(args)}`, {
                 typeClass: Config.CSS_CLASSES.WARNING_MSG,
+                outputEl: activeSession ? activeSession.domElements.output : null
             });
         originalConsoleWarn.apply(console, args);
     }
 
     function _consoleErrorOverride(...args) {
+        const activeSession = typeof TerminalManager !== 'undefined' ? TerminalManager.getActiveSession() : null;
         if (
             DOM.outputDiv &&
             typeof Utils !== "undefined" &&
@@ -102,6 +116,7 @@ const OutputManager = (() => {
         )
             void appendToOutput(`ERROR: ${Utils.formatConsoleArgs(args)}`, {
                 typeClass: Config.CSS_CLASSES.ERROR_MSG,
+                outputEl: activeSession ? activeSession.domElements.output : null
             });
         originalConsoleError.apply(console, args);
     }
