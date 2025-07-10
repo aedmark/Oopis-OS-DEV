@@ -22,8 +22,12 @@ const EditorManager = (() => {
         state = {...defaultState};
         state.isActive = true;
         state.currentFilePath = filePath;
-        state.originalContent = fileContent || "";
-        state.currentContent = fileContent || "";
+
+        // Corrected: Normalize line endings to prevent rendering issues.
+        const normalizedContent = (fileContent || "").replace(/\r\n|\r/g, "\n");
+        state.originalContent = normalizedContent;
+        state.currentContent = normalizedContent;
+
         state.fileMode = _getFileMode(filePath);
 
         // Initial state for undo

@@ -61,11 +61,13 @@
     gap: var(--spacing-md);
 }
 
-/* New CSS for view modes */
+/* Corrected CSS for view modes */
 .editor-main--split .editor-textarea,
 .editor-main--split .editor-preview {
-    flex: 1;
-    width: 50%;
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    /* width: 50%; /* This is now redundant and can be removed for a pure flex solution */
 }
 
 .editor-main--full .editor-textarea,
@@ -85,7 +87,7 @@
     line-height: 1.6;
     outline: none;
     transition: all 0.2s ease-in-out;
-    overflow-y: auto; /* Added for consistency */
+    overflow-y: auto;
 }
 
 .editor-textarea {
