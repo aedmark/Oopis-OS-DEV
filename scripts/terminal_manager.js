@@ -180,10 +180,6 @@ const TerminalManager = (() => {
         });
 
         input.addEventListener('keydown', async (e) => {
-            if (ModalManager.isAwaiting()) {
-                return;
-            }
-
             switch (e.key) {
                 case "Enter":
                     e.preventDefault();

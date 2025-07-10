@@ -10,21 +10,30 @@ const ModalManager = (() => {
             onCancel,
             confirmText = "OK",
             cancelText = "Cancel",
-            session
+            session // <-- The session is now passed here
         } = options;
 
-        const parentContainer = document.getElementById('terminal-bezel');
+        // --- MODIFICATION START ---
+        // The modal is now attached to the session's specific app layer, not the global bezel.
+        const parentContainer = session.domElements.appLayer;
         if (!parentContainer) {
-            console.error("ModalManager: Cannot find terminal-bezel to attach modal.");
+            console.error("ModalManager: Cannot find the session's app-layer to attach modal.");
             if (options.onCancel) options.onCancel();
             return;
         }
+        parentContainer.classList.remove('hidden'); // Make the layer visible
+        // --- MODIFICATION END ---
+
 
         const removeModal = () => {
             const modal = parentContainer.querySelector("#dynamic-modal-dialog");
             if (modal && modal.parentNode) {
                 modal.parentNode.removeChild(modal);
             }
+            // --- MODIFICATION START ---
+            // Hide the app layer again when the modal is closed.
+            parentContainer.classList.add('hidden');
+            // --- MODIFICATION END ---
         };
 
         const confirmButton = Utils.createElement("button", {className: "btn btn--confirm", textContent: confirmText});
@@ -59,20 +68,27 @@ const ModalManager = (() => {
             confirmText = "OK",
             cancelText = "Cancel",
             placeholder = "",
-            session
+            session // <-- The session is now passed here
         } = options;
 
-        const parentContainer = document.getElementById('terminal-bezel');
+        // --- MODIFICATION START ---
+        const parentContainer = session.domElements.appLayer;
         if (!parentContainer) {
             if (onCancel) onCancel();
             return;
         }
+        parentContainer.classList.remove('hidden'); // Make the layer visible
+        // --- MODIFICATION END ---
+
 
         const removeModal = () => {
             const modal = parentContainer.querySelector("#dynamic-modal-dialog");
             if (modal && modal.parentNode) {
                 modal.parentNode.removeChild(modal);
             }
+            // --- MODIFICATION START ---
+            parentContainer.classList.add('hidden');
+            // --- MODIFICATION END ---
         };
 
 
