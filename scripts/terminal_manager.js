@@ -30,16 +30,11 @@ const TerminalManager = (() => {
         const sessionId = nextSessionId++;
         const user = UserManager.getCurrentUser();
 
-        // --- MODIFICATION START ---
-        // Determine the correct starting path for the user's new session.
-        // It should be their home directory, or root if the home directory somehow doesn't exist.
         const homePath = `/home/${user.name}`;
         const startingPath = FileSystemManager.getNodeByPath(homePath) ? homePath : Config.FILESYSTEM.ROOT_PATH;
-        // --- MODIFICATION END ---
 
         const session = {
             id: sessionId,
-            // MODIFIED: Use the determined startingPath instead of the global currentPath.
             currentPath: startingPath,
             history: new HistoryManager(),
             environment: new EnvironmentManager(user.name),
@@ -47,6 +42,7 @@ const TerminalManager = (() => {
             isNavigatingHistory: false,
             isAppLayerActive: false
         };
+
 
         const outputDiv = Utils.createElement('div', {className: 'terminal__output'});
         const promptContainer = Utils.createElement('div', {className: 'terminal__prompt'});
