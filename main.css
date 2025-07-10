@@ -162,9 +162,31 @@ body {
 #tabs-container {
     display: flex;
     flex-shrink: 0;
+    align-items: center; /* Align items vertically */
     border-bottom: 2px solid var(--color-border-primary);
     margin-bottom: var(--spacing-sm);
+    padding-left: var(--spacing-sm); /* Add padding for the new tab button */
 }
+
+#new-tab-btn {
+    background-color: var(--color-accent-green);
+    color: var(--color-background-darkest);
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 1.2rem;
+    line-height: 24px;
+    text-align: center;
+    cursor: pointer;
+    margin-right: var(--spacing-sm);
+    flex-shrink: 0;
+}
+
+#new-tab-btn:hover {
+    background-color: var(--color-accent-lime);
+}
+
 
 .terminal-tab {
     padding: var(--spacing-sm) var(--spacing-md);
@@ -176,8 +198,11 @@ body {
     color: var(--color-text-subtle);
     margin-right: 2px;
     position: relative;
-    top: 2px;
+    top: 3px; /* Adjusted for alignment with the border */
+    display: flex; /* For aligning close button */
+    align-items: center; /* For aligning close button */
 }
+
 
 .terminal-tab.active {
     background-color: var(--color-background-darkest);

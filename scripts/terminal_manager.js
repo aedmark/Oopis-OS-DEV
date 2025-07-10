@@ -8,16 +8,20 @@ const TerminalManager = (() => {
     const dom = {
         tabsContainer: null,
         sessionsContainer: null,
+        newTabBtn: null
     };
 
     function initialize() {
         dom.tabsContainer = document.getElementById('tabs-container');
         dom.sessionsContainer = document.getElementById('terminal-sessions-container');
+        dom.newTabBtn = document.getElementById('new-tab-btn');
 
-        if (!dom.tabsContainer || !dom.sessionsContainer) {
+        if (!dom.tabsContainer || !dom.sessionsContainer || !dom.newTabBtn) {
             console.error("TerminalManager: Critical DOM elements for tabbing are missing.");
             return;
         }
+
+        dom.newTabBtn.addEventListener('click', () => createSession());
 
         createSession(); // Create the initial session
     }
@@ -35,7 +39,6 @@ const TerminalManager = (() => {
             isNavigatingHistory: false
         };
 
-        // Create DOM structure for the new terminal session
         const outputDiv = Utils.createElement('div', {className: 'terminal__output'});
         const promptContainer = Utils.createElement('div', {className: 'terminal__prompt'});
         const inputDiv = Utils.createElement('div', {
@@ -46,10 +49,10 @@ const TerminalManager = (() => {
         });
         const inputContainer = Utils.createElement('div', {className: 'terminal__input-wrapper'}, inputDiv);
         const inputLine = Utils.createElement('div', {className: 'terminal__input-line'}, promptContainer, inputContainer);
-        const appLayer = Utils.createElement('div', {className: 'hidden'});
+        const appLayer = Utils.createElement('div', {className: 'app-layer hidden'}); // Corrected class
 
         const terminalEl = Utils.createElement('div', {
-            className: 'terminal',
+            className: 'terminal hidden', // Start hidden
             'data-session-id': sessionId
         }, outputDiv, appLayer, inputLine);
 
@@ -62,10 +65,8 @@ const TerminalManager = (() => {
             appLayer: appLayer
         };
 
-        // Add to DOM
         dom.sessionsContainer.appendChild(terminalEl);
 
-        // Create Tab
         const tabEl = Utils.createElement('div', {
             className: 'terminal-tab',
             textContent: `Session ${sessionId + 1}`,
@@ -80,37 +81,42 @@ const TerminalManager = (() => {
 
         tabEl.appendChild(closeBtn);
         tabEl.addEventListener('click', () => switchSession(sessionId));
-        dom.tabsContainer.appendChild(tabEl);
+
+        dom.tabsContainer.insertBefore(tabEl, dom.newTabBtn);
 
         sessions.push(session);
         switchSession(sessionId);
 
-        // Add event listeners for this specific session
         addSessionEventListeners(session);
+
+        if (sessions.length === 1) { // If it's the first session
+            const welcomeMessage = `${Config.MESSAGES.WELCOME_PREFIX} ${user.name}${Config.MESSAGES.WELCOME_SUFFIX}`;
+            OutputManager.appendToOutput(welcomeMessage, {outputEl: session.domElements.output});
+        }
+
 
         return session;
     }
 
     function closeSession(sessionId) {
-        if (sessions.length <= 1) return; // Don't close the last session
+        if (sessions.length <= 1) return;
 
         const sessionIndex = sessions.findIndex(s => s.id === sessionId);
         if (sessionIndex === -1) return;
 
         const session = sessions[sessionIndex];
 
-        // Clean up DOM
         session.domElements.terminal.remove();
         const tabEl = dom.tabsContainer.querySelector(`[data-session-id='${sessionId}']`);
         if (tabEl) tabEl.remove();
 
-        // Remove from state
         sessions.splice(sessionIndex, 1);
 
-        // Switch to another session if the active one was closed
         if (activeSessionId === sessionId) {
             const newActiveIndex = Math.max(0, sessionIndex - 1);
-            switchSession(sessions[newActiveIndex].id);
+            if (sessions.length > 0) {
+                switchSession(sessions[newActiveIndex].id);
+            }
         }
     }
 
@@ -137,6 +143,10 @@ const TerminalManager = (() => {
 
     function getActiveSession() {
         return sessions.find(s => s.id === activeSessionId);
+    }
+
+    function getAllSessions() {
+        return sessions;
     }
 
     function updatePrompt(session = getActiveSession()) {
@@ -170,7 +180,6 @@ const TerminalManager = (() => {
         });
 
         input.addEventListener('keydown', async (e) => {
-            // Let ModalManager handle its own input
             if (ModalManager.isAwaiting()) {
                 return;
             }
@@ -178,9 +187,12 @@ const TerminalManager = (() => {
             switch (e.key) {
                 case "Enter":
                     e.preventDefault();
-                    // TabCompletionManager.resetCycle(); // Will need session-specific adaptation
                     const command = input.textContent;
-                    input.textContent = ''; // Clear input immediately
+                    if (command.trim() !== '') {
+                        session.history.add(command);
+                        session.history.resetIndex();
+                    }
+                    input.textContent = '';
                     await CommandExecutor.processSingleCommand(command, {isInteractive: true, sessionContext: session});
                     break;
                 case "ArrowUp":
@@ -189,7 +201,6 @@ const TerminalManager = (() => {
                     if (prevCmd !== null) {
                         session.isNavigatingHistory = true;
                         input.textContent = prevCmd;
-                        // Set caret to end
                         const range = document.createRange();
                         const sel = window.getSelection();
                         range.selectNodeContents(input);
@@ -206,7 +217,6 @@ const TerminalManager = (() => {
                         input.textContent = nextCmd;
                     }
                     break;
-                // Tab completion to be re-implemented
             }
         });
     }
@@ -217,6 +227,7 @@ const TerminalManager = (() => {
         closeSession,
         switchSession,
         getActiveSession,
+        getAllSessions,
         updatePrompt
     };
 })();

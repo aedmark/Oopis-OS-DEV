@@ -241,19 +241,30 @@ const UserManager = (() => {
     }
 
     async function _performLogin(username) {
-        if (currentUser.name !== Config.USER.DEFAULT_NAME) {
-            SessionManager.saveAutomaticState(currentUser.name);
-            SudoManager.clearUserTimestamp(currentUser.name);
-        }
         SessionManager.clearUserStack(username);
         currentUser = { name: username };
-        SessionManager.loadAutomaticState(username);
-        const homePath = `/home/${username}`;
-        if (FileSystemManager.getNodeByPath(homePath)) {
-            FileSystemManager.setCurrentPath(homePath);
-        } else {
-            FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
+
+        // Update all sessions to the new user
+        const allSessions = TerminalManager.getAllSessions();
+        allSessions.forEach(session => {
+            session.environment.initialize(username);
+            const homePath = `/home/${username}`;
+            session.currentPath = FileSystemManager.getNodeByPath(homePath) ? homePath : Config.FILESYSTEM.ROOT_PATH;
+            TerminalManager.updatePrompt(session);
+        });
+
+        // Clear the active session's screen and show welcome message
+        const activeSession = TerminalManager.getActiveSession();
+        if (activeSession) {
+            OutputManager.clearOutput(activeSession);
+            await OutputManager.appendToOutput(
+                `${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`,
+                {outputEl: activeSession.domElements.output}
+            );
         }
+
+        FileSystemManager.setCurrentPath(allSessions[0]?.currentPath || Config.FILESYSTEM.ROOT_PATH);
+
         return { success: true, message: `Logged in as ${username}.`, isLogin: true };
     }
 
@@ -265,16 +276,22 @@ const UserManager = (() => {
     }
 
     async function _performSu(username) {
-        SessionManager.saveAutomaticState(currentUser.name);
         SessionManager.pushUserToStack(username);
         currentUser = { name: username };
-        SessionManager.loadAutomaticState(username);
-        const homePath = `/home/${username}`;
-        if (FileSystemManager.getNodeByPath(homePath)) {
-            FileSystemManager.setCurrentPath(homePath);
-        } else {
-            FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
+        const activeSession = TerminalManager.getActiveSession();
+        if (activeSession) {
+            activeSession.environment.initialize(username);
+            const homePath = `/home/${username}`;
+            activeSession.currentPath = FileSystemManager.getNodeByPath(homePath) ? homePath : Config.FILESYSTEM.ROOT_PATH;
+            FileSystemManager.setCurrentPath(activeSession.currentPath);
+            TerminalManager.updatePrompt(activeSession);
+            OutputManager.clearOutput(activeSession);
+            await OutputManager.appendToOutput(
+                `${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`,
+                {outputEl: activeSession.domElements.output}
+            );
         }
+
         return { success: true, message: `Switched to user: ${username}.` };
     }
 
@@ -284,18 +301,24 @@ const UserManager = (() => {
             return { success: true, message: `Cannot log out from user '${oldUser}'. This is the only active session. Use 'login' to switch to a different user.`, noAction: true };
         }
 
-        SessionManager.saveAutomaticState(oldUser);
-        SudoManager.clearUserTimestamp(oldUser);
         SessionManager.popUserFromStack();
         const newUsername = SessionManager.getCurrentUserFromStack();
         currentUser = { name: newUsername };
-        SessionManager.loadAutomaticState(newUsername);
-        const homePath = `/home/${newUsername}`;
-        if (FileSystemManager.getNodeByPath(homePath)) {
-            FileSystemManager.setCurrentPath(homePath);
-        } else {
-            FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
+
+        const activeSession = TerminalManager.getActiveSession();
+        if (activeSession) {
+            activeSession.environment.initialize(newUsername);
+            const homePath = `/home/${newUsername}`;
+            activeSession.currentPath = FileSystemManager.getNodeByPath(homePath) ? homePath : Config.FILESYSTEM.ROOT_PATH;
+            FileSystemManager.setCurrentPath(activeSession.currentPath);
+            TerminalManager.updatePrompt(activeSession);
+            OutputManager.clearOutput(activeSession);
+            await OutputManager.appendToOutput(
+                `${Config.MESSAGES.WELCOME_PREFIX} ${newUsername}${Config.MESSAGES.WELCOME_SUFFIX}`,
+                {outputEl: activeSession.domElements.output}
+            );
         }
+
         return { success: true, message: `Logged out from ${oldUser}. Now logged in as ${newUsername}.`, isLogout: true, newUser: newUsername };
     }
 
