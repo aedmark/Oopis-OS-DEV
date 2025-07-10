@@ -40,20 +40,22 @@
 }
 
 .code-editor-main-area {
-    flex-grow: 1;
-    position: relative;
-    min-height: 0; /* Important for flex-grow in a flex column */
-    overflow: hidden; /* <-- Add this line */
+    flex-grow: 1; /* Tell it to take up available space */
+    min-height: 0; /* FIX #1: The key to making flex-grow work in a column */
+    display: grid; /* FIX #2: Use Grid to create the overlay */
+    overflow: hidden;
     border: 1px solid var(--color-border-primary);
     border-radius: var(--border-radius-sm);
-    background-color: #282c34; /* A common editor background color */
+    background-color: #282c34;
 }
 
+/* The children that need to be stacked like slides */
 .code-editor-textarea,
 #code-editor-pre {
-    position: absolute;
-    top: 0;
-    left: 0;
+    grid-row: 1 / 1; /* FIX #2: Force both into the same grid row */
+    grid-column: 1 / 1; /* FIX #2: Force both into the same grid column */
+
+    /* Ensure no leftover absolute positioning properties exist */
     width: 100%;
     height: 100%;
     margin: 0;
