@@ -54,7 +54,7 @@
 
             scriptingContext.recursionDepth++;
 
-            EnvironmentManager.push();
+            context.sessionContext.environment.push();
             if (isTopLevelCall) {
                 if (options.isInteractive) TerminalUI.setInputState(false);
             }
@@ -122,7 +122,7 @@
                     scriptingContext.currentLineIndex = parentScriptState.currentLineIndex;
                 }
 
-                EnvironmentManager.pop();
+                context.sessionContext.environment.pop();
 
                 if (isTopLevelCall) {
                     if (options.isInteractive) {

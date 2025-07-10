@@ -5,10 +5,10 @@
         commandName: "set",
 
         coreLogic: async (context) => {
-            const { args } = context;
+            const {args, sessionContext} = context; // Added sessionContext
 
             if (args.length === 0) {
-                const allVars = EnvironmentManager.getAll();
+                const allVars = sessionContext.environment.getAll();
                 const output = Object.keys(allVars).sort().map(key => `${key}="${allVars[key]}"`).join('\n');
                 return { success: true, output: output };
             }
@@ -27,16 +27,14 @@
                 if ((value.startsWith("'") && value.endsWith("'")) || (value.startsWith('"') && value.endsWith('"'))) {
                     value = value.substring(1, value.length - 1);
                 }
-
-                const result = EnvironmentManager.set(varName, value);
+                const result = sessionContext.environment.set(varName, value);
                 if (!result.success) {
                     return { success: false, error: `set: ${result.error}` };
                 }
             } else {
                 const varName = args[0];
                 const value = args.slice(1).join(' ');
-
-                const result = EnvironmentManager.set(varName, value);
+                const result = sessionContext.environment.set(varName, value);
                 if (!result.success) {
                     return { success: false, error: `set: ${result.error}` };
                 }

@@ -5,7 +5,7 @@
         commandName: "unset",
         argValidation: { min: 1, error: "Usage: unset <variable_name>..." },
         coreLogic: async (context) => {
-            context.args.forEach(varName => EnvironmentManager.unset(varName));
+            context.args.forEach(varName => context.sessionContext.environment.unset(varName));
             return { success: true };
         }
     };
