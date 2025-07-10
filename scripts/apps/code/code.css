@@ -1,0 +1,107 @@
+/* OopisOS v4.0 Code Editor Style Sheet */
+/* ========================================================================== */
+
+.code-container {
+    display: flex;
+    flex-direction: column;
+    width: 95%;
+    max-width: 1400px;
+    height: 95%;
+    background-color: var(--color-background-medium);
+    border: var(--border-width-thick) solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-inset-dark), var(--shadow-drop-medium);
+    font-family: var(--font-family-sans), sans-serif;
+    color: var(--color-text-secondary);
+}
+
+.code-header {
+    flex-shrink: 0;
+    margin-bottom: var(--spacing-sm);
+}
+
+.code-title-input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    background-color: var(--color-background-dark);
+    color: var(--color-text-primary);
+    outline: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.code-title-input:focus {
+    border-color: var(--color-info);
+    box-shadow: 0 0 5px var(--color-info);
+}
+
+.code-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+    gap: var(--spacing-sm);
+}
+
+.code-toolbar-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.code-main {
+    flex-grow: 1;
+    position: relative;
+    min-height: 0;
+}
+
+.code-textarea,
+.code-pre {
+    height: 100%;
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--border-radius-sm);
+    font-family: var(--font-family-mono), monospace;
+    font-size: 16px;
+    line-height: 1.5;
+    white-space: pre;
+    overflow: auto;
+    margin: 0;
+}
+
+.code-textarea {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: transparent;
+    color: transparent;
+    caret-color: white;
+    z-index: 1;
+    resize: none;
+    outline: none;
+    -webkit-text-fill-color: transparent;
+}
+
+.code-pre {
+    position: relative;
+    z-index: 0;
+    pointer-events: none;
+    background-color: #27272a;
+}
+
+.code-footer {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--color-border-secondary);
+    font-size: var(--font-size-sm);
+}
