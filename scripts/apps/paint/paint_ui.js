@@ -70,7 +70,27 @@ const PaintUI = (() => {
         });
         const zoomGroup = Utils.createElement('div', {className: 'paint-tool-group'}, [elements.zoomOutBtn, elements.zoomInBtn]);
 
-        const toolbar = Utils.createElement('header', {className: 'paint-toolbar'}, [toolGroup, colorGroup, brushGroup, elements.charInput, historyGroup, clipboardGroup, zoomGroup]);
+        // MODIFICATION: Add exit button and spacer
+        const toolbarSpacer = Utils.createElement('div', {style: 'flex-grow: 1;'});
+        elements.exitBtn = Utils.createElement('button', {
+            id: 'paint-exit-btn',
+            className: 'btn',
+            textContent: '✕',
+            title: 'Exit Application'
+        });
+
+
+        const toolbar = Utils.createElement('header', {className: 'paint-toolbar'}, [
+            toolGroup,
+            colorGroup,
+            brushGroup,
+            elements.charInput,
+            historyGroup,
+            clipboardGroup,
+            zoomGroup,
+            toolbarSpacer,
+            elements.exitBtn
+        ]);
 
         // --- Canvas ---
         elements.canvas = Utils.createElement('div', { className: 'paint-canvas', id: 'paint-canvas' });
@@ -261,6 +281,9 @@ const PaintUI = (() => {
         // Zoom
         elements.zoomInBtn.addEventListener('click', () => managerCallbacks.onZoomIn());
         elements.zoomOutBtn.addEventListener('click', () => managerCallbacks.onZoomOut());
+
+        // MODIFICATION: Add exit button listener
+        elements.exitBtn.addEventListener('click', () => managerCallbacks.onExitRequest());
 
         // Canvas mouse events
         elements.canvas.addEventListener('mousedown', (e) => {
