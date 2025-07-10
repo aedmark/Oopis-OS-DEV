@@ -22,14 +22,18 @@
 <div id="app-container">
   <div id="main-column">
     <div id="terminal-bezel">
-      <div id="terminal" class="terminal">
-        <div id="output" class="terminal__output"></div>
-        <div id="app-layer" class="hidden"></div>
-        <div class="terminal__input-line">
-          <div id="prompt-container" class="terminal__prompt">
-          </div>
-          <div id="editable-input-container" class="terminal__input-wrapper">
-            <div id="editable-input" contenteditable="true" spellcheck="false" autocapitalize="none" class="terminal__input">
+      <div id="tabs-container"></div>
+      <div id="terminal-sessions-container">
+        <div id="terminal" class="terminal">
+          <div id="output" class="terminal__output"></div>
+          <div id="app-layer" class="hidden"></div>
+          <div class="terminal__input-line">
+            <div id="prompt-container" class="terminal__prompt">
+            </div>
+            <div id="editable-input-container" class="terminal__input-wrapper">
+              <div id="editable-input" contenteditable="true" spellcheck="false" autocapitalize="none"
+                   class="terminal__input">
+              </div>
             </div>
           </div>
         </div>
