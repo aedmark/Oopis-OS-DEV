@@ -1,3 +1,4 @@
+// aedmark/oopis-os-dev/Oopis-OS-DEV-33c780ad7f3af576fec163e3a060e1960f4bc842/scripts/terminal_manager.js
 const TerminalManager = (() => {
     "use strict";
 
@@ -23,7 +24,7 @@ const TerminalManager = (() => {
 
         dom.newTabBtn.addEventListener('click', () => createSession());
 
-        createSession(); // Create the initial session
+        createSession();
     }
 
     function createSession() {
@@ -50,10 +51,10 @@ const TerminalManager = (() => {
         });
         const inputContainer = Utils.createElement('div', {className: 'terminal__input-wrapper'}, inputDiv);
         const inputLine = Utils.createElement('div', {className: 'terminal__input-line'}, promptContainer, inputContainer);
-        const appLayer = Utils.createElement('div', {className: 'app-layer hidden'}); // Corrected class
+        const appLayer = Utils.createElement('div', {className: 'app-layer hidden'});
 
         const terminalEl = Utils.createElement('div', {
-            className: 'terminal hidden', // Start hidden
+            className: 'terminal hidden',
             'data-session-id': sessionId
         }, outputDiv, appLayer, inputLine);
 
@@ -90,11 +91,10 @@ const TerminalManager = (() => {
 
         addSessionEventListeners(session);
 
-        if (sessions.length === 1) { // If it's the first session
+        if (sessions.length === 1) {
             const welcomeMessage = `${Config.MESSAGES.WELCOME_PREFIX} ${user.name}${Config.MESSAGES.WELCOME_SUFFIX}`;
-            OutputManager.appendToOutput(welcomeMessage, {outputEl: session.domElements.output});
+            OutputManager.appendToOutput(welcomeMessage, {sessionContext: session});
         }
-
 
         return session;
     }
@@ -117,6 +117,8 @@ const TerminalManager = (() => {
             const newActiveIndex = Math.max(0, sessionIndex - 1);
             if (sessions.length > 0) {
                 switchSession(sessions[newActiveIndex].id);
+            } else {
+                activeSessionId = null;
             }
         }
     }
@@ -138,7 +140,9 @@ const TerminalManager = (() => {
         if (activeSession) {
             FileSystemManager.setCurrentPath(activeSession.currentPath);
             updatePrompt();
-            activeSession.domElements.input.focus();
+            if (!AppLayerManager.isActive(activeSession)) {
+                activeSession.domElements.input.focus();
+            }
         }
     }
 
@@ -170,25 +174,41 @@ const TerminalManager = (() => {
         session.domElements.prompt.textContent = parsedPrompt;
     }
 
+    function setInputState(isAllowed, session = getActiveSession()) {
+        if (!session || !session.domElements.input || !session.domElements.inputLine) return;
+
+        if (isAllowed) {
+            session.domElements.inputLine.classList.remove('locked');
+            session.domElements.input.contentEditable = 'true';
+            session.domElements.input.focus();
+        } else {
+            session.domElements.inputLine.classList.add('locked');
+            session.domElements.input.contentEditable = 'false';
+        }
+    }
+
+
     function addSessionEventListeners(session) {
         const {terminal, input} = session.domElements;
 
         terminal.addEventListener("click", (e) => {
-            if (e.target.closest("button, a")) return;
-            if (!input.contains(e.target)) {
+            if (e.target.closest("button, a, input")) return;
+            if (!input.contains(e.target) && !AppLayerManager.isActive(session)) {
                 input.focus();
             }
         });
 
         input.addEventListener('keydown', async (e) => {
+            if (input.contentEditable !== 'true') return;
+
             switch (e.key) {
                 case "Enter":
                     e.preventDefault();
                     const command = input.textContent;
                     if (command.trim() !== '') {
                         session.history.add(command);
-                        session.history.resetIndex();
                     }
+                    session.history.resetIndex();
                     input.textContent = '';
                     await CommandExecutor.processSingleCommand(command, {isInteractive: true, sessionContext: session});
                     break;
@@ -214,21 +234,12 @@ const TerminalManager = (() => {
                         input.textContent = nextCmd;
                     }
                     break;
+                case "Tab":
+                    e.preventDefault();
+                    // Tab completion logic would go here, passing the sessionContext
+                    break;
             }
         });
-    }
-
-    function setInputState(isAllowed, session = getActiveSession()) {
-        if (!session || !session.domElements.input || !session.domElements.inputLine) return;
-
-        if (isAllowed) {
-            session.domElements.inputLine.classList.remove('locked');
-            session.domElements.input.contentEditable = 'true';
-            session.domElements.input.focus();
-        } else {
-            session.domElements.inputLine.classList.add('locked');
-            session.domElements.input.contentEditable = 'false';
-        }
     }
 
     return {
