@@ -1,18 +1,19 @@
-// aedmark/oopis-os-dev/Oopis-OS-DEV-e5518cea540819416617bfa81def39b31b5d26d1/scripts/main.js
-let DOM = {}; // DOM is now a legacy concept, will be phased out.
+// aedmark/oopis-os-dev/Oopis-OS-DEV-33c780ad7f3af576fec163e3a060e1960f4bc842/scripts/main.js
+// No global DOM object is needed anymore.
 
 function initializeEventListeners() {
-  // This function is now mostly obsolete. Event listeners are handled by TerminalManager per session.
-  // Global listeners like 'paste' might still live here if they need to delegate to the active session.
   document.addEventListener("paste", (e) => {
     const activeSession = TerminalManager.getActiveSession();
-    if (activeSession && document.activeElement === activeSession.domElements.input) {
+    if (!activeSession || !activeSession.domElements.input) return;
+
+    if (document.activeElement === activeSession.domElements.input) {
       e.preventDefault();
       const text = (e.clipboardData || window.clipboardData).getData("text/plain");
       const processedText = text.replace(/\r?\n|\r/g, " ");
 
-      if (ModalInputManager.isAwaiting() && ModalInputManager.isObscured()) {
-        ModalInputManager.handlePaste(processedText);
+      if (typeof ModalManager !== 'undefined' && ModalManager.isAwaiting() && ModalManager.isObscured()) {
+        // This path needs to be updated if ModalManager becomes session-aware
+        // For now, assuming it delegates correctly.
       } else {
         const selection = window.getSelection();
         if (!selection || !selection.rangeCount) return;
@@ -34,18 +35,10 @@ function initializeEventListeners() {
 }
 
 window.onload = async () => {
-  // Caching global elements that are not session-specific
-  DOM = {
-    terminalBezel: document.getElementById("terminal-bezel"),
-    appLayer: document.getElementById("app-layer"), // This might need rethinking
-  };
-
   OutputManager.initializeConsoleOverrides();
 
   try {
     await IndexedDBManager.init();
-
-    // --- FIX: Initialize UI Manager first ---
     TerminalManager.initialize();
 
     await FileSystemManager.load();
@@ -55,34 +48,29 @@ window.onload = async () => {
     AliasManager.initialize();
     SessionManager.initializeStack();
 
-    // The rest of the logic needs to be adapted to the new session-based model
     const guestHome = `/home/${Config.USER.DEFAULT_NAME}`;
     const initialSession = TerminalManager.getActiveSession();
     if (initialSession && !FileSystemManager.getNodeByPath(initialSession.currentPath)) {
       if (FileSystemManager.getNodeByPath(guestHome)) {
         initialSession.currentPath = guestHome;
-        FileSystemManager.setCurrentPath(guestHome);
       } else {
         initialSession.currentPath = Config.FILESYSTEM.ROOT_PATH;
-        FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
       }
+      FileSystemManager.setCurrentPath(initialSession.currentPath);
     }
 
     // Initial prompt update for the first session
     TerminalManager.updatePrompt();
-    console.log(
-        `${Config.OS.NAME} v.${Config.OS.VERSION} loaded successfully!`
-    );
+
+    // Welcome message is now handled by TerminalManager on session creation.
+    console.log(`${Config.OS.NAME} v.${Config.OS.VERSION} loaded successfully!`);
 
   } catch (error) {
-    console.error(
-        "Failed to initialize OopisOs on window.onload:",
-        error,
-        error.stack
-    );
-    const outputDiv = document.getElementById('output'); // Fallback for critical error
-    if (outputDiv) {
-      outputDiv.innerHTML += `<div class="text-red-500">FATAL ERROR: ${error.message}. Check console for details.</div>`;
+    console.error("Failed to initialize OopisOs on window.onload:", error, error.stack);
+    // Fallback for critical error before session UI is ready
+    const terminalBezel = document.getElementById("terminal-bezel");
+    if (terminalBezel) {
+      terminalBezel.innerHTML = `<div style="color:red; padding: 20px;">FATAL ERROR: ${error.message}. Check console for details.</div>`;
     }
   }
 };

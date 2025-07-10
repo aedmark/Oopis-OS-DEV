@@ -1,4 +1,4 @@
-// aedmark/oopis-os-dev/Oopis-OS-DEV-e5518cea540819416617bfa81def39b31b5d26d1/scripts/commands/run.js
+// aedmark/oopis-os-dev/Oopis-OS-DEV-33c780ad7f3af576fec163e3a060e1960f4bc842/scripts/commands/run.js
 (() => {
     "use strict";
 
@@ -22,7 +22,7 @@
             },
         ],
         coreLogic: async (context) => {
-            const { args, options, signal } = context;
+            const {args, options, signal, sessionContext} = context;
             const scriptPathArg = args[0];
             const scriptArgs = args.slice(1);
             const scriptNode = context.validatedPaths[0].node;
@@ -54,17 +54,19 @@
 
             scriptingContext.recursionDepth++;
 
-            context.sessionContext.environment.push();
-            if (isTopLevelCall) {
-                if (options.isInteractive) TerminalUI.setInputState(false);
+            sessionContext.environment.push();
+            if (isTopLevelCall && options.isInteractive) {
+                TerminalManager.setInputState(false, sessionContext);
             }
 
             let overallScriptSuccess = true;
-            let finalResult = {};
 
             try {
                 if (scriptingContext.recursionDepth > MAX_RECURSION_DEPTH) {
-                    await OutputManager.appendToOutput(`Script '${scriptPathArg}' exceeded maximum recursion depth (${MAX_RECURSION_DEPTH}). Terminating.`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                    await OutputManager.appendToOutput(`Script '${scriptPathArg}' exceeded maximum recursion depth (${MAX_RECURSION_DEPTH}). Terminating.`, {
+                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
+                        sessionContext
+                    });
                     overallScriptSuccess = false;
                 } else {
                     let programCounter = 0;
@@ -74,13 +76,19 @@
 
                         if (scriptingContext.steps.count++ > MAX_SCRIPT_STEPS) {
                             overallScriptSuccess = false;
-                            await OutputManager.appendToOutput(`Script '${scriptPathArg}' exceeded maximum execution steps (${MAX_SCRIPT_STEPS}). Terminating.`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                            await OutputManager.appendToOutput(`Script '${scriptPathArg}' exceeded maximum execution steps (${MAX_SCRIPT_STEPS}). Terminating.`, {
+                                typeClass: Config.CSS_CLASSES.ERROR_MSG,
+                                sessionContext
+                            });
                             break;
                         }
 
                         if (signal?.aborted) {
                             overallScriptSuccess = false;
-                            await OutputManager.appendToOutput(`Script '${scriptPathArg}' cancelled.`, { typeClass: Config.CSS_CLASSES.WARNING_MSG });
+                            await OutputManager.appendToOutput(`Script '${scriptPathArg}' cancelled.`, {
+                                typeClass: Config.CSS_CLASSES.WARNING_MSG,
+                                sessionContext
+                            });
                             if (scriptingContext.cancelCallback) scriptingContext.cancelCallback();
                             break;
                         }
@@ -103,12 +111,19 @@
                             processedLine = processedLine.replace(new RegExp(`\\$${i + 1}`, 'g'), scriptArgs[i]);
                         }
 
-                        const result = await CommandExecutor.processSingleCommand(processedLine.trim(), { isInteractive: false, scriptingContext });
+                        const result = await CommandExecutor.processSingleCommand(processedLine.trim(), {
+                            isInteractive: false,
+                            scriptingContext,
+                            sessionContext
+                        });
                         programCounter = scriptingContext.currentLineIndex + 1;
 
                         if (!result || !result.success) {
                             const errorMsg = `Script '${scriptPathArg}' error on line ${lineToExecuteIndex + 1}: ${rawScriptLines[lineToExecuteIndex]}\nError: ${result.error || result.output || 'Unknown error.'}`;
-                            await OutputManager.appendToOutput(errorMsg, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                            await OutputManager.appendToOutput(errorMsg, {
+                                typeClass: Config.CSS_CLASSES.ERROR_MSG,
+                                sessionContext
+                            });
                             overallScriptSuccess = false;
                             break;
                         }
@@ -122,76 +137,19 @@
                     scriptingContext.currentLineIndex = parentScriptState.currentLineIndex;
                 }
 
-                context.sessionContext.environment.pop();
+                sessionContext.environment.pop();
 
-                if (isTopLevelCall) {
-                    if (options.isInteractive) {
-                        TerminalUI.setInputState(true);
-                    }
+                if (isTopLevelCall && options.isInteractive) {
+                    TerminalManager.setInputState(true, sessionContext);
                 }
             }
 
-            finalResult = {
+            return {
                 success: overallScriptSuccess,
                 error: overallScriptSuccess ? null : `Script '${scriptPathArg}' failed.`
             };
-            return finalResult;
         }
     };
 
-    const runDescription = "Executes a shell script.";
-    const runHelpText = `Usage: run <script_path> [arguments...]
-
-Execute a shell script.
-
-DESCRIPTION
-       The run command executes a script file containing a sequence of
-       OopisOS commands. The script is read and executed line by line.
-
-       By convention, script files should have a '.sh' extension.
-       To be executed, the script file must have execute (x) permissions
-       for the current user (see 'chmod').
-
-SCRIPTING
-       Scripts can be made more powerful and flexible using the following
-       features:
-
-       Comments
-              Lines beginning with a '#' are treated as comments and are
-              ignored by the executor.
-
-       Arguments
-              You can pass arguments to your script from the command line.
-              These arguments can be accessed within the script using
-              special variables:
-              $1, $2, ...  - The first, second, etc., argument.
-              $@           - All arguments as a single string.
-              $#           - The total number of arguments.
-
-       Error Handling
-              If any command within the script fails, the script will
-              stop execution immediately.
-
-WARNING
-       The scripting engine includes a governor to prevent infinite loops.
-       A script that executes more than ${Config.FILESYSTEM.MAX_SCRIPT_STEPS} commands, or which
-       calls other scripts too deeply, will be terminated to prevent the
-       OS from becoming unresponsive.
-
-EXAMPLES
-       Suppose you have a file named 'greet.sh' with the following content:
-       #!/bin/oopis_shell
-       # This is a simple greeting script
-       echo "Welcome to OopisOS, $1! You provided $# argument(s)."
-
-       First, make the script executable:
-       chmod 755 greet.sh
-
-       Then, run it with an argument:
-       run ./greet.sh "Brave User"
-
-       This will output:
-       Welcome to OopisOS, Brave User! You provided 1 argument(s).`;
-
-    CommandRegistry.register(runCommandDefinition.commandName, runCommandDefinition, runDescription, runHelpText);
+    CommandRegistry.register("run", runCommandDefinition, "Executes a shell script.", "See `man run` for details.");
 })();

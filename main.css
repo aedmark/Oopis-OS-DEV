@@ -203,6 +203,10 @@ body {
     align-items: center; /* For aligning close button */
 }
 
+.terminal__input-line.locked .terminal__input {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
 .terminal-tab.active {
     background-color: var(--color-background-darkest);

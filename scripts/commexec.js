@@ -1,3 +1,4 @@
+// aedmark/oopis-os-dev/Oopis-OS-DEV-33c780ad7f3af576fec163e3a060e1960f4bc842/scripts/commexec.js
 const CommandExecutor = (() => {
   "use strict";
   let backgroundProcessIdCounter = 0;
@@ -6,13 +7,13 @@ const CommandExecutor = (() => {
   const loadingPromises = {};
 
   async function* _generateInputContent(context, firstFileArgIndex = 0) {
-    const { args, options, currentUser } = context;
+    const {args, options, currentUser, sessionContext} = context; // Pass sessionContext
 
     if (options.stdinContent !== null && options.stdinContent !== undefined) {
       const pathsFromStdin = options.stdinContent.trim().split('\n');
       for (const pathArg of pathsFromStdin) {
         if (!pathArg) continue;
-        const pathValidation = FileSystemManager.validatePath("input stream", pathArg, {expectedType: 'file'});
+        const pathValidation = FileSystemManager.validatePath("input stream", pathArg, {expectedType: 'file'}, sessionContext.currentPath); // Use session path
         if (pathValidation.error) {
           yield {success: false, error: pathValidation.error, sourceName: pathArg};
           continue;
@@ -34,7 +35,7 @@ const CommandExecutor = (() => {
     }
 
     for (const pathArg of fileArgs) {
-      const pathValidation = FileSystemManager.validatePath("input stream", pathArg, { expectedType: 'file' });
+      const pathValidation = FileSystemManager.validatePath("input stream", pathArg, {expectedType: 'file'}, sessionContext.currentPath); // Use session path
       if (pathValidation.error) {
         yield { success: false, error: pathValidation.error, sourceName: pathArg };
         continue;
@@ -51,7 +52,10 @@ const CommandExecutor = (() => {
 
 
   function createCommandHandler(definition) {
-    const handler = async (args, options, sessionContext) => { // ADDED sessionContext
+    const handler = async (args, options, sessionContext) => {
+      if (!sessionContext) {
+        throw new Error("FATAL: createCommandHandler called without sessionContext.");
+      }
       const { flags, remainingArgs } = Utils.parseFlags(
           args,
           definition.flagDefinitions || []
@@ -82,7 +86,7 @@ const CommandExecutor = (() => {
               definition.commandName || "command",
               pathArg,
               pv.options,
-              sessionContext.currentPath // Use session's path
+              sessionContext.currentPath
           );
           if (pathValidationResult.error) {
             if (!(pv.options.allowMissing && !pathValidationResult.node)) {
@@ -129,7 +133,7 @@ const CommandExecutor = (() => {
         currentUser,
         validatedPaths,
         signal: options.signal,
-        sessionContext // Pass session context down
+        sessionContext
       };
 
       if (definition.isInputStream) {
@@ -147,7 +151,7 @@ const CommandExecutor = (() => {
           if (!item.success) {
             await OutputManager.appendToOutput(item.error, {
               typeClass: Config.CSS_CLASSES.ERROR_MSG,
-              outputEl: sessionContext.domElements.output
+              sessionContext: sessionContext
             });
             hadError = true;
           } else {
@@ -283,7 +287,10 @@ const CommandExecutor = (() => {
     };
   }
 
-  async function _executeCommandHandler(segment, execCtxOpts, stdinContent = null, signal, sessionContext) { // ADDED sessionContext
+  async function _executeCommandHandler(segment, execCtxOpts, stdinContent = null, signal, sessionContext) {
+    if (!sessionContext) {
+      throw new Error("FATAL: _executeCommandHandler called without sessionContext.");
+    }
     const commandName = segment.command?.toLowerCase();
 
     const commandExists = await _ensureCommandLoaded(commandName);
@@ -299,7 +306,7 @@ const CommandExecutor = (() => {
           ...execCtxOpts,
           stdinContent,
           signal,
-        }, sessionContext); // PASS sessionContext
+        }, sessionContext);
       } catch (e) {
         console.error(`Error in command handler for '${segment.command}':`, e);
         return {
@@ -319,7 +326,10 @@ const CommandExecutor = (() => {
     };
   }
 
-  async function _executePipeline(pipeline, options, sessionContext) { // ADDED sessionContext
+  async function _executePipeline(pipeline, options, sessionContext) {
+    if (!sessionContext) {
+      throw new Error("FATAL: _executePipeline called without sessionContext.");
+    }
     const { isInteractive, signal, scriptingContext, suppressOutput } = options;
     let currentStdin = null;
     let lastResult = {
@@ -345,7 +355,7 @@ const CommandExecutor = (() => {
       console.error(errorMsg);
       await OutputManager.appendToOutput(errorMsg, {
         typeClass: Config.CSS_CLASSES.ERROR_MSG,
-        outputEl: sessionContext.domElements.output
+        sessionContext: sessionContext
       });
       return {
         success: false,
@@ -364,7 +374,7 @@ const CommandExecutor = (() => {
           },
           currentStdin,
           signal,
-          sessionContext // PASS sessionContext
+          sessionContext
       );
       if (!lastResult) {
         const err = `Critical: Command handler for '${segment.command}' returned an undefined result.`;
@@ -386,7 +396,7 @@ const CommandExecutor = (() => {
         if (!pipeline.isBackground) {
           await OutputManager.appendToOutput(err, {
             typeClass: Config.CSS_CLASSES.ERROR_MSG,
-            outputEl: sessionContext.domElements.output
+            sessionContext: sessionContext
           });
         } else {
           console.log(`Background job pipeline error: ${err}`);
@@ -415,7 +425,7 @@ const CommandExecutor = (() => {
         if (!pipeline.isBackground)
           await OutputManager.appendToOutput(redirVal.error, {
             typeClass: Config.CSS_CLASSES.ERROR_MSG,
-            outputEl: sessionContext.domElements.output
+            sessionContext: sessionContext
           });
         return {
           success: false,
@@ -430,7 +440,7 @@ const CommandExecutor = (() => {
         if (!pipeline.isBackground)
           await OutputManager.appendToOutput(`Redir err: ${pDirRes.error}`, {
             typeClass: Config.CSS_CLASSES.ERROR_MSG,
-            outputEl: sessionContext.domElements.output
+            sessionContext: sessionContext
           });
         return {
           success: false,
@@ -450,7 +460,7 @@ const CommandExecutor = (() => {
               `Redir err: critical internal error, parent dir '${finalParentDirPath}' for file write not found.`,
               {
                 typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                outputEl: sessionContext.domElements.output
+                sessionContext: sessionContext
               }
           );
         return {
@@ -468,7 +478,7 @@ const CommandExecutor = (() => {
               `Redir err: '${redirFile}' is dir.`,
               {
                 typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                outputEl: sessionContext.domElements.output
+                sessionContext: sessionContext
               }
           );
         return {
@@ -485,7 +495,7 @@ const CommandExecutor = (() => {
               `Redir err: no write to '${redirFile}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}`,
               {
                 typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                outputEl: sessionContext.domElements.output
+                sessionContext: sessionContext
               }
           );
         return {
@@ -502,7 +512,7 @@ const CommandExecutor = (() => {
               `Redir err: no create in '${finalParentDirPath}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}`,
               {
                 typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                outputEl: sessionContext.domElements.output
+                sessionContext: sessionContext
               }
           );
         return {
@@ -531,7 +541,7 @@ const CommandExecutor = (() => {
           if (!pipeline.isBackground)
             await OutputManager.appendToOutput(
                 `Redirection error: could not determine primary group for user '${user}'.`,
-                {typeClass: Config.CSS_CLASSES.ERROR_MSG, outputEl: sessionContext.domElements.output}
+                {typeClass: Config.CSS_CLASSES.ERROR_MSG, sessionContext: sessionContext}
             );
           return {
             success: false,
@@ -553,7 +563,7 @@ const CommandExecutor = (() => {
               `Failed to save redir to '${redirFile}'.`,
               {
                 typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                outputEl: sessionContext.domElements.output
+                sessionContext: sessionContext
               }
           );
         return {
@@ -577,7 +587,7 @@ const CommandExecutor = (() => {
               {
                 typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
                 isBackground: true,
-                outputEl: sessionContext.domElements.output
+                sessionContext: sessionContext
               }
           );
         }
@@ -585,7 +595,7 @@ const CommandExecutor = (() => {
         if (lastResult.output && !suppressOutput) {
           await OutputManager.appendToOutput(lastResult.output, {
             typeClass: lastResult.messageType || null,
-            outputEl: sessionContext.domElements.output
+            sessionContext: sessionContext
           });
         }
       }
@@ -593,7 +603,10 @@ const CommandExecutor = (() => {
     return lastResult;
   }
 
-  async function _preprocessCommandString(rawCommandText, sessionContext) { // ADDED sessionContext
+  async function _preprocessCommandString(rawCommandText, sessionContext) {
+    if (!sessionContext) {
+      throw new Error("FATAL: _preprocessCommandString called without sessionContext.");
+    }
     let expandedCommand = rawCommandText.trim();
     if (!expandedCommand) {
       return "";
@@ -601,7 +614,7 @@ const CommandExecutor = (() => {
 
     expandedCommand = expandedCommand.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g, (match, var1, var2) => {
       const varName = var1 || var2;
-      return sessionContext.environment.get(varName); // USE session-specific environment
+      return sessionContext.environment.get(varName);
     });
 
     const aliasResult = AliasManager.resolveAlias(expandedCommand);
@@ -610,13 +623,13 @@ const CommandExecutor = (() => {
     }
     const commandAfterAliases = aliasResult.newCommand;
 
-    const commandToParse = await _expandGlobPatterns(commandAfterAliases, sessionContext); // PASS sessionContext
+    const commandToParse = await _expandGlobPatterns(commandAfterAliases, sessionContext);
     return commandToParse;
   }
 
-  async function _finalizeInteractiveModeUI(sessionContext, originalCommandText) { // MODIFIED
-    sessionContext.domElements.input.textContent = ''; // Clear input
-    TerminalManager.updatePrompt(sessionContext); // Update prompt for THIS session
+  async function _finalizeInteractiveModeUI(sessionContext, originalCommandText) {
+    sessionContext.domElements.input.textContent = '';
+    TerminalManager.updatePrompt(sessionContext);
 
     if (!EditorManager.isActive()) {
       sessionContext.domElements.inputLine.classList.remove(Config.CSS_CLASSES.HIDDEN);
@@ -631,7 +644,7 @@ const CommandExecutor = (() => {
   }
 
   async function processSingleCommand(rawCommandText, options = {}) {
-    const {isInteractive = true, scriptingContext = null, suppressOutput = false, sessionContext} = options; // ADDED sessionContext
+    const {isInteractive = true, scriptingContext = null, suppressOutput = false, sessionContext} = options;
 
     if (!sessionContext) {
       console.error("CRITICAL: processSingleCommand called without a sessionContext.");
@@ -641,12 +654,12 @@ const CommandExecutor = (() => {
     if (options.scriptingContext && isInteractive && !ModalManager.isAwaiting()) {
       await OutputManager.appendToOutput("Script execution in progress. Input suspended.", {
         typeClass: Config.CSS_CLASSES.WARNING_MSG,
-        outputEl: sessionContext.domElements.output
+        sessionContext: sessionContext
       });
       return { success: false, error: "Script execution in progress." };
     }
     if (ModalManager.isAwaiting()) {
-      await ModalManager.handleTerminalInput(rawCommandText, sessionContext); // PASS sessionContext
+      await ModalManager.handleTerminalInput(rawCommandText, sessionContext);
       if (isInteractive) await _finalizeInteractiveModeUI(sessionContext, rawCommandText);
       return { success: true, output: "" };
     }
@@ -654,11 +667,11 @@ const CommandExecutor = (() => {
 
     let commandToParse;
     try {
-      commandToParse = await _preprocessCommandString(rawCommandText, sessionContext); // PASS sessionContext
+      commandToParse = await _preprocessCommandString(rawCommandText, sessionContext);
     } catch (e) {
       await OutputManager.appendToOutput(e.message, {
         typeClass: Config.CSS_CLASSES.ERROR_MSG,
-        outputEl: sessionContext.domElements.output
+        sessionContext: sessionContext
       });
       if (isInteractive) await _finalizeInteractiveModeUI(sessionContext, rawCommandText);
       return { success: false, error: e.message };
@@ -668,7 +681,7 @@ const CommandExecutor = (() => {
     if (isInteractive) {
       sessionContext.domElements.inputLine.classList.add(Config.CSS_CLASSES.HIDDEN);
       const prompt = sessionContext.domElements.prompt.textContent;
-      await OutputManager.appendToOutput(`${prompt}${cmdToEcho}`, {outputEl: sessionContext.domElements.output});
+      await OutputManager.appendToOutput(`${prompt}${cmdToEcho}`, {sessionContext: sessionContext});
     }
     if (cmdToEcho === "") {
       if (isInteractive) await _finalizeInteractiveModeUI(sessionContext, rawCommandText);
@@ -683,7 +696,7 @@ const CommandExecutor = (() => {
     } catch (e) {
       await OutputManager.appendToOutput(e.message || "Command parse error.", {
         typeClass: Config.CSS_CLASSES.ERROR_MSG,
-        outputEl: sessionContext.domElements.output
+        sessionContext: sessionContext
       });
       if (isInteractive) await _finalizeInteractiveModeUI(sessionContext, rawCommandText);
       return { success: false, error: e.message || "Command parse error." };
@@ -707,10 +720,10 @@ const CommandExecutor = (() => {
         const jobId = ++backgroundProcessIdCounter;
         pipeline.jobId = jobId;
         const abortController = new AbortController();
-        activeJobs[jobId] = {id: jobId, command: cmdToEcho, abortController, sessionId: sessionContext.id}; // Store session ID
+        activeJobs[jobId] = {id: jobId, command: cmdToEcho, abortController, sessionId: sessionContext.id};
         await OutputManager.appendToOutput(`${Config.MESSAGES.BACKGROUND_PROCESS_STARTED_PREFIX}${jobId}${Config.MESSAGES.BACKGROUND_PROCESS_STARTED_SUFFIX}`, {
           typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
-          outputEl: sessionContext.domElements.output
+          sessionContext: sessionContext
         });
 
         setTimeout(async () => {
@@ -725,7 +738,7 @@ const CommandExecutor = (() => {
             await OutputManager.appendToOutput(statusMsg, {
               typeClass: bgResult.success ? Config.CSS_CLASSES.CONSOLE_LOG_MSG : Config.CSS_CLASSES.WARNING_MSG,
               isBackground: true,
-              outputEl: sessionContext.domElements.output
+              sessionContext: sessionContext
             });
           } finally {
             delete activeJobs[jobId];

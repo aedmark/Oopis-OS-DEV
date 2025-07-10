@@ -218,6 +218,19 @@ const TerminalManager = (() => {
         });
     }
 
+    function setInputState(isAllowed, session = getActiveSession()) {
+        if (!session || !session.domElements.input || !session.domElements.inputLine) return;
+
+        if (isAllowed) {
+            session.domElements.inputLine.classList.remove('locked');
+            session.domElements.input.contentEditable = 'true';
+            session.domElements.input.focus();
+        } else {
+            session.domElements.inputLine.classList.add('locked');
+            session.domElements.input.contentEditable = 'false';
+        }
+    }
+
     return {
         initialize,
         createSession,
@@ -225,6 +238,7 @@ const TerminalManager = (() => {
         switchSession,
         getActiveSession,
         getAllSessions,
-        updatePrompt
+        updatePrompt,
+        setInputState
     };
 })();
