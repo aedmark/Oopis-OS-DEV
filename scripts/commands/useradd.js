@@ -9,7 +9,7 @@
         },
 
         coreLogic: async (context) => {
-            const {args, options, sessionContext} = context;
+            const {args, options, sessionContext} = context; // Capture sessionContext
             const username = args[0];
 
             const userCheck = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
@@ -17,48 +17,52 @@
                 return { success: false, error: `User '${username}' already exists.` };
             }
 
-            if (!options.isInteractive) {
-                // Non-interactive path for scripts like diag.sh
-                const scriptContext = options.scriptingContext;
-                if (!scriptContext || scriptContext.lines.length < scriptContext.currentLineIndex + 2) {
-                    return {
-                        success: false,
-                        error: "useradd: in script mode, expects password and confirmation on the next two lines."
-                    };
+            return new Promise(async (resolve) => {
+                // Pass the entire context to the modal manager
+                ModalInputManager.requestInput(
+                    Config.MESSAGES.PASSWORD_PROMPT,
+                    async (firstPassword) => {
+                        if (firstPassword.trim() === "") {
+                            resolve({success: false, error: Config.MESSAGES.EMPTY_PASSWORD_NOT_ALLOWED});
+                            return;
+                        }
+
+                        ModalInputManager.requestInput(
+                            Config.MESSAGES.PASSWORD_CONFIRM_PROMPT,
+                            async (confirmedPassword) => {
+                                if (firstPassword !== confirmedPassword) {
+                                    resolve({success: false, error: Config.MESSAGES.PASSWORD_MISMATCH});
+                                    return;
+                                }
+                                // Pass sessionContext down to the user manager
+                                const registerResult = await UserManager.register(username, firstPassword, sessionContext);
+                                resolve(registerResult);
+                            },
+                            () => resolve({
+                                success: true,
+                                output: Config.MESSAGES.OPERATION_CANCELLED,
+                                messageType: Config.CSS_CLASSES.CONSOLE_LOG_MSG
+                            }),
+                            true,
+                            options,
+                            sessionContext // Pass sessionContext
+                        );
+                    },
+                    () => resolve({
+                        success: true,
+                        output: Config.MESSAGES.OPERATION_CANCELLED,
+                        messageType: Config.CSS_CLASSES.CONSOLE_LOG_MSG
+                    }),
+                    true,
+                    options,
+                    sessionContext // Pass sessionContext
+                );
+            }).then(result => {
+                if (result.success && result.message) {
+                    return {success: true, output: result.message, messageType: Config.CSS_CLASSES.SUCCESS_MSG};
                 }
-
-                // Consume the next two lines from the script as the password and confirmation
-                const firstPassword = scriptContext.lines[++scriptContext.currentLineIndex]?.trim();
-                const confirmedPassword = scriptContext.lines[++scriptContext.currentLineIndex]?.trim();
-
-                if (firstPassword === undefined || confirmedPassword === undefined) {
-                    return {success: false, error: "useradd: script ended before password confirmation could be read."};
-                }
-
-                if (firstPassword !== confirmedPassword) {
-                    return {success: false, error: "Passwords do not match in script."};
-                }
-
-                // Await the registration and return the result directly
-                const registerResult = await UserManager.register(username, firstPassword);
-                if (registerResult.success && registerResult.message) {
-                    return {success: true, output: registerResult.message, messageType: Config.CSS_CLASSES.SUCCESS_MSG};
-                }
-                return registerResult;
-
-            } else {
-                // Interactive path for manual user input
-                // This logic still depends on a ModalManager that can handle text input.
-                // Since `ModalInputManager` is undefined, this path remains problematic, but the scripted path is fixed.
-                return new Promise(async (resolve) => {
-                    // This call will fail until ModalInputManager or its equivalent is correctly implemented and defined.
-                    // For now, the scripted execution path is the priority fix.
-                    resolve({
-                        success: false,
-                        error: "Interactive user creation is currently unavailable due to a missing UI component (ModalInputManager)."
-                    });
-                });
-            }
+                return result;
+            });
         },
     };
 
