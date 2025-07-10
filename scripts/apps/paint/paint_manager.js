@@ -19,10 +19,11 @@ const PaintManager = (() => {
         gridVisible: false,
         isDrawing: false,
         startCoords: null,
+        lastCoords: null,
         undoStack: [],
         redoStack: [],
         statusMessage: 'Ready',
-        zoomLevel: 100, // Blueprint phase 1.1
+        zoomLevel: 100,
         ZOOM_MIN: 50,
         ZOOM_MAX: 200,
         ZOOM_STEP: 10
@@ -40,7 +41,6 @@ const PaintManager = (() => {
 
         loadContent(fileContent);
 
-        // Store the initial full state for the first undo
         state.undoStack.push(JSON.stringify(state.canvasData));
 
         PaintUI.buildAndShow(state, callbacks);
@@ -66,7 +66,7 @@ const PaintManager = (() => {
 
     function _performExit() {
         PaintUI.hideAndReset();
-        state = {}; // Reset state
+        state = {};
     }
 
     // --- Content & File Handling ---
@@ -163,6 +163,71 @@ const PaintManager = (() => {
         return affectedCells;
     }
 
+    // MODIFICATION: Added ellipse drawing logic
+    function _getCellsForEllipse(xc, yc, rx, ry, char, color) {
+        if (rx < 0 || ry < 0) return [];
+        const allPoints = [];
+
+        function plotPoints(x, y) {
+            allPoints.push(..._getCellsInBrush(xc + x, yc + y, char, color));
+            allPoints.push(..._getCellsInBrush(xc - x, yc + y, char, color));
+            allPoints.push(..._getCellsInBrush(xc + x, yc - y, char, color));
+            allPoints.push(..._getCellsInBrush(xc - x, yc - y, char, color));
+        }
+
+        let x = 0;
+        let y = ry;
+        let rx2 = rx * rx;
+        let ry2 = ry * ry;
+        let twoRx2 = 2 * rx2;
+        let twoRy2 = 2 * ry2;
+        let p;
+        let px = 0;
+        let py = twoRx2 * y;
+
+        // Region 1
+        plotPoints(x, y);
+        p = Math.round(ry2 - (rx2 * ry) + (0.25 * rx2));
+        while (px < py) {
+            x++;
+            px += twoRy2;
+            if (p < 0) {
+                p += ry2 + px;
+            } else {
+                y--;
+                py -= twoRx2;
+                p += ry2 + px - py;
+            }
+            plotPoints(x, y);
+        }
+
+        // Region 2
+        p = Math.round(ry2 * (x + 0.5) * (x + 0.5) + rx2 * (y - 1) * (y - 1) - rx2 * ry2);
+        while (y > 0) {
+            y--;
+            py -= twoRx2;
+            if (p > 0) {
+                p += rx2 - py;
+            } else {
+                x++;
+                px += twoRy2;
+                p += rx2 - py + px;
+            }
+            plotPoints(x, y);
+        }
+
+        const uniqueCells = [];
+        const seen = new Set();
+        for (const cell of allPoints) {
+            const key = `${cell.x},${cell.y}`;
+            if (!seen.has(key)) {
+                uniqueCells.push(cell);
+                seen.add(key);
+            }
+        }
+        return uniqueCells;
+    }
+
     function _applyCellsToData(cells) {
         const preState = JSON.stringify(state.canvasData);
         cells.forEach(cell => {
@@ -178,10 +243,10 @@ const PaintManager = (() => {
     function _pushToUndoStack(patch) {
         if (patch) {
             state.undoStack.push(patch);
-            if (state.undoStack.length > 50) { // Keep history manageable
+            if (state.undoStack.length > 50) {
                 state.undoStack.shift();
             }
-            state.redoStack = []; // Clear redo stack on new action
+            state.redoStack = [];
             state.isDirty = true;
             PaintUI.updateToolbar(state);
             PaintUI.updateStatusBar(state);
@@ -209,7 +274,7 @@ const PaintManager = (() => {
             PaintUI.updateStatusBar(state);
         },
         onUndo: () => {
-            if (state.undoStack.length > 1) { // The first element is always the full state
+            if (state.undoStack.length > 1) {
                 const patch = state.undoStack.pop();
                 state.redoStack.push(patch);
                 state.canvasData = JSON.parse(PatchUtils.applyInverse(JSON.stringify(state.canvasData), patch));
@@ -237,8 +302,11 @@ const PaintManager = (() => {
         onCanvasMouseDown: (coords) => {
             state.isDrawing = true;
             state.startCoords = coords;
+            state.lastCoords = coords;
         },
         onCanvasMouseMove: (coords) => {
+            state.lastCoords = coords;
+
             const char = state.currentTool === 'eraser' ? ' ' : state.currentCharacter;
             const color = state.currentTool === 'eraser' ? '#000000' : state.currentColor;
 
@@ -248,6 +316,10 @@ const PaintManager = (() => {
                     previewCells = _getCellsForLine(state.startCoords.x, state.startCoords.y, coords.x, coords.y, char, color);
                 } else if (state.currentTool === 'rect') {
                     previewCells = _getCellsForRect(state.startCoords.x, state.startCoords.y, coords.x, coords.y, char, color);
+                } else if (state.currentTool === 'circle') { // MODIFICATION: Added preview logic for circle
+                    const rx = Math.abs(state.startCoords.x - coords.x);
+                    const ry = Math.abs(state.startCoords.y - coords.y);
+                    previewCells = _getCellsForEllipse(state.startCoords.x, state.startCoords.y, rx, ry, char, color);
                 } else if (state.currentTool === 'pencil' || state.currentTool === 'eraser') {
                     const cells = _getCellsForLine(state.startCoords.x, state.startCoords.y, coords.x, coords.y, char, color);
                     const patch = _applyCellsToData(cells);
@@ -264,17 +336,30 @@ const PaintManager = (() => {
         },
         onCanvasMouseUp: (coords) => {
             if (!state.isDrawing) return;
+
+            const endCoords = coords || state.lastCoords;
+
             state.isDrawing = false;
             PaintUI.updatePreviewCanvas([]);
+
+            if (!state.startCoords || !endCoords) {
+                state.startCoords = null;
+                state.lastCoords = null;
+                return;
+            }
 
             const char = state.currentTool === 'eraser' ? ' ' : state.currentCharacter;
             const color = state.currentTool === 'eraser' ? '#000000' : state.currentColor;
 
             let finalCells = [];
             if (state.currentTool === 'line') {
-                finalCells = _getCellsForLine(state.startCoords.x, state.startCoords.y, coords.x, coords.y, char, color);
+                finalCells = _getCellsForLine(state.startCoords.x, state.startCoords.y, endCoords.x, endCoords.y, char, color);
             } else if (state.currentTool === 'rect') {
-                finalCells = _getCellsForRect(state.startCoords.x, state.startCoords.y, coords.x, coords.y, char, color);
+                finalCells = _getCellsForRect(state.startCoords.x, state.startCoords.y, endCoords.x, endCoords.y, char, color);
+            } else if (state.currentTool === 'circle') { // MODIFICATION: Added drawing logic for circle
+                const rx = Math.abs(state.startCoords.x - endCoords.x);
+                const ry = Math.abs(state.startCoords.y - endCoords.y);
+                finalCells = _getCellsForEllipse(state.startCoords.x, state.startCoords.y, rx, ry, char, color);
             }
 
             if (finalCells.length > 0) {
@@ -282,10 +367,12 @@ const PaintManager = (() => {
                 _pushToUndoStack(patch);
                 PaintUI.updateCanvas(finalCells);
             }
+
+            state.startCoords = null;
+            state.lastCoords = null;
         },
         onSaveRequest: saveContent,
         onExitRequest: exit,
-        // Blueprint phase 1.2 & 1.3
         onZoomIn: () => {
             state.zoomLevel = Math.min(state.ZOOM_MAX, state.zoomLevel + state.ZOOM_STEP);
             PaintUI.updateZoom(state.zoomLevel);

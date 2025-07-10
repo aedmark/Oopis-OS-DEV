@@ -13,18 +13,20 @@ const PaintUI = (() => {
         elements.container = Utils.createElement('div', { id: 'paint-container', className: 'paint-container' });
 
         // --- Toolbar ---
-        const createToolBtn = (name, key, iconClass) => Utils.createElement('button', {
+        const createToolBtn = (name, key, label) => Utils.createElement('button', {
             id: `paint-tool-${name}`,
             className: 'btn',
-            innerHTML: `<i class="fas ${iconClass}"></i>`,
+            textContent: label,
             title: `${name.charAt(0).toUpperCase() + name.slice(1)} (${key.toUpperCase()})`
         });
 
+        // MODIFICATION: Added Circle button
         const toolGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [
-            elements.pencilBtn = createToolBtn('pencil', 'p', 'fa-pencil-alt'),
-            elements.eraserBtn = createToolBtn('eraser', 'e', 'fa-eraser'),
-            elements.lineBtn = createToolBtn('line', 'l', 'fa-minus'),
-            elements.rectBtn = createToolBtn('rect', 'r', 'fa-square')
+            elements.pencilBtn = createToolBtn('pencil', 'p', '✎'),
+            elements.eraserBtn = createToolBtn('eraser', 'e', '✐'),
+            elements.lineBtn = createToolBtn('line', 'l', '—'),
+            elements.rectBtn = createToolBtn('rect', 'r', '▢'),
+            elements.circleBtn = createToolBtn('circle', 'c', '◯')
         ]);
 
         const colorSwatches = initialState.PALETTE.map(color =>
@@ -39,19 +41,18 @@ const PaintUI = (() => {
 
         elements.charInput = Utils.createElement('input', { type: 'text', className: 'paint-char-selector', value: initialState.currentCharacter, maxLength: 1 });
 
-        elements.undoBtn = Utils.createElement('button', {className: 'btn', innerHTML: '<i class="fas fa-undo"></i>'});
-        elements.redoBtn = Utils.createElement('button', {className: 'btn', innerHTML: '<i class="fas fa-redo"></i>'});
-        elements.gridBtn = Utils.createElement('button', {className: 'btn', innerHTML: '<i class="fas fa-th"></i>'});
+        elements.undoBtn = Utils.createElement('button', {className: 'btn', textContent: '↩'});
+        elements.redoBtn = Utils.createElement('button', {className: 'btn', textContent: '↪'});
+        elements.gridBtn = Utils.createElement('button', {className: 'btn', textContent: '▦'});
         const historyGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [elements.undoBtn, elements.redoBtn, elements.gridBtn]);
 
-        // Blueprint Phase 2.1
         elements.zoomInBtn = Utils.createElement('button', {
             className: 'btn',
-            innerHTML: '<i class="fas fa-search-plus"></i>'
+            textContent: '➕'
         });
         elements.zoomOutBtn = Utils.createElement('button', {
             className: 'btn',
-            innerHTML: '<i class="fas fa-search-minus"></i>'
+            textContent: '➖'
         });
         const zoomGroup = Utils.createElement('div', {className: 'paint-tool-group'}, [elements.zoomOutBtn, elements.zoomInBtn]);
 
@@ -68,7 +69,7 @@ const PaintUI = (() => {
         elements.statusChar = Utils.createElement('span');
         elements.statusBrush = Utils.createElement('span');
         elements.statusCoords = Utils.createElement('span');
-        elements.statusZoom = Utils.createElement('span'); // Blueprint Phase 2.3
+        elements.statusZoom = Utils.createElement('span');
         elements.statusBar = Utils.createElement('footer', { className: 'paint-statusbar' }, [
             elements.statusTool, elements.statusChar, elements.statusBrush, elements.statusCoords, elements.statusZoom
         ]);
@@ -79,7 +80,7 @@ const PaintUI = (() => {
         renderInitialCanvas(initialState.canvasData, initialState.canvasDimensions);
         updateToolbar(initialState);
         updateStatusBar(initialState);
-        updateZoom(initialState.zoomLevel); // Apply initial zoom
+        updateZoom(initialState.zoomLevel);
         _addEventListeners();
 
         AppLayerManager.show(elements.container);
@@ -142,8 +143,9 @@ const PaintUI = (() => {
         });
     }
 
+    // MODIFICATION: Added 'circle' to the list of tools
     function updateToolbar(state) {
-        ['pencil', 'eraser', 'line', 'rect'].forEach(tool => {
+        ['pencil', 'eraser', 'line', 'rect', 'circle'].forEach(tool => {
             elements[`${tool}Btn`].classList.toggle('active', state.currentTool === tool);
         });
         document.querySelectorAll('.paint-color-swatch').forEach(swatch => {
@@ -160,14 +162,13 @@ const PaintUI = (() => {
         elements.statusChar.textContent = `Char: ${state.currentCharacter}`;
         elements.statusBrush.textContent = `Brush: ${state.brushSize}`;
         elements.statusCoords.textContent = coords ? `Coords: ${coords.x}, ${coords.y}` : '';
-        elements.statusZoom.textContent = `Zoom: ${state.zoomLevel}%`; // Blueprint Phase 2.3
+        elements.statusZoom.textContent = `Zoom: ${state.zoomLevel}%`;
     }
 
     function toggleGrid(visible) {
         elements.canvas.classList.toggle('grid-visible', visible);
     }
 
-    // Blueprint Phase 2.2
     function updateZoom(zoomLevel) {
         const baseFontSize = 20;
         const newSize = baseFontSize * (zoomLevel / 100);
@@ -200,6 +201,7 @@ const PaintUI = (() => {
         elements.eraserBtn.addEventListener('click', () => managerCallbacks.onToolSelect('eraser'));
         elements.lineBtn.addEventListener('click', () => managerCallbacks.onToolSelect('line'));
         elements.rectBtn.addEventListener('click', () => managerCallbacks.onToolSelect('rect'));
+        elements.circleBtn.addEventListener('click', () => managerCallbacks.onToolSelect('circle')); // MODIFICATION: Added listener for Circle button
 
         // Color selection
         elements.container.querySelectorAll('.paint-color-swatch').forEach(swatch => {
@@ -231,19 +233,18 @@ const PaintUI = (() => {
             if(coords) managerCallbacks.onCanvasMouseMove(coords);
         });
         document.addEventListener('mouseup', (e) => {
-            // Listen on document to catch mouse-ups outside canvas
-            managerCallbacks.onCanvasMouseUp(null); // Pass null as coords are not relevant on global mouseup
+            managerCallbacks.onCanvasMouseUp(null);
         });
         elements.canvas.addEventListener('mouseleave', () => updateStatusBar({
-            currentTool: elements.statusTool.textContent,
-            currentCharacter: elements.statusChar.textContent,
-            brushSize: elements.statusBrush.textContent,
+            currentTool: elements.statusTool.textContent.split(': ')[1],
+            currentCharacter: elements.statusChar.textContent.split(': ')[1],
+            brushSize: elements.statusBrush.textContent.split(': ')[1],
             zoomLevel: parseInt(elements.statusZoom.textContent.replace(/\D/g, ''))
         }));
 
         // Keyboard shortcuts
         elements.container.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT') return; // Don't hijack input fields
+            if (e.target.tagName === 'INPUT') return;
 
             if (e.ctrlKey || e.metaKey) {
                 e.preventDefault();
@@ -262,10 +263,10 @@ const PaintUI = (() => {
                         break;
                     case '=':
                         managerCallbacks.onZoomIn();
-                        break; // Blueprint Phase 3.1
+                        break;
                     case '-':
                         managerCallbacks.onZoomOut();
-                        break; // Blueprint Phase 3.1
+                        break;
                 }
             } else {
                 switch (e.key.toLowerCase()) {
@@ -273,12 +274,14 @@ const PaintUI = (() => {
                     case 'e': managerCallbacks.onToolSelect('eraser'); break;
                     case 'l': managerCallbacks.onToolSelect('line'); break;
                     case 'r': managerCallbacks.onToolSelect('rect'); break;
+                    case 'c':
+                        managerCallbacks.onToolSelect('circle');
+                        break; // MODIFICATION: Added shortcut for Circle tool
                     case 'g': managerCallbacks.onToggleGrid(); break;
                     case 'escape': managerCallbacks.onExitRequest(); break;
                 }
             }
         });
-        // Make container focusable
         elements.container.setAttribute('tabindex', '-1');
     }
 

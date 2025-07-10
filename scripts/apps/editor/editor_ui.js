@@ -20,12 +20,12 @@ const EditorUI = (() => {
         const header = Utils.createElement('header', {className: 'editor-header'}, [elements.titleInput]);
 
         // --- Toolbar ---
-        elements.saveBtn = Utils.createElement('button', {className: 'btn', textContent: 'Save'});
+        elements.saveBtn = Utils.createElement('button', {className: 'btn', textContent: '💾'});
         elements.exitBtn = Utils.createElement('button', {className: 'btn', textContent: 'Exit'});
-        elements.previewBtn = Utils.createElement('button', {className: 'btn', textContent: 'View Mode'});
-        elements.undoBtn = Utils.createElement('button', {className: 'btn', textContent: 'Undo'});
-        elements.redoBtn = Utils.createElement('button', {className: 'btn', textContent: 'Redo'});
-        elements.wordWrapBtn = Utils.createElement('button', {className: 'btn', textContent: 'Word Wrap'});
+        elements.previewBtn = Utils.createElement('button', {className: 'btn', textContent: 'View️'});
+        elements.undoBtn = Utils.createElement('button', {className: 'btn', textContent: '↩'});
+        elements.redoBtn = Utils.createElement('button', {className: 'btn', textContent: '↪'});
+        elements.wordWrapBtn = Utils.createElement('button', {className: 'btn', textContent: 'Wrap'});
 
         const toolbarGroup = Utils.createElement('div', {className: 'editor-toolbar-group'}, [elements.previewBtn, elements.wordWrapBtn, elements.undoBtn, elements.redoBtn, elements.saveBtn, elements.exitBtn]);
         const toolbar = Utils.createElement('div', {className: 'editor-toolbar'}, [toolbarGroup]);
