@@ -1,5 +1,4 @@
-// scripts/apps/paint/paint_manager.js
-
+// Oopis-OS-DEV-825c6202665784182a6647839fb2fd731904b7f3/scripts/apps/paint/paint_manager.js
 const PaintManager = (() => {
     "use strict";
 
@@ -35,7 +34,10 @@ const PaintManager = (() => {
 
     // --- Core Lifecycle ---
     function enter(filePath, fileContent) {
-        if (state.isActive) return;
+        if (state.isActive) {
+            OutputManager.appendToOutput("paint: A session is already active. This application does not support multiple instances.", {typeClass: 'text-error'});
+            return;
+        }
 
         state = { ...defaultState, PALETTE };
         state.isActive = true;

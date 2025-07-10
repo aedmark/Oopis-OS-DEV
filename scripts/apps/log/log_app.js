@@ -1,3 +1,4 @@
+// Oopis-OS-DEV-825c6202665784182a6647839fb2fd731904b7f3/scripts/apps/log/log_app.js
 const LOG_DIR = "/home/Guest/.journal";
 
 const LogUI = (() => {
@@ -163,7 +164,10 @@ const LogManager = (() => {
     };
 
     async function enter() {
-        if (state.isActive) return;
+        if (state.isActive) {
+            OutputManager.appendToOutput("log: A session is already active. This application does not support multiple instances.", {typeClass: 'text-error'});
+            return;
+        }
         state.isActive = true;
         document.addEventListener('keydown', handleKeyDown);
         await _ensureLogDir();

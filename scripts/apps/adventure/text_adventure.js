@@ -1,3 +1,4 @@
+// Oopis-OS-DEV-825c6202665784182a6647839fb2fd731904b7f3/scripts/apps/adventure/text_adventure.js
 const TextAdventureModal = (() => {
   "use strict";
 
@@ -53,7 +54,10 @@ const TextAdventureModal = (() => {
   }
 
   function show(adventureData, callbacks, scriptingContext) {
-    if (state.isModalOpen) return Promise.resolve();
+    if (state.isModalOpen) {
+      OutputManager.appendToOutput("adventure: A game is already in progress. This application does not support multiple instances.", {typeClass: 'text-error'});
+      return Promise.resolve();
+    }
 
     const layout = _createLayout();
     AppLayerManager.show(layout); // Directive: Use AppLayerManager to show the UI.

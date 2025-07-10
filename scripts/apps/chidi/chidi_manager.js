@@ -1,3 +1,4 @@
+// Oopis-OS-DEV-825c6202665784182a6647839fb2fd731904b7f3/scripts/apps/chidi/chidi_manager.js
 const ChidiManager = (() => {
     "use strict";
 
@@ -93,7 +94,10 @@ const ChidiManager = (() => {
     };
 
     function launch(initialFiles, launchOptions) {
-        if (state.isModalOpen) return;
+        if (state.isModalOpen) {
+            OutputManager.appendToOutput("chidi: A session is already active. This application does not support multiple instances.", {typeClass: 'text-error'});
+            return;
+        }
 
         state = {...defaultState};
         state.isModalOpen = true;
