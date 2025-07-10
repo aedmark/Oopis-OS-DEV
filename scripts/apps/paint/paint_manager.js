@@ -1,3 +1,5 @@
+// scripts/apps/paint/paint_manager.js
+
 const PaintManager = (() => {
     "use strict";
 
@@ -17,9 +19,14 @@ const PaintManager = (() => {
         gridVisible: false,
         isDrawing: false,
         startCoords: null,
+        lastCoords: null, // Track last valid coordinates
         undoStack: [],
         redoStack: [],
-        statusMessage: 'Ready'
+        statusMessage: 'Ready',
+        zoomLevel: 100,
+        ZOOM_MIN: 50,
+        ZOOM_MAX: 200,
+        ZOOM_STEP: 10
     };
 
     const PALETTE = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF'];
@@ -34,9 +41,7 @@ const PaintManager = (() => {
 
         loadContent(fileContent);
 
-        // Store the initial full state for the first undo
         state.undoStack.push(JSON.stringify(state.canvasData));
-
         PaintUI.buildAndShow(state, callbacks);
     }
 
@@ -60,7 +65,7 @@ const PaintManager = (() => {
 
     function _performExit() {
         PaintUI.hideAndReset();
-        state = {}; // Reset state
+        state = {};
     }
 
     // --- Content & File Handling ---
@@ -83,19 +88,15 @@ const PaintManager = (() => {
 
     async function saveContent() {
         if (!state.isActive) return;
-
         const dataToSave = {
             format: "oopis-paint-v1",
             dimensions: state.canvasDimensions,
             cells: state.canvasData
         };
         const jsonContent = JSON.stringify(dataToSave, null, 2);
-
         const currentUser = UserManager.getCurrentUser().name;
         const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
-
         const saveResult = await FileSystemManager.createOrUpdateFile(state.currentFilePath, jsonContent, { currentUser, primaryGroup });
-
         if (saveResult.success && await FileSystemManager.save()) {
             state.isDirty = false;
         } else {
@@ -137,7 +138,6 @@ const PaintManager = (() => {
         const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
         const dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
         let err = dx + dy, e2;
-
         for (;;) {
             affectedCells.push(..._getCellsInBrush(x0, y0, char, color));
             if (x0 === x1 && y0 === y1) break;
@@ -172,10 +172,10 @@ const PaintManager = (() => {
     function _pushToUndoStack(patch) {
         if (patch) {
             state.undoStack.push(patch);
-            if (state.undoStack.length > 50) { // Keep history manageable
+            if (state.undoStack.length > 50) {
                 state.undoStack.shift();
             }
-            state.redoStack = []; // Clear redo stack on new action
+            state.redoStack = [];
             state.isDirty = true;
             PaintUI.updateToolbar(state);
             PaintUI.updateStatusBar(state);
@@ -203,7 +203,7 @@ const PaintManager = (() => {
             PaintUI.updateStatusBar(state);
         },
         onUndo: () => {
-            if (state.undoStack.length > 1) { // The first element is always the full state
+            if (state.undoStack.length > 1) {
                 const patch = state.undoStack.pop();
                 state.redoStack.push(patch);
                 state.canvasData = JSON.parse(PatchUtils.applyInverse(JSON.stringify(state.canvasData), patch));
@@ -226,17 +226,21 @@ const PaintManager = (() => {
         },
         onToggleGrid: () => {
             state.gridVisible = !state.gridVisible;
-            PaintUI.toggleGrid(state.gridVisible);
+            PaintUI.updateZoom(state.zoomLevel, state.gridVisible);
         },
         onCanvasMouseDown: (coords) => {
             state.isDrawing = true;
             state.startCoords = coords;
+            state.lastCoords = coords;
         },
         onCanvasMouseMove: (coords) => {
+            if (!coords) return;
+            state.lastCoords = coords;
+
             const char = state.currentTool === 'eraser' ? ' ' : state.currentCharacter;
             const color = state.currentTool === 'eraser' ? '#000000' : state.currentColor;
-
             let previewCells = [];
+
             if (state.isDrawing) {
                 if (state.currentTool === 'line') {
                     previewCells = _getCellsForLine(state.startCoords.x, state.startCoords.y, coords.x, coords.y, char, color);
@@ -252,7 +256,6 @@ const PaintManager = (() => {
             } else {
                 previewCells = _getCellsInBrush(coords.x, coords.y, char, color);
             }
-
             PaintUI.updatePreviewCanvas(previewCells);
             PaintUI.updateStatusBar(state, coords);
         },
@@ -261,14 +264,17 @@ const PaintManager = (() => {
             state.isDrawing = false;
             PaintUI.updatePreviewCanvas([]);
 
+            const effectiveCoords = coords || state.lastCoords;
+            if (!effectiveCoords || !state.startCoords) return;
+
             const char = state.currentTool === 'eraser' ? ' ' : state.currentCharacter;
             const color = state.currentTool === 'eraser' ? '#000000' : state.currentColor;
-
             let finalCells = [];
+
             if (state.currentTool === 'line') {
-                finalCells = _getCellsForLine(state.startCoords.x, state.startCoords.y, coords.x, coords.y, char, color);
+                finalCells = _getCellsForLine(state.startCoords.x, state.startCoords.y, effectiveCoords.x, effectiveCoords.y, char, color);
             } else if (state.currentTool === 'rect') {
-                finalCells = _getCellsForRect(state.startCoords.x, state.startCoords.y, coords.x, coords.y, char, color);
+                finalCells = _getCellsForRect(state.startCoords.x, state.startCoords.y, effectiveCoords.x, effectiveCoords.y, char, color);
             }
 
             if (finalCells.length > 0) {
@@ -279,6 +285,17 @@ const PaintManager = (() => {
         },
         onSaveRequest: saveContent,
         onExitRequest: exit,
+        onZoomIn: () => {
+            state.zoomLevel = Math.min(state.ZOOM_MAX, state.zoomLevel + state.ZOOM_STEP);
+            PaintUI.updateZoom(state.zoomLevel, state.gridVisible);
+            PaintUI.updateStatusBar(state);
+        },
+        onZoomOut: () => {
+            state.zoomLevel = Math.max(state.ZOOM_MIN, state.zoomLevel - state.ZOOM_STEP);
+            PaintUI.updateZoom(state.zoomLevel, state.gridVisible);
+            PaintUI.updateStatusBar(state);
+        },
+        isGridVisible: () => state.gridVisible,
     };
 
     return { enter, exit, isActive: () => state.isActive };

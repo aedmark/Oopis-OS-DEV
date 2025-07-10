@@ -1,3 +1,5 @@
+/* scripts/apps/paint/paint.css */
+
 /* OopisOS v4.0 Paint Style Sheet */
 /* ========================================================================== */
 
@@ -89,7 +91,7 @@
     align-items: center;
     background-color: #000;
     min-height: 0;
-    overflow: auto; /* For zoom */
+    overflow: auto; /* Blueprint Phase 2.1 CSS */
 }
 
 .paint-canvas-container {
@@ -103,6 +105,8 @@
     font-size: 20px; /* This determines the cell size */
     line-height: 1;
     cursor: crosshair;
+    width: fit-content; /* Blueprint Phase 2.1 CSS */
+    height: fit-content; /* Blueprint Phase 2.1 CSS */
 }
 
 .paint-preview-canvas {

@@ -1,3 +1,5 @@
+// scripts/apps/paint/paint_ui.js
+
 const PaintUI = (() => {
     "use strict";
 
@@ -7,17 +9,20 @@ const PaintUI = (() => {
     function buildAndShow(initialState, callbacks) {
         managerCallbacks = callbacks;
 
-        // --- Create Main Structure ---
         elements.container = Utils.createElement('div', { id: 'paint-container', className: 'paint-container' });
 
-        // --- Toolbar ---
-        const createToolBtn = (name, key) => Utils.createElement('button', { id: `paint-tool-${name}`, className: 'btn', textContent: name.charAt(0).toUpperCase() + name.slice(1), title: `${name} (${key.toUpperCase()})` });
+        const createToolBtn = (name, key, iconClass) => Utils.createElement('button', {
+            id: `paint-tool-${name}`,
+            className: 'btn',
+            innerHTML: `<i class="fas ${iconClass}"></i>`,
+            title: `${name.charAt(0).toUpperCase() + name.slice(1)} (${key.toUpperCase()})`
+        });
 
         const toolGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [
-            elements.pencilBtn = createToolBtn('pencil', 'p'),
-            elements.eraserBtn = createToolBtn('eraser', 'e'),
-            elements.lineBtn = createToolBtn('line', 'l'),
-            elements.rectBtn = createToolBtn('rect', 'r')
+            elements.pencilBtn = createToolBtn('pencil', 'p', 'fa-pencil-alt'),
+            elements.eraserBtn = createToolBtn('eraser', 'e', 'fa-eraser'),
+            elements.lineBtn = createToolBtn('line', 'l', 'fa-minus'),
+            elements.rectBtn = createToolBtn('rect', 'r', 'fa-square')
         ]);
 
         const colorSwatches = initialState.PALETTE.map(color =>
@@ -31,35 +36,57 @@ const PaintUI = (() => {
         const brushGroup = Utils.createElement('div', { className: 'paint-brush-controls' }, [brushSizeDown, elements.brushSizeInput, brushSizeUp]);
 
         elements.charInput = Utils.createElement('input', { type: 'text', className: 'paint-char-selector', value: initialState.currentCharacter, maxLength: 1 });
-
-        elements.undoBtn = Utils.createElement('button', { className: 'btn', textContent: 'Undo' });
-        elements.redoBtn = Utils.createElement('button', { className: 'btn', textContent: 'Redo' });
-        elements.gridBtn = Utils.createElement('button', { className: 'btn', textContent: 'Grid' });
+        elements.undoBtn = Utils.createElement('button', {
+            className: 'btn',
+            innerHTML: '<i class="fas fa-undo"></i>',
+            title: 'Undo (Ctrl+Z)'
+        });
+        elements.redoBtn = Utils.createElement('button', {
+            className: 'btn',
+            innerHTML: '<i class="fas fa-redo"></i>',
+            title: 'Redo (Ctrl+Y)'
+        });
+        elements.gridBtn = Utils.createElement('button', {
+            className: 'btn',
+            innerHTML: '<i class="fas fa-th"></i>',
+            title: 'Toggle Grid (G)'
+        });
         const historyGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [elements.undoBtn, elements.redoBtn, elements.gridBtn]);
 
-        const toolbar = Utils.createElement('header', { className: 'paint-toolbar' }, [ toolGroup, colorGroup, brushGroup, elements.charInput, historyGroup ]);
+        elements.zoomInBtn = Utils.createElement('button', {
+            className: 'btn',
+            innerHTML: '<i class="fas fa-search-plus"></i>',
+            title: 'Zoom In (Ctrl++)'
+        });
+        elements.zoomOutBtn = Utils.createElement('button', {
+            className: 'btn',
+            innerHTML: '<i class="fas fa-search-minus"></i>',
+            title: 'Zoom Out (Ctrl+-)'
+        });
+        const zoomGroup = Utils.createElement('div', {className: 'paint-tool-group'}, [elements.zoomOutBtn, elements.zoomInBtn]);
 
-        // --- Canvas ---
+        const toolbar = Utils.createElement('header', {className: 'paint-toolbar'}, [toolGroup, colorGroup, brushGroup, elements.charInput, historyGroup, zoomGroup]);
+
         elements.canvas = Utils.createElement('div', { className: 'paint-canvas', id: 'paint-canvas' });
         elements.previewCanvas = Utils.createElement('div', { className: 'paint-preview-canvas', id: 'paint-preview-canvas' });
         const canvasContainer = Utils.createElement('div', { className: 'paint-canvas-container' }, [elements.canvas, elements.previewCanvas]);
         const mainArea = Utils.createElement('main', { className: 'paint-main' }, [canvasContainer]);
 
-        // --- Status Bar ---
         elements.statusTool = Utils.createElement('span');
         elements.statusChar = Utils.createElement('span');
         elements.statusBrush = Utils.createElement('span');
         elements.statusCoords = Utils.createElement('span');
+        elements.statusZoom = Utils.createElement('span');
         elements.statusBar = Utils.createElement('footer', { className: 'paint-statusbar' }, [
-            elements.statusTool, elements.statusChar, elements.statusBrush, elements.statusCoords
+            elements.statusTool, elements.statusChar, elements.statusBrush, elements.statusCoords, elements.statusZoom
         ]);
 
-        // --- Assemble & Show ---
         elements.container.append(toolbar, mainArea, elements.statusBar);
 
         renderInitialCanvas(initialState.canvasData, initialState.canvasDimensions);
         updateToolbar(initialState);
         updateStatusBar(initialState);
+        updateZoom(initialState.zoomLevel, initialState.gridVisible);
         _addEventListeners();
 
         AppLayerManager.show(elements.container);
@@ -67,26 +94,34 @@ const PaintUI = (() => {
     }
 
     function hideAndReset() {
+        document.removeEventListener('mouseup', handleGlobalMouseUp);
         AppLayerManager.hide();
         elements = {};
         managerCallbacks = {};
     }
 
+    function handleGlobalMouseUp(e) {
+        if (!managerCallbacks.onCanvasMouseUp) return;
+
+        let coords = null;
+        if (elements.canvas && elements.canvas.contains(e.target)) {
+            coords = _getCoordsFromEvent(e);
+        }
+        managerCallbacks.onCanvasMouseUp(coords);
+    }
+
     function renderInitialCanvas(canvasData, dimensions) {
         elements.canvas.innerHTML = '';
         elements.previewCanvas.innerHTML = '';
-
         elements.canvas.style.gridTemplateColumns = `repeat(${dimensions.width}, 1ch)`;
         elements.canvas.style.gridTemplateRows = `repeat(${dimensions.height}, 1em)`;
         elements.previewCanvas.style.gridTemplateColumns = `repeat(${dimensions.width}, 1ch)`;
         elements.previewCanvas.style.gridTemplateRows = `repeat(${dimensions.height}, 1em)`;
-
         for (let y = 0; y < dimensions.height; y++) {
             for (let x = 0; x < dimensions.width; x++) {
                 const dataCell = canvasData[y][x];
                 const cell = Utils.createElement('span', { id: `cell-${x}-${y}`, className: 'paint-canvas-cell', textContent: dataCell.char, style: { color: dataCell.color } });
                 elements.canvas.appendChild(cell);
-
                 const previewCell = Utils.createElement('span', { id: `preview-cell-${x}-${y}`, className: 'paint-canvas-cell' });
                 elements.previewCanvas.appendChild(previewCell);
             }
@@ -104,15 +139,12 @@ const PaintUI = (() => {
     }
 
     function updatePreviewCanvas(cellsToUpdate) {
-        // Clear previous preview
         Array.from(elements.previewCanvas.children).forEach(child => {
             if (child.textContent !== ' ') {
                 child.textContent = ' ';
                 child.style.color = 'transparent';
             }
         });
-
-        // Draw new preview
         cellsToUpdate.forEach(data => {
             const cell = document.getElementById(`preview-cell-${data.x}-${data.y}`);
             if (cell) {
@@ -137,49 +169,62 @@ const PaintUI = (() => {
 
     function updateStatusBar(state, coords = null) {
         elements.statusTool.textContent = `Tool: ${state.currentTool}`;
-        elements.statusChar.textContent = `Char: ${state.currentCharacter}`;
+        elements.statusChar.textContent = `Char: '${state.currentCharacter}'`;
         elements.statusBrush.textContent = `Brush: ${state.brushSize}`;
         elements.statusCoords.textContent = coords ? `Coords: ${coords.x}, ${coords.y}` : '';
+        elements.statusZoom.textContent = `Zoom: ${state.zoomLevel}%`;
     }
 
     function toggleGrid(visible) {
         elements.canvas.classList.toggle('grid-visible', visible);
     }
 
+    function updateZoom(zoomLevel, isGridEnabled) {
+        const baseFontSize = 20;
+        const newSize = baseFontSize * (zoomLevel / 100);
+        const gridShouldBeVisible = zoomLevel >= 70 && isGridEnabled;
+        if (elements.canvas) {
+            elements.canvas.style.fontSize = `${newSize}px`;
+            toggleGrid(gridShouldBeVisible);
+        }
+        if (elements.previewCanvas) {
+            elements.previewCanvas.style.fontSize = `${newSize}px`;
+        }
+    }
+
     function _getCoordsFromEvent(e) {
+        if (!elements.canvas || !elements.canvas.firstChild) return null;
         const rect = elements.canvas.getBoundingClientRect();
         const charWidth = elements.canvas.firstChild.offsetWidth;
         const charHeight = elements.canvas.firstChild.offsetHeight;
         if(charWidth === 0 || charHeight === 0) return null;
         const x = Math.floor((e.clientX - rect.left) / charWidth);
         const y = Math.floor((e.clientY - rect.top) / charHeight);
+
+        if (x < 0 || y < 0 || x >= (elements.canvas.style.gridTemplateColumns.split(' ').length) || y >= (elements.canvas.style.gridTemplateRows.split(' ').length)) {
+            return null;
+        }
         return {x, y};
     }
 
     function _addEventListeners() {
-        // Tool selection
         elements.pencilBtn.addEventListener('click', () => managerCallbacks.onToolSelect('pencil'));
         elements.eraserBtn.addEventListener('click', () => managerCallbacks.onToolSelect('eraser'));
         elements.lineBtn.addEventListener('click', () => managerCallbacks.onToolSelect('line'));
         elements.rectBtn.addEventListener('click', () => managerCallbacks.onToolSelect('rect'));
-
-        // Color selection
         elements.container.querySelectorAll('.paint-color-swatch').forEach(swatch => {
             swatch.addEventListener('click', () => managerCallbacks.onColorSelect(swatch.dataset.color));
         });
-
-        // Brush & Char
         elements.brushSizeInput.addEventListener('change', (e) => managerCallbacks.onBrushSizeChange(parseInt(e.target.value, 10)));
         elements.container.querySelector('.paint-brush-controls .btn:nth-child(1)').addEventListener('click', () => managerCallbacks.onBrushSizeChange(parseInt(elements.brushSizeInput.value, 10) - 1));
         elements.container.querySelector('.paint-brush-controls .btn:nth-child(3)').addEventListener('click', () => managerCallbacks.onBrushSizeChange(parseInt(elements.brushSizeInput.value, 10) + 1));
         elements.charInput.addEventListener('input', (e) => managerCallbacks.onCharChange(e.target.value));
-
-        // History and Grid
         elements.undoBtn.addEventListener('click', () => managerCallbacks.onUndo());
         elements.redoBtn.addEventListener('click', () => managerCallbacks.onRedo());
         elements.gridBtn.addEventListener('click', () => managerCallbacks.onToggleGrid());
+        elements.zoomInBtn.addEventListener('click', () => managerCallbacks.onZoomIn());
+        elements.zoomOutBtn.addEventListener('click', () => managerCallbacks.onZoomOut());
 
-        // Canvas mouse events
         elements.canvas.addEventListener('mousedown', (e) => {
             const coords = _getCoordsFromEvent(e);
             if(coords) managerCallbacks.onCanvasMouseDown(coords);
@@ -188,23 +233,41 @@ const PaintUI = (() => {
             const coords = _getCoordsFromEvent(e);
             if(coords) managerCallbacks.onCanvasMouseMove(coords);
         });
-        document.addEventListener('mouseup', (e) => {
-            // Listen on document to catch mouse-ups outside canvas
-            const coords = _getCoordsFromEvent(e);
-            if(coords) managerCallbacks.onCanvasMouseUp(coords);
+        document.addEventListener('mouseup', handleGlobalMouseUp);
+
+        elements.canvas.addEventListener('mouseleave', () => {
+            const stateStub = {
+                currentTool: elements.statusTool.textContent.split(': ')[1],
+                currentCharacter: elements.statusChar.textContent.split("'")[1],
+                brushSize: parseInt(elements.statusBrush.textContent.replace(/\D/g, '')),
+                zoomLevel: parseInt(elements.statusZoom.textContent.replace(/\D/g, ''))
+            };
+            updateStatusBar(stateStub);
         });
-        elements.canvas.addEventListener('mouseleave', () => updateStatusBar({ currentTool: elements.statusTool.textContent, currentCharacter: elements.statusChar.textContent, brushSize: elements.statusBrush.textContent}));
 
-        // Keyboard shortcuts
         elements.container.addEventListener('keydown', (e) => {
-            if(e.target.tagName === 'INPUT') return; // Don't hijack input fields
-
+            if (e.target.tagName === 'INPUT') return;
             if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
                 switch (e.key.toLowerCase()) {
-                    case 's': e.preventDefault(); managerCallbacks.onSaveRequest(); break;
-                    case 'o': e.preventDefault(); managerCallbacks.onExitRequest(); break;
-                    case 'z': e.preventDefault(); e.shiftKey ? managerCallbacks.onRedo() : managerCallbacks.onUndo(); break;
-                    case 'y': e.preventDefault(); managerCallbacks.onRedo(); break;
+                    case 's':
+                        managerCallbacks.onSaveRequest();
+                        break;
+                    case 'o':
+                        managerCallbacks.onExitRequest();
+                        break;
+                    case 'z':
+                        e.shiftKey ? managerCallbacks.onRedo() : managerCallbacks.onUndo();
+                        break;
+                    case 'y':
+                        managerCallbacks.onRedo();
+                        break;
+                    case '=':
+                        managerCallbacks.onZoomIn();
+                        break;
+                    case '-':
+                        managerCallbacks.onZoomOut();
+                        break;
                 }
             } else {
                 switch (e.key.toLowerCase()) {
@@ -217,9 +280,18 @@ const PaintUI = (() => {
                 }
             }
         });
-        // Make container focusable
         elements.container.setAttribute('tabindex', '-1');
     }
 
-    return { buildAndShow, hideAndReset, updateCanvas, updatePreviewCanvas, updateToolbar, updateStatusBar, toggleGrid, renderCanvas: renderInitialCanvas };
+    return {
+        buildAndShow,
+        hideAndReset,
+        updateCanvas,
+        updatePreviewCanvas,
+        updateToolbar,
+        updateStatusBar,
+        toggleGrid,
+        updateZoom,
+        renderCanvas: renderInitialCanvas
+    };
 })();
