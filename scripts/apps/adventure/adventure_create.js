@@ -1,4 +1,4 @@
-const AdventureCreator = (() => {
+const Adventure_create = (() => {
     "use strict";
 
     let state = {
