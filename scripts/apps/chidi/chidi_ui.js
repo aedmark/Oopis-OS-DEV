@@ -1,3 +1,4 @@
+// aedmark/oopis-os-dev/Oopis-OS-DEV-cbc33c0961be0b361f0e88490da8362b6de6b93c/scripts/apps/chidi/chidi_ui.js
 const ChidiUI = (() => {
     "use strict";
 
@@ -34,6 +35,7 @@ const ChidiUI = (() => {
         elements.summarizeBtn.disabled = !hasFiles;
         elements.studyBtn.disabled = !hasFiles;
         elements.askBtn.disabled = !hasFiles;
+        elements.autoLinkBtn.disabled = !hasFiles; // Disable if no files
 
         _populateFileDropdown(state.loadedFiles, state.currentIndex);
 
@@ -65,6 +67,7 @@ const ChidiUI = (() => {
             summarizeBtn: get('chidi-summarizeBtn'),
             studyBtn: get('chidi-suggestQuestionsBtn'),
             askBtn: get('chidi-askAllFilesBtn'),
+            autoLinkBtn: get('chidi-autolink-btn'), // ADDED
             saveSessionBtn: get('chidi-saveSessionBtn'),
             verboseToggleBtn: get('chidi-verbose-toggle-btn'),
             exportBtn: get('chidi-exportBtn'),
@@ -96,6 +99,9 @@ const ChidiUI = (() => {
             });
             if (userQuestion) callbacks.onAsk(userQuestion);
         });
+
+        // ADDED: Listener for the new button
+        elements.autoLinkBtn.addEventListener('click', () => callbacks.onAutoLink());
 
         elements.summarizeBtn.addEventListener('click', () => callbacks.onSummarize());
         elements.studyBtn.addEventListener('click', () => callbacks.onStudy());
@@ -170,6 +176,7 @@ const ChidiUI = (() => {
     }
 
     function _getHTML() {
+        // MODIFIED: Added the chidi-autolink-btn
         return `
             <header class="chidi-console-header">
                 <div id="chidi-custom-selector">
@@ -181,6 +188,7 @@ const ChidiUI = (() => {
                     <button id="chidi-summarizeBtn" class="chidi-btn">Summarize</button>
                     <button id="chidi-suggestQuestionsBtn" class="chidi-btn">Study</button>
                     <button id="chidi-askAllFilesBtn" class="chidi-btn">Ask</button>
+                    <button id="chidi-autolink-btn" class="chidi-btn">Auto-Link Summary</button>
                 </div>
             </header>
             <main id="chidi-markdownDisplay" class="chidi-markdown-content"></main>
