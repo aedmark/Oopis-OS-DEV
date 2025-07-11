@@ -584,22 +584,38 @@ echo ""
 echo "===== Phase Y: Testing Advanced Security & Permission Hell ====="
 delay 400
 
-echo "--- Test: Hyper-specific sudo permissions ---"
+# --- Test: Hyper-specific sudo permissions ---
 login root mcgoopis
-chmod 701 /home/diagUser
+# Grant 'limitedsudo' the ability to run the 'cat' command, and nothing else.
+echo 'limitedsudo cat' >> /etc/sudoers
 useradd limitedsudo
 testpass
 testpass
-# This user can ONLY run 'cat' on a specific file, and nothing else.
-echo 'limitedsudo /home/diagUser/diag_workspace/specific_file.txt' >> /etc/sudoers
+
+# Create the specific file this user is meant to read.
 echo "TOP SECRET" > /home/diagUser/diag_workspace/specific_file.txt
+
 login limitedsudo testpass
 cd /home/diagUser/diag_workspace
-# This should succeed
+
+# This should SUCCEED because the user can run 'cat'
+echo "Attempting to run allowed command ('cat') on a file..."
 sudo cat /home/diagUser/diag_workspace/specific_file.txt
 testpass
-# This should fail
+
+# This should FAIL because the user is not allowed to run 'ls'
+echo "Attempting to run disallowed command ('ls')... (This should fail)"
 check_fail "sudo ls /"
+
+# Cleanup
+login root mcgoopis
+removeuser -f limitedsudo
+# Clean up the sudoers file properly
+grep -v "limitedsudo" /etc/sudoers > sudoers.tmp
+mv sudoers.tmp /etc/sudoers
+rm /home/diagUser/diag_workspace/specific_file.txt
+login diagUser testpass
+
 echo "Specific sudo tests complete."
 delay 400
 login root mcgoopis
