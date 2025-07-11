@@ -14,3 +14,4 @@
 *.xml
 /.testing/
 /package-lock.json
+/.vs/
