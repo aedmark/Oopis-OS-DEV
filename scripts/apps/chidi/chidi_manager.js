@@ -1,3 +1,5 @@
+// scripts/apps/chidi/chidi_manager.js
+
 const ChidiManager = (() => {
     "use strict";
 
@@ -23,13 +25,15 @@ const ChidiManager = (() => {
             if (!currentFile) return;
 
             ChidiUI.toggleLoader(true);
-            ChidiUI.showMessage("Contacting Gemini API...");
+            ChidiUI.showMessage(`Contacting ${state.provider} API...`);
 
             const contentToSummarize = currentFile.isCode
                 ? Utils.extractComments(currentFile.content, Utils.getFileExtension(currentFile.name))
                 : currentFile.content;
             const prompt = `Please provide a concise summary of the following document:\n\n---\n\n${contentToSummarize}`;
-            const summary = await _callGeminiApi([{role: 'user', parts: [{text: prompt}]}]);
+
+            // Pass the provider to the API call
+            const summary = await _callLlmApi([{role: 'user', parts: [{text: prompt}]}]);
 
             ChidiUI.toggleLoader(false);
             ChidiUI.appendAiOutput("Summary", summary);
@@ -39,13 +43,15 @@ const ChidiManager = (() => {
             if (!currentFile) return;
 
             ChidiUI.toggleLoader(true);
-            ChidiUI.showMessage("Contacting Gemini API...");
+            ChidiUI.showMessage(`Contacting ${state.provider} API...`);
 
             const contentForQuestions = currentFile.isCode
                 ? Utils.extractComments(currentFile.content, Utils.getFileExtension(currentFile.name))
                 : currentFile.content;
             const prompt = `Based on the following document, what are some insightful questions a user might ask?\n\n---\n\n${contentForQuestions}`;
-            const questions = await _callGeminiApi([{role: 'user', parts: [{text: prompt}]}]);
+
+            // Pass the provider to the API call
+            const questions = await _callLlmApi([{role: 'user', parts: [{text: prompt}]}]);
 
             ChidiUI.toggleLoader(false);
             ChidiUI.appendAiOutput("Suggested Questions", questions);
@@ -103,7 +109,7 @@ const ChidiManager = (() => {
             TEXT:
             ${allContent}`;
 
-            const conceptsResult = await _callGeminiApi([{role: 'user', parts: [{text: conceptsPrompt}]}]);
+            const conceptsResult = await _callLlmApi([{role: 'user', parts: [{text: conceptsPrompt}]}]);
             if (!conceptsResult) {
                 ChidiUI.toggleLoader(false);
                 ChidiUI.showMessage("Failed to extract key concepts.");
@@ -120,7 +126,7 @@ const ChidiManager = (() => {
             DOCUMENT SET:
             ${allContent}`;
 
-            const summaryResult = await _callGeminiApi([{role: 'user', parts: [{text: summaryPrompt}]}]);
+            const summaryResult = await _callLlmApi([{role: 'user', parts: [{text: summaryPrompt}]}]);
             if (!summaryResult) {
                 ChidiUI.toggleLoader(false);
                 ChidiUI.showMessage("Failed to generate summary.");
@@ -189,7 +195,7 @@ const ChidiManager = (() => {
             ChidiUI.appendAiOutput("Constructed Prompt", `The following block contains the context and question being sent to the AI.\n\n\`\`\`text\n${fullPrompt}\n\`\`\``);
         }
 
-        const finalAnswer = await _callGeminiApi(historyForApi);
+        const finalAnswer = await _callLlmApi(historyForApi);
 
         if (finalAnswer) {
             state.conversationHistory.push({role: 'model', parts: [{text: finalAnswer}]});
@@ -224,8 +230,19 @@ const ChidiManager = (() => {
         return relevantFiles.length > 0 ? relevantFiles : [currentFile];
     }
 
-    async function _callGeminiApi(chatHistory) {
-        const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+    // Rename this function to be more generic
+    async function _callLlmApi(chatHistory) {
+        let apiKey = null;
+        // Only get the API key if the provider is Gemini
+        if (state.provider === 'gemini') {
+            apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+            if (!apiKey) {
+                ChidiUI.showMessage("Error: Gemini API key not found.", true);
+                ChidiUI.appendAiOutput("API Error", "A Gemini API key is required for this operation. Please run the `gemini` command once to set it up.");
+                return "";
+            }
+        }
+
         const result = await Utils.callLlmApi(state.provider, state.model, chatHistory, apiKey);
         if (!result.success) {
             ChidiUI.showMessage(`Error: ${result.error}`, true);
