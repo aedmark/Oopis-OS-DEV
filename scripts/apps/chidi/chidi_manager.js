@@ -1,4 +1,3 @@
-// aedmark/oopis-os-dev/Oopis-OS-DEV-cbc33c0961be0b361f0e88490da8362b6de6b93c/scripts/apps/chidi/chidi_manager.js
 const ChidiManager = (() => {
     "use strict";
 
@@ -10,6 +9,8 @@ const ChidiManager = (() => {
         isModalOpen: false,
         isVerbose: false,
         conversationHistory: [],
+        provider: 'gemini',
+        model: null,
     };
 
     const callbacks = {
@@ -91,15 +92,12 @@ const ChidiManager = (() => {
         onClose: () => {
             close();
         },
-        // ADDED: The new callback as per the blueprint
         onAutoLink: async () => {
             ChidiUI.toggleLoader(true);
             ChidiUI.showMessage("Analyzing documents for key concepts...");
 
-            // Stage 1: Content Aggregation
             const allContent = state.loadedFiles.map(f => f.content).join('\n\n---\n\n');
 
-            // Stage 2: Key Concept Extraction
             const conceptsPrompt = `From the following text, extract a list of up to 15 key concepts, names, and technical terms. Return ONLY a comma-separated list.
 
             TEXT:
@@ -115,7 +113,6 @@ const ChidiManager = (() => {
 
             ChidiUI.showMessage("Generating cross-referenced summary...");
 
-            // Stage 3 & 4: Link Map and Intelligent Summarization (Combined into one AI call for efficiency)
             const summaryPrompt = `The following key concepts have been identified in a set of documents: ${keyConcepts.join(', ')}.
 
             Please write a concise, one-paragraph summary of the document set below. Your main goal is to naturally incorporate as many of the key concepts as possible.
@@ -130,10 +127,8 @@ const ChidiManager = (() => {
                 return;
             }
 
-            // Stage 5: Link Injection
             let linkedSummary = summaryResult;
             keyConcepts.forEach(concept => {
-                // Use a regex to avoid linking parts of words and to be case-insensitive
                 const regex = new RegExp(`\\b(${concept})\\b`, 'gi');
                 linkedSummary = linkedSummary.replace(regex, '[[<b>$1</b>]]');
             });
@@ -153,6 +148,9 @@ const ChidiManager = (() => {
             isCode: ['js', 'sh'].includes(Utils.getFileExtension(file.name))
         }));
         state.currentIndex = state.loadedFiles.length > 0 ? 0 : -1;
+
+        if (launchOptions.provider) state.provider = launchOptions.provider;
+        if (launchOptions.model) state.model = launchOptions.model;
 
         if (launchOptions.isNewSession) {
             state.conversationHistory = [];
@@ -203,7 +201,6 @@ const ChidiManager = (() => {
     }
 
     function _findRelevantFiles(userQuestion) {
-        // This is a simplified keyword search; a real implementation would use embeddings.
         const questionLower = userQuestion.toLowerCase();
         const stopWords = new Set(['a', 'an', 'the', 'is', 'in', 'of', 'for', 'to', 'what', 'who', 'where', 'when', 'why', 'how', 'and', 'or', 'but']);
         const keywords = questionLower.split(/[\s\W]+/).filter(word => word.length > 2 && !stopWords.has(word));
@@ -229,7 +226,7 @@ const ChidiManager = (() => {
 
     async function _callGeminiApi(chatHistory) {
         const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
-        const result = await Utils.callLlmApi('gemini', null, chatHistory, apiKey);
+        const result = await Utils.callLlmApi(state.provider, state.model, chatHistory, apiKey);
         if (!result.success) {
             ChidiUI.showMessage(`Error: ${result.error}`, true);
             ChidiUI.appendAiOutput("API Error", `Failed to get a response. Details: ${result.error}`);

@@ -34,7 +34,8 @@
 
     const chidiCommandDefinition = {
         commandName: "chidi",
-        flagDefinitions: [{name: "new", short: "-n", long: "--new"},
+        flagDefinitions: [
+            {name: "new", short: "-n", long: "--new"},
             {name: "provider", short: "-p", long: "--provider", takesValue: true},
             {name: "model", short: "-m", long: "--model", takesValue: true},
             {name: "forceToolUse", short: "-f", long: "--force"}
@@ -93,7 +94,12 @@
                 return {success: true, output: `No supported files (.md, .txt, .js, .sh) found to open.`};
             }
 
-            ChidiManager.launch(files, {isNewSession: flags.new});
+            ChidiManager.launch(files, {
+                isNewSession: flags.new,
+                provider: flags.provider,
+                model: flags.model,
+                forceToolUse: flags.forceToolUse
+            });
 
             return {success: !hadErrors, output: ""};
         }
