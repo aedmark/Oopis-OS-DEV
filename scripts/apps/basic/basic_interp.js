@@ -1,4 +1,4 @@
-class BasicInterpreter {
+class Basic_interp {
     constructor() {
         // --- Added state for new features ---
         this.variables = new Map();

@@ -70,7 +70,7 @@ const BasicUI = (() => {
 const BasicManager = (() => {
     "use strict";
     let isActive = false;
-    let interpreter = new BasicInterpreter();
+    let interpreter = new Basic_interp();
     let programBuffer = new Map();
     let onInputPromiseResolver = null;
     let loadOptions = {};
@@ -106,7 +106,7 @@ const BasicManager = (() => {
         BasicUI.reset();
 
         isActive = false;
-        interpreter = new BasicInterpreter();
+        interpreter = new Basic_interp();
         programBuffer.clear();
         onInputPromiseResolver = null;
         loadOptions = {};
