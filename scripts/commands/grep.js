@@ -1,4 +1,3 @@
-// Corrected File: aedmark/oopis-os-dev/Oopis-OS-DEV-befc361c8feaa9a1cfa0107f68f24425f5419b9b/scripts/commands/grep.js
 (() => {
     "use strict";
 
@@ -9,7 +8,7 @@
             { name: "invertMatch", short: "-v", long: "--invert-match" },
             { name: "lineNumber", short: "-n", long: "--line-number" },
             { name: "count", short: "-c", long: "--count" },
-            {name: "recursive", short: "-R", long: "--recursive"},
+            {name: "recursive", short: "-R", long: "--recursive", aliases: ["-r"]},
         ],
         coreLogic: async (context) => {
             const {args, flags, currentUser, options} = context;
@@ -29,11 +28,12 @@
             }
 
             const outputLines = [];
+            let totalMatches = 0;
 
-            const processContent = (content, filePathForDisplay, totalSources) => {
+            const processContent = (content, filePathForDisplay, displayFileName) => {
                 const lines = content.split("\n");
                 let fileMatchCount = 0;
-                let currentFileLines = [];
+                let fileOutput = [];
 
                 lines.forEach((line, index) => {
                     if (index === lines.length - 1 && line === "") return;
@@ -45,43 +45,72 @@
                         fileMatchCount++;
                         if (!flags.count) {
                             let outputLine = "";
-                            if (filePathForDisplay && totalSources > 1) {
+                            if (displayFileName) {
                                 outputLine += `${filePathForDisplay}:`;
                             }
                             if (flags.lineNumber) {
                                 outputLine += `${index + 1}:`;
                             }
                             outputLine += line;
-                            currentFileLines.push(outputLine);
+                            fileOutput.push(outputLine);
                         }
                     }
                 });
 
                 if (flags.count) {
                     let countOutput = "";
-                    if (filePathForDisplay && totalSources > 1) {
+                    if (displayFileName) {
                         countOutput += `${filePathForDisplay}:`;
                     }
                     countOutput += fileMatchCount;
                     outputLines.push(countOutput);
                 } else {
-                    outputLines.push(...currentFileLines);
+                    outputLines.push(...fileOutput);
                 }
+                totalMatches += fileMatchCount;
             };
+
+            async function searchDirectory(directoryPath) {
+                const dirNode = FileSystemManager.getNodeByPath(directoryPath);
+                if (!dirNode || dirNode.type !== 'directory') return;
+
+                const children = Object.keys(dirNode.children).sort();
+                for (const childName of children) {
+                    const childPath = FileSystemManager.getAbsolutePath(childName, directoryPath);
+                    const childNode = dirNode.children[childName];
+                    if (childNode.type === 'directory') {
+                        await searchDirectory(childPath);
+                    } else if (childNode.type === 'file') {
+                        if (FileSystemManager.hasPermission(childNode, currentUser, "read")) {
+                            processContent(childNode.content || "", childPath, true);
+                        }
+                    }
+                }
+            }
+
 
             if (filePaths.length > 0) {
                 for (const pathArg of filePaths) {
-                    const pathInfo = FileSystemManager.validatePath("grep", pathArg, {expectedType: 'file'});
+                    const pathInfo = FileSystemManager.validatePath("grep", pathArg);
                     if (pathInfo.error) {
-                        return {success: false, error: pathInfo.error};
+                        outputLines.push(pathInfo.error);
+                        continue;
                     }
                     if (!FileSystemManager.hasPermission(pathInfo.node, currentUser, "read")) {
-                        return {success: false, error: `grep: ${pathArg}: Permission denied`};
+                        outputLines.push(`grep: ${pathArg}: Permission denied`);
+                        continue;
                     }
-                    processContent(pathInfo.node.content, pathArg, filePaths.length);
+
+                    if (pathInfo.node.type === 'directory' && flags.recursive) {
+                        await searchDirectory(pathInfo.resolvedPath);
+                    } else if (pathInfo.node.type === 'directory' && !flags.recursive) {
+                        outputLines.push(`grep: ${pathArg}: is a directory`);
+                    } else {
+                        processContent(pathInfo.node.content, pathArg, filePaths.length > 1);
+                    }
                 }
             } else if (options.stdinContent !== null) {
-                processContent(options.stdinContent, 'stdin', 1);
+                processContent(options.stdinContent, '(standard input)', false);
             } else {
                 return {success: false, error: "grep: missing operand"};
             }
@@ -94,6 +123,36 @@
     };
 
     const grepDescription = "Searches for a pattern in files or standard input.";
-    const grepHelpText = `...`;
+    const grepHelpText = `Usage: grep [OPTION]... PATTERN [FILE]...
+Search for PATTERN in each FILE or standard input.
+
+DESCRIPTION
+       The grep command searches for lines containing a match to the given
+       PATTERN. When a line matches, it is printed.
+
+OPTIONS
+       -i, --ignore-case
+              Ignore case distinctions in patterns and data.
+       -v, --invert-match
+              Invert the sense of matching, to select non-matching lines.
+       -n, --line-number
+              Prefix each line of output with the 1-based line number
+              within its input file.
+       -c, --count
+              Suppress normal output; instead print a count of matching lines
+              for each input file.
+       -R, -r, --recursive
+              Read all files under each directory, recursively.
+
+EXAMPLES
+       grep "error" /data/logs/system.log
+              Finds all lines containing "error" in the system log.
+              
+       ls | grep ".txt"
+              Lists only the files in the current directory that contain ".txt".
+
+       grep -R "TODO" /home/Guest/src
+              Recursively searches for "TODO" in the 'src' directory.`;
+
     CommandRegistry.register("grep", grepCommandDefinition, grepDescription, grepHelpText);
 })();
