@@ -23,13 +23,11 @@ const TextAdventureModal = (() => {
     const container = Utils.createElement('div', { id: 'adventure-container' }, header, output, inputContainer);
 
     elements = { container, header, output, input, roomNameSpan, scoreSpan };
-
-    // The layout is now fully constructed and cached.
-    // It will be shown by the AppLayerManager in the 'show' function.
   }
 
   function _handleInput(e) {
     if (e.key !== 'Enter' || !state.inputCallback) return;
+    e.preventDefault();
     const command = elements.input.value;
     elements.input.value = '';
     appendOutput(`> ${command}`, 'system');
