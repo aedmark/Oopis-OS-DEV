@@ -253,7 +253,9 @@ echo "5 * (10 - 2) / 4" | bc
 bc "100 + 1"
 check_fail "bc '5 / 0'"
 echo "--- Test: Pager integration (non-interactive pipe-through) ---"
-echo -e "Line 1\nLine 2\nLine 3" > pager_test.txt
+echo "Line 1
+Line 2
+Line 3" > pager_test.txt
 cat pager_test.txt | more | wc -l
 cat pager_test.txt | less | wc -l
 echo "Pager pass-through test complete."
