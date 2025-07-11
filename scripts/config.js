@@ -146,7 +146,7 @@ const Config = (() => {
                 },
                 'ollama': {
                     url: "http://localhost:11434/api/generate",
-                    defaultModel: "gemma3"
+                    defaultModel: "gemma3:12b"
                 }
             }
         },
