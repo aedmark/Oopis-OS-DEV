@@ -1,3 +1,4 @@
+// Corrected File: aedmark/oopis-os-dev/Oopis-OS-DEV-aedb1e06b3c339d81e0dedd9bba1496acbdf4d36/scripts/commands/gemini.js
 (() => {
     "use strict";
 
@@ -42,7 +43,7 @@ RULES:
             error: 'Insufficient arguments. Usage: gemini [-p provider] [-m model] "<prompt>"',
         },
         coreLogic: async (context) => {
-            const { args, options, flags } = context;
+            const {args, options, flags, sessionContext} = context;
 
             let provider = flags.provider || 'gemini';
             const originalProvider = provider;
@@ -58,9 +59,10 @@ RULES:
                 const apiKeyResult = await new Promise(resolve => {
                     let key = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
                     if (key) resolve({ success: true, key, fromStorage: true });
-                    else ModalInputManager.requestInput(
-                        "Please enter your Gemini API key:",
-                        (providedKey) => {
+                    else ModalManager.request({
+                        context: 'terminal',
+                        messageLines: ["Please enter your Gemini API key:"],
+                        onConfirm: (providedKey) => {
                             if (!providedKey || providedKey.trim() === "") {
                                 resolve({
                                     success: false,
@@ -70,22 +72,23 @@ RULES:
                             }
                             StorageManager.saveItem(Config.STORAGE_KEYS.GEMINI_API_KEY, providedKey, "Gemini API Key");
                             OutputManager.appendToOutput("API Key saved. Launching Chidi...", {
-                                typeClass: Config.CSS_CLASSES.SUCCESS_MSG
+                                typeClass: Config.CSS_CLASSES.SUCCESS_MSG,
+                                sessionContext
                             });
                             resolve({
                                 success: true,
                                 key: providedKey
                             });
                         },
-                        () => {
+                        onCancel: () => {
                             resolve({
                                 success: false,
                                 error: "API key entry cancelled."
                             });
                         },
-                        false,
-                        options
-                    );
+                        options: {...options, isObscured: true},
+                        sessionContext
+                    });
                 });
 
                 if (!apiKeyResult.success) return { success: false, error: `gemini: ${apiKeyResult.error}` };
@@ -95,17 +98,26 @@ RULES:
 
             if (flags.new) {
                 conversationHistory = [];
-                if (options.isInteractive) await OutputManager.appendToOutput("Starting a new conversation.", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+                if (options.isInteractive) await OutputManager.appendToOutput("Starting a new conversation.", {
+                    typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
+                    sessionContext
+                });
             }
 
-            if (options.isInteractive) await OutputManager.appendToOutput("AI is thinking...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+            if (options.isInteractive) await OutputManager.appendToOutput("AI is thinking...", {
+                typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
+                sessionContext
+            });
 
             const isGeminiProvider = provider === 'gemini';
             const shouldUseToolUseLogic = isGeminiProvider || flags.forceToolUse;
 
             if (shouldUseToolUseLogic) {
 
-                const lsResult = await CommandExecutor.processSingleCommand("ls -l", { suppressOutput: true });
+                const lsResult = await CommandExecutor.processSingleCommand("ls -l", {
+                    suppressOutput: true,
+                    sessionContext
+                });
                 const localContext = `Current directory content:\n${lsResult.output || '(empty)'}`;
                 const plannerPrompt = `User Prompt: "${userPrompt}"\n\n${localContext}`;
 
@@ -115,7 +127,10 @@ RULES:
 
                 if (!plannerResult.success && plannerResult.error === 'LOCAL_PROVIDER_UNAVAILABLE') {
                     if (options.isInteractive) {
-                        await OutputManager.appendToOutput(`gemini: Could not connect to '${originalProvider}' for planning. Falling back to Google Gemini for tool orchestration.`, { typeClass: Config.CSS_CLASSES.WARNING_MSG });
+                        await OutputManager.appendToOutput(`gemini: Could not connect to '${originalProvider}' for planning. Falling back to Google Gemini for tool orchestration.`, {
+                            typeClass: Config.CSS_CLASSES.WARNING_MSG,
+                            sessionContext
+                        });
                     }
                     provider = 'gemini';
                     const fallbackApiKeyResult = await new Promise(resolve => {
@@ -134,7 +149,10 @@ RULES:
                     if (plannerResult.error === "INVALID_API_KEY") {
                         StorageManager.removeItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
                         if (options.isInteractive) {
-                            await OutputManager.appendToOutput("Gemini API key was invalid and has been removed.", { typeClass: Config.CSS_CLASSES.WARNING_MSG });
+                            await OutputManager.appendToOutput("Gemini API key was invalid and has been removed.", {
+                                typeClass: Config.CSS_CLASSES.WARNING_MSG,
+                                sessionContext
+                            });
                         }
                         return { success: false, error: "gemini: Your API key is invalid. Please run the command again." };
                     }
@@ -144,7 +162,10 @@ RULES:
                 if (isNewKeyProvided && requiresGeminiApiKey) {
                     StorageManager.saveItem(Config.STORAGE_KEYS.GEMINI_API_KEY, apiKey);
                     if (options.isInteractive) {
-                        await OutputManager.appendToOutput("Gemini API key saved successfully.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
+                        await OutputManager.appendToOutput("Gemini API key saved successfully.", {
+                            typeClass: Config.CSS_CLASSES.SUCCESS_MSG,
+                            sessionContext
+                        });
                     }
                 }
 
@@ -162,20 +183,32 @@ RULES:
                 let executedCommandsOutput = "";
                 const commandsToExecute = planText.split('\n').map(line => line.replace(/^\d+\.\s*/, '').trim()).filter(Boolean);
                 if (flags.verbose && options.isInteractive) {
-                    await OutputManager.appendToOutput(`AI's Plan:\n${commandsToExecute.map(c => `- ${c}`).join('\n')}`, { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+                    await OutputManager.appendToOutput(`AI's Plan:\n${commandsToExecute.map(c => `- ${c}`).join('\n')}`, {
+                        typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
+                        sessionContext
+                    });
                 }
 
                 for (const commandStr of commandsToExecute) {
                     const commandName = commandStr.split(' ')[0];
                     if (!COMMAND_WHITELIST.includes(commandName)) {
-                        await OutputManager.appendToOutput(`Execution HALTED: AI attempted to run a non-whitelisted command: '${commandName}'.`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                        await OutputManager.appendToOutput(`Execution HALTED: AI attempted to run a non-whitelisted command: '${commandName}'.`, {
+                            typeClass: Config.CSS_CLASSES.ERROR_MSG,
+                            sessionContext
+                        });
                         return { success: false, error: `Attempted to run restricted command: ${commandName}` };
                     }
 
                     if (flags.verbose && options.isInteractive) {
-                        await OutputManager.appendToOutput(`> ${commandStr}`, { typeClass: Config.CSS_CLASSES.EDITOR_MSG });
+                        await OutputManager.appendToOutput(`> ${commandStr}`, {
+                            typeClass: Config.CSS_CLASSES.EDITOR_MSG,
+                            sessionContext
+                        });
                     }
-                    const execResult = await CommandExecutor.processSingleCommand(commandStr, { suppressOutput: !flags.verbose });
+                    const execResult = await CommandExecutor.processSingleCommand(commandStr, {
+                        suppressOutput: !flags.verbose,
+                        sessionContext
+                    });
                     const output = execResult.success ? execResult.output : `Error: ${execResult.error}`;
                     executedCommandsOutput += `--- Output of '${commandStr}' ---\n${output}\n\n`;
                 }
@@ -203,7 +236,10 @@ RULES:
                 if (!directResult.success) {
                     if (directResult.error === 'LOCAL_PROVIDER_UNAVAILABLE') {
                         if (options.isInteractive) {
-                            await OutputManager.appendToOutput(`gemini: Could not connect to '${originalProvider}'. Falling back to default 'gemini' provider.`, { typeClass: Config.CSS_CLASSES.WARNING_MSG });
+                            await OutputManager.appendToOutput(`gemini: Could not connect to '${originalProvider}'. Falling back to default 'gemini' provider.`, {
+                                typeClass: Config.CSS_CLASSES.WARNING_MSG,
+                                sessionContext
+                            });
                         }
                         const fallbackCommand = `gemini ${flags.new ? '-n ' : ''}${flags.verbose ? '-v ' : ''}"${userPrompt}"`;
                         return await CommandExecutor.processSingleCommand(fallbackCommand, options);

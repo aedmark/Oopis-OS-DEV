@@ -1,3 +1,4 @@
+// Corrected File: aedmark/oopis-os-dev/Oopis-OS-DEV-aedb1e06b3c339d81e0dedd9bba1496acbdf4d36/scripts/commands/sudo.js
 (() => {
     "use strict";
 
@@ -8,12 +9,15 @@
             error: "usage: sudo <command> [args ...]"
         },
         coreLogic: async (context) => {
-            const { args, currentUser, options } = context;
+            const {args, currentUser, options, sessionContext} = context;
             const commandToRun = args[0];
             const fullCommandStr = args.join(' ');
 
             if (currentUser === 'root') {
-                return await CommandExecutor.processSingleCommand(fullCommandStr, { isInteractive: options.isInteractive });
+                return await CommandExecutor.processSingleCommand(fullCommandStr, {
+                    ...options,
+                    isInteractive: options.isInteractive
+                });
             }
 
             if (!SudoManager.canUserRunCommand(currentUser, commandToRun) && !SudoManager.canUserRunCommand(currentUser, 'ALL')) {
@@ -24,28 +28,29 @@
             }
 
             if (SudoManager.isUserTimestampValid(currentUser)) {
-                return await UserManager.sudoExecute(fullCommandStr, options);
+                return await UserManager.sudoExecute(fullCommandStr, options, sessionContext);
             }
 
             return new Promise(resolve => {
-                ModalInputManager.requestInput(
-                    `[sudo] password for ${currentUser}:`,
-                    async (password) => {
+                ModalManager.request({
+                    context: 'terminal',
+                    messageLines: [`[sudo] password for ${currentUser}:`],
+                    onConfirm: async (password) => {
                         const authResult = await UserManager.verifyPassword(currentUser, password);
 
                         if (authResult.success) {
                             SudoManager.updateUserTimestamp(currentUser);
-                            resolve(await UserManager.sudoExecute(fullCommandStr, options));
+                            resolve(await UserManager.sudoExecute(fullCommandStr, options, sessionContext));
                         } else {
                             setTimeout(() => {
                                 resolve({ success: false, error: "sudo: Sorry, try again." });
                             }, 1000);
                         }
                     },
-                    () => resolve({ success: true, output: "" }),
-                    true,
-                    options
-                );
+                    onCancel: () => resolve({success: true, output: ""}),
+                    options: {...options, isObscured: true},
+                    sessionContext
+                });
             });
         }
     };
