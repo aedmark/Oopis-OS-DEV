@@ -2,7 +2,7 @@
     "use strict";
 
     let conversationHistory = [];
-    const COMMAND_WHITELIST = ['ls', 'cat', 'grep', 'find', 'tree', 'pwd', 'head', 'shuf', 'xargs', 'echo', 'tail', 'csplit', 'wc'];
+    const COMMAND_WHITELIST = ['ls', 'cat', 'grep', 'find', 'tree', 'pwd', 'head', 'shuf', 'xargs', 'echo', 'tail', 'csplit', 'wc', 'awk', 'sort'];
 
     const PLANNER_SYSTEM_PROMPT = `You are a helpful and witty digital archivist embedded in the OopisOS terminal environment. Your goal is to assist the user by answering their questions about their file system, but you are also able to gather answers from outside sources when relevant. Your primary task is to analyze the user's prompt and the provided local file context, then devise a plan of OopisOS commands to execute to gather the necessary information.
 
@@ -14,7 +14,7 @@ RULES:
 - When using a command with an argument that contains spaces (like a filename), you MUST enclose that argument in double quotes. For example: cat "My File.txt".
 
 --- TOOL MANIFEST ---
-ls [-l, -a, -R], cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -type [f|d], tree, pwd, head [-n], tail [-n], wc
+ls [-l, -a, -R], cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -type [f|d], tree, pwd, head [-n], tail [-n], wc, xargs, shuf, tail, csplit, awk, sort, echo
 --- END MANIFEST ---
 
 To process multiple files, you must first list them, and then process each file with a separate command in the plan.`;
