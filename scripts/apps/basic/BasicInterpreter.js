@@ -1,6 +1,6 @@
 class BasicInterpreter {
     constructor() {
-        // --- MODIFICATION: Added state for new features ---
+        // --- Added state for new features ---
         this.variables = new Map();
         this.arrays = new Map(); // For DIM
         this.gosubStack = [];
@@ -14,12 +14,12 @@ class BasicInterpreter {
         this.pokeCallback = (x, y, char, color) => { /* System Poke Implementation */
         };
 
-        // --- NEW: RND function state ---
+        // --- RND function state ---
         this.lastRnd = Math.random();
         this.rndSeed = new Date().getTime();
     }
 
-    // --- MODIFICATION: Expanded to clear all new state variables ---
+    // --- Expanded to clear all new state variables ---
     _initializeState() {
         this.variables.clear();
         this.arrays.clear();
@@ -31,7 +31,7 @@ class BasicInterpreter {
         this.programCounter = null;
     }
 
-    // --- NEW: Pre-pass to collect all DATA statements ---
+    // --- Pre-pass to collect all DATA statements ---
     _preScanForData() {
         this.data = [];
         const sortedLines = Array.from(this.program.keys()).sort((a, b) => a - b);
@@ -77,7 +77,7 @@ class BasicInterpreter {
         this.inputCallback = inputCallback;
         this.pokeCallback = pokeCallback; // Store the poke callback
         this._parseProgram(programText);
-        this._preScanForData(); // NEW: Pre-scan for DATA
+        this._preScanForData(); // Pre-scan for DATA
 
         const sortedLines = Array.from(this.program.keys()).sort((a, b) => a - b);
         if (this.programCounter === null) {
@@ -147,7 +147,6 @@ class BasicInterpreter {
         return args;
     }
 
-    // --- MODIFICATION: Heavily extended to handle new statements ---
     async executeStatement(statement) {
         const match = statement.match(/^([a-zA-Z_][a-zA-Z_0-9$]*)\s*(.*)/s);
 
@@ -247,7 +246,6 @@ class BasicInterpreter {
                 if (this.gosubStack.length === 0) throw new Error("RETURN without GOSUB");
                 this.programCounter = this.gosubStack.pop();
                 break;
-            // --- NEW: FOR...NEXT Implementation ---
             case 'FOR': {
                 const toIndex = rest.toUpperCase().indexOf('TO');
                 const stepIndex = rest.toUpperCase().indexOf('STEP');
@@ -291,7 +289,6 @@ class BasicInterpreter {
                 }
                 break;
             }
-            // --- NEW: DIM, DATA, READ, RESTORE Implementation ---
             case 'DIM': {
                 const dimMatch = rest.match(/([a-zA-Z_][a-zA-Z_0-9$]*)\((.*)\)/);
                 if (!dimMatch) throw new Error(`Syntax Error in DIM: ${rest}`);
@@ -319,7 +316,6 @@ class BasicInterpreter {
             case 'RESTORE':
                 this.dataPointer = 0;
                 break;
-            // --- NEW: SYS_POKE Implementation ---
             case 'SYS_POKE': {
                 const args = this._parseFunctionArgs(rest);
                 if (args.length !== 4) throw new Error("SYS_POKE requires 4 arguments: x, y, char, color");
@@ -358,9 +354,7 @@ class BasicInterpreter {
         }
     }
 
-    // --- MODIFICATION: Heavily extended to handle new functions ---
     async _evaluateExpression(expression) {
-        // --- NEW: Function Handling ---
         const functionMatch = expression.match(/([a-zA-Z_$]+)\((.*)\)/i);
         if (functionMatch) {
             const funcName = functionMatch[1].toUpperCase();
