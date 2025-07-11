@@ -34,7 +34,11 @@
 
     const chidiCommandDefinition = {
         commandName: "chidi",
-        flagDefinitions: [{name: "new", short: "-n", long: "--new"}],
+        flagDefinitions: [{name: "new", short: "-n", long: "--new"},
+            {name: "provider", short: "-p", long: "--provider", takesValue: true},
+            {name: "model", short: "-m", long: "--model", takesValue: true},
+            {name: "forceToolUse", short: "-f", long: "--force"}
+        ],
         argValidation: {
             max: 1,
             error: "Usage: chidi [-n] [path] or <command> | chidi [-n]"
