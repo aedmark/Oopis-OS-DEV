@@ -579,18 +579,16 @@ echo "Redirection simulation test complete."
 delay 400
 echo "---------------------------------------------------------------------"
 
-# --- Phase Y: Advanced Security & Permission Hell ---
-echo ""
-echo "===== Phase Y: Testing Advanced Security & Permission Hell ====="
-delay 400
-
 # --- Test: Hyper-specific sudo permissions ---
 login root mcgoopis
+
 # Grant 'limitedsudo' the ability to run the 'cat' command, and nothing else.
 echo 'limitedsudo cat' >> /etc/sudoers
 useradd limitedsudo
 testpass
 testpass
+
+chmod 701 /home/diagUser
 
 # Create the specific file this user is meant to read.
 echo "TOP SECRET" > /home/diagUser/diag_workspace/specific_file.txt
