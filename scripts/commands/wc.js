@@ -22,7 +22,7 @@
             const input = inputItems.map(item => item.content).join('\\n');
 
             if (input === null || input === undefined) {
-                return { success: false, error: "wc: No readable input provided." };
+                return {success: false, error: "wc: No readable input provided."};
             }
 
             const showAll = !flags.lines && !flags.words && !flags.bytes;

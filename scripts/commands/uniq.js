@@ -36,7 +36,7 @@
             let lines = input.split('\\n');
 
             if (lines.length === 0 || (lines.length === 1 && lines[0] === '')) {
-                return { success: true, output: "" };
+                return {success: true, output: ""};
             }
             // The rest of the core logic remains sound and operates on the corrected 'lines' variable.
             const outputLines = [];

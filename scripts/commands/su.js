@@ -9,14 +9,15 @@
         },
 
         coreLogic: async (context) => {
-            const {args, options, sessionContext} = context; // Capture sessionContext
+            const {args, options} = context;
             const targetUser = args.length > 0 ? args[0] : "root";
             const providedPassword = args.length > 1 ? args[1] : null;
+            const result = await UserManager.su(targetUser, providedPassword, options);
+            if (result.success && !result.noAction) {
+                OutputManager.clearOutput();
+                await OutputManager.appendToOutput(`${Config.MESSAGES.WELCOME_PREFIX} ${targetUser}${Config.MESSAGES.WELCOME_SUFFIX}`);
+            }
 
-            // Pass sessionContext to UserManager
-            const result = await UserManager.su(targetUser, providedPassword, options, sessionContext);
-
-            // OutputManager calls are now handled within UserManager
             return {
                 success: result.success,
                 output: result.noAction ? result.message : null,

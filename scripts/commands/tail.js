@@ -21,7 +21,7 @@
             }
 
             if (input === null) {
-                return { success: false, error: "tail: No readable input provided." };
+                return {success: false, error: "tail: No readable input provided."};
             }
 
             let lineCount = 10;
@@ -51,7 +51,7 @@
                 output = relevantLines.slice(-lineCount).join('\n');
             }
 
-            return { success: true, output: output };
+            return {success: true, output: output};
         },
     };
 

@@ -1,4 +1,3 @@
-// Corrected File: aedmark/oopis-os-dev/Oopis-OS-DEV-aedb1e06b3c339d81e0dedd9bba1496acbdf4d36/scripts/apps/adventure/AdventureCreator.js
 const AdventureCreator = (() => {
     "use strict";
 
@@ -23,10 +22,7 @@ const AdventureCreator = (() => {
             editContext: null
         };
 
-        await OutputManager.appendToOutput("Entering Adventure Creator. Type 'help' for commands, 'exit' to quit.", {
-            typeClass: 'text-success',
-            sessionContext: state.commandContext.sessionContext
-        });
+        await OutputManager.appendToOutput("Entering Adventure Creator. Type 'help' for commands, 'exit' to quit.", {typeClass: 'text-success'});
 
         _requestNextCommand();
     }
@@ -39,23 +35,23 @@ const AdventureCreator = (() => {
             prompt = `(editing ${state.editContext.type} '${state.editContext.name}')> `;
         }
 
-        ModalManager.request({
-            context: 'terminal',
-            messageLines: [prompt],
-            onConfirm: async (input) => {
+        ModalInputManager.requestInput(
+            prompt,
+            async (input) => {
                 await _processCreatorCommand(input);
                 if (state.isActive) {
                     _requestNextCommand();
                 }
             },
-            onCancel: () => {
+            () => {
                 if (state.isActive) _requestNextCommand();
             },
-            options: {...state.commandContext.options},
-            sessionContext: state.commandContext.sessionContext
-        });
+            false,
+            state.commandContext.options
+        );
     }
 
+    // Command parser and dispatcher
     async function _processCreatorCommand(input) {
         const [command, ...args] = input.trim().split(/\s+/);
         const joinedArgs = args.join(' ');
@@ -88,12 +84,11 @@ const AdventureCreator = (() => {
             case '':
                 break;
             default:
-                await OutputManager.appendToOutput(`Unknown command: '${command}'. Type 'help'.`, {
-                    typeClass: 'text-error',
-                    sessionContext: state.commandContext.sessionContext
-                });
+                await OutputManager.appendToOutput(`Unknown command: '${command}'. Type 'help'.`, {typeClass: 'text-error'});
         }
     }
+
+    // --- Command Handler Implementations ---
 
     function _generateId(name) {
         return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -104,17 +99,11 @@ const AdventureCreator = (() => {
         const name = args.join(' ').replace(/["']/g, '');
 
         if (!['room', 'item', 'npc'].includes(type)) {
-            OutputManager.appendToOutput("Error: Must specify type: 'room', 'item', or 'npc'.", {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput("Error: Must specify type: 'room', 'item', or 'npc'.", {typeClass: 'text-error'});
             return;
         }
         if (!name) {
-            OutputManager.appendToOutput("Error: You must provide a name in quotes.", {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput("Error: You must provide a name in quotes.", {typeClass: 'text-error'});
             return;
         }
 
@@ -135,18 +124,17 @@ const AdventureCreator = (() => {
         }
 
         state.isDirty = true;
-        OutputManager.appendToOutput(`Created ${type} '${name}' with ID '${id}'.`, {
-            typeClass: 'text-success',
-            sessionContext: state.commandContext.sessionContext
-        });
+        OutputManager.appendToOutput(`Created ${type} '${name}' with ID '${id}'.`, {typeClass: 'text-success'});
         _handleEdit(`${type} "${name}"`);
     }
 
     function _findEntity(type, name) {
         const collection = state.adventureData[type + 's'];
         if (!collection) return null;
+        // Find by exact name first
         let entity = Object.values(collection).find(e => e.name.toLowerCase() === name.toLowerCase());
         if (entity) return entity;
+        // Fallback to finding by ID
         entity = collection[name];
         if(entity) return entity;
 
@@ -156,7 +144,7 @@ const AdventureCreator = (() => {
     function _handleEdit(argString) {
         const typeMatch = argString.match(/^(room|item|npc)\s+/i);
         if(!typeMatch) {
-            state.editContext = null;
+            state.editContext = null; // Exit edit mode
             return;
         }
         const type = typeMatch[1].toLowerCase();
@@ -166,33 +154,21 @@ const AdventureCreator = (() => {
 
         if (entity) {
             state.editContext = { type, id: entity.id, name: entity.name };
-            OutputManager.appendToOutput(`Now editing ${type} '${entity.name}'. Use 'set <prop> "<value>"'. Type 'edit' to stop editing.`, {
-                typeClass: 'text-info',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput(`Now editing ${type} '${entity.name}'. Use 'set <prop> "<value>"'. Type 'edit' to stop editing.`, {typeClass: 'text-info'});
         } else {
-            OutputManager.appendToOutput(`Error: Cannot find ${type} with name '${name}'.`, {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput(`Error: Cannot find ${type} with name '${name}'.`, {typeClass: 'text-error'});
         }
     }
 
     function _handleSet(argString) {
         if (!state.editContext) {
-            OutputManager.appendToOutput("Error: You must 'edit' an entity before you can 'set' its properties.", {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput("Error: You must 'edit' an entity before you can 'set' its properties.", {typeClass: 'text-error'});
             return;
         }
 
         const match = argString.match(/^(\w+)\s+(.*)/);
         if (!match) {
-            OutputManager.appendToOutput("Error: Invalid format. Use: set <property> \"<value>\"", {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput("Error: Invalid format. Use: set <property> \"<value>\"", {typeClass: 'text-error'});
             return;
         }
 
@@ -201,10 +177,7 @@ const AdventureCreator = (() => {
 
         const entity = state.adventureData[state.editContext.type + 's'][state.editContext.id];
         if(!entity) {
-            OutputManager.appendToOutput("Error: Current entity context is invalid. Exiting edit mode.", {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput("Error: Current entity context is invalid. Exiting edit mode.", {typeClass: 'text-error'});
             state.editContext = null;
             return;
         }
@@ -218,24 +191,15 @@ const AdventureCreator = (() => {
                 entity[prop] = value;
             }
             state.isDirty = true;
-            OutputManager.appendToOutput(`Set ${prop} to "${entity[prop]}" for ${entity.name}.`, {
-                typeClass: 'text-success',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput(`Set ${prop} to "${entity[prop]}" for ${entity.name}.`, {typeClass: 'text-success'});
         } else {
-            OutputManager.appendToOutput(`Error: '${prop}' is not a valid property for type '${state.editContext.type}'.`, {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput(`Error: '${prop}' is not a valid property for type '${state.editContext.type}'.`, {typeClass: 'text-error'});
         }
     }
 
     function _handleLink(args) {
         if (args.length < 3) {
-            OutputManager.appendToOutput("Error: Invalid format. Use: link \"<room1>\" <direction> \"<room2>\"", {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput("Error: Invalid format. Use: link \"<room1>\" <direction> \"<room2>\"", {typeClass: 'text-error'});
             return;
         }
 
@@ -245,19 +209,13 @@ const AdventureCreator = (() => {
         const room2 = _findEntity('room', room2Name);
 
         if (!room1 || !room2) {
-            OutputManager.appendToOutput("Error: One or both rooms not found.", {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput("Error: One or both rooms not found.", {typeClass: 'text-error'});
             return;
         }
 
         const oppositeDirection = { north: 'south', south: 'north', east: 'west', west: 'east', up: 'down', down: 'up'}[direction];
         if (!oppositeDirection) {
-            OutputManager.appendToOutput(`Error: Invalid direction '${direction}'.`, {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            OutputManager.appendToOutput(`Error: Invalid direction '${direction}'.`, {typeClass: 'text-error'});
             return;
         }
 
@@ -265,10 +223,7 @@ const AdventureCreator = (() => {
         room2.exits[oppositeDirection] = room1.id;
 
         state.isDirty = true;
-        OutputManager.appendToOutput(`Linked ${room1.name} (${direction}) <-> ${room2.name} (${oppositeDirection}).`, {
-            typeClass: 'text-success',
-            sessionContext: state.commandContext.sessionContext
-        });
+        OutputManager.appendToOutput(`Linked ${room1.name} (${direction}) <-> ${room2.name} (${oppositeDirection}).`, {typeClass: 'text-success'});
     }
 
     function _handleStatus() {
@@ -280,7 +235,7 @@ File: ${state.targetFilename} (${state.isDirty ? 'UNSAVED CHANGES' : 'saved'})
 - Rooms: ${rooms}
 - Items: ${items}
 - NPCs: ${npcs}`;
-        OutputManager.appendToOutput(status, {sessionContext: state.commandContext.sessionContext});
+        OutputManager.appendToOutput(status);
     }
 
     async function _handleSave() {
@@ -289,10 +244,7 @@ File: ${state.targetFilename} (${state.isDirty ? 'UNSAVED CHANGES' : 'saved'})
         const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
 
         if (!primaryGroup) {
-            await OutputManager.appendToOutput("Critical Error: Cannot determine primary group. Save failed.", {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            await OutputManager.appendToOutput("Critical Error: Cannot determine primary group. Save failed.", {typeClass: 'text-error'});
             return;
         }
 
@@ -303,24 +255,15 @@ File: ${state.targetFilename} (${state.isDirty ? 'UNSAVED CHANGES' : 'saved'})
         );
 
         if (!saveResult.success) {
-            await OutputManager.appendToOutput(`Error saving file: ${saveResult.error}`, {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            await OutputManager.appendToOutput(`Error saving file: ${saveResult.error}`, {typeClass: 'text-error'});
             return;
         }
 
         if (await FileSystemManager.save()) {
             state.isDirty = false;
-            await OutputManager.appendToOutput(`Adventure saved successfully to '${state.targetFilename}'.`, {
-                typeClass: 'text-success',
-                sessionContext: state.commandContext.sessionContext
-            });
+            await OutputManager.appendToOutput(`Adventure saved successfully to '${state.targetFilename}'.`, {typeClass: 'text-success'});
         } else {
-            await OutputManager.appendToOutput("Critical Error: Failed to persist file system changes.", {
-                typeClass: 'text-error',
-                sessionContext: state.commandContext.sessionContext
-            });
+            await OutputManager.appendToOutput("Critical Error: Failed to persist file system changes.", {typeClass: 'text-error'});
         }
     }
 
@@ -334,7 +277,7 @@ File: ${state.targetFilename} (${state.isDirty ? 'UNSAVED CHANGES' : 'saved'})
   status                   - Show a summary of the current adventure data.
   save                     - Save your work to the file.
   exit                     - Exit the creator (will prompt if unsaved).`;
-        OutputManager.appendToOutput(helpText, {sessionContext: state.commandContext.sessionContext});
+        OutputManager.appendToOutput(helpText);
     }
 
     async function exit() {
@@ -344,24 +287,20 @@ File: ${state.targetFilename} (${state.isDirty ? 'UNSAVED CHANGES' : 'saved'})
                     context: 'terminal',
                     messageLines: ["You have unsaved changes. Exit without saving?"],
                     onConfirm: () => resolve(true), onCancel: () => resolve(false),
-                    options: state.commandContext.options,
-                    sessionContext: state.commandContext.sessionContext
+                    options: state.commandContext.options
                 });
             });
             if (!confirmed) {
-                await OutputManager.appendToOutput("Exit cancelled.", {
-                    typeClass: 'text-info',
-                    sessionContext: state.commandContext.sessionContext
-                });
+                await OutputManager.appendToOutput("Exit cancelled.", {typeClass: 'text-info'});
                 return;
             }
         }
 
         state.isActive = false;
-        await OutputManager.appendToOutput("Exiting Adventure Creator.", {
-            typeClass: 'text-success',
-            sessionContext: state.commandContext.sessionContext
-        });
+        ModalInputManager.requestInput("", () => {
+        }, () => {
+        }, false, {scriptingContext: {isScripting: true, lines: [], currentLineIndex: -1}}); // Force the input loop to break
+        await OutputManager.appendToOutput("Exiting Adventure Creator.", {typeClass: 'text-success'});
     }
 
     return {

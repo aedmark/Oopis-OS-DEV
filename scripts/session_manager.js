@@ -1,125 +1,146 @@
-class EnvironmentManager {
-    constructor(initialUser) {
-        this.envStack = [{}];
-        this.initialize(initialUser);
+const EnvironmentManager = (() => {
+    "use strict";
+    let envStack = [{}];
+
+    function _getActiveEnv() {
+        return envStack[envStack.length - 1];
     }
 
-    _getActiveEnv() {
-        return this.envStack[this.envStack.length - 1];
+    function push() {
+        // Push a clone of the current environment to create a new scope
+        envStack.push(JSON.parse(JSON.stringify(_getActiveEnv())));
     }
 
-    push() {
-        this.envStack.push(JSON.parse(JSON.stringify(this._getActiveEnv())));
-    }
-
-    pop() {
-        if (this.envStack.length > 1) {
-            this.envStack.pop();
+    function pop() {
+        if (envStack.length > 1) {
+            envStack.pop();
         } else {
             console.error("EnvironmentManager: Attempted to pop the base environment stack.");
         }
     }
 
-    initialize(currentUser) {
+    function initialize() {
         const baseEnv = {};
+        const currentUser = UserManager.getCurrentUser().name;
         baseEnv['USER'] = currentUser;
         baseEnv['HOME'] = `/home/${currentUser}`;
         baseEnv['HOST'] = Config.OS.DEFAULT_HOST_NAME;
         baseEnv['PATH'] = '/bin:/usr/bin';
-        this.envStack = [baseEnv];
+        // Reset the stack with the new base environment
+        envStack = [baseEnv];
     }
 
-    get(varName) {
-        return this._getActiveEnv()[varName] || '';
+    function get(varName) {
+        return _getActiveEnv()[varName] || '';
     }
 
-    set(varName, value) {
+    function set(varName, value) {
         if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(varName)) {
             return { success: false, error: `Invalid variable name: '${varName}'. Must start with a letter or underscore, followed by letters, numbers, or underscores.` };
         }
-        this._getActiveEnv()[varName] = value;
+        _getActiveEnv()[varName] = value;
         return { success: true };
     }
 
-    unset(varName) {
-        delete this._getActiveEnv()[varName];
+    function unset(varName) {
+        delete _getActiveEnv()[varName];
     }
 
-    getAll() {
-        return {...this._getActiveEnv()};
+    function getAll() {
+        return {..._getActiveEnv()};
     }
 
-    load(vars) {
-        this.envStack[this.envStack.length - 1] = {...(vars || {})};
+    function load(vars) {
+        envStack[envStack.length - 1] = {...(vars || {})};
     }
 
-    clear() {
-        this.envStack[this.envStack.length - 1] = {};
-    }
-}
-
-class HistoryManager {
-    constructor() {
-        this.commandHistory = [];
-        this.historyIndex = 0;
+    function clear() {
+        envStack[envStack.length - 1] = {};
     }
 
-    add(command) {
+    return {
+        initialize,
+        get,
+        set,
+        unset,
+        getAll,
+        load,
+        clear,
+        push,
+        pop
+    };
+})();
+
+const HistoryManager = (() => {
+    "use strict";
+    let commandHistory = [];
+    let historyIndex = 0;
+
+    function add(command) {
         const trimmedCommand = command.trim();
         if (
             trimmedCommand &&
-            (this.commandHistory.length === 0 ||
-                this.commandHistory[this.commandHistory.length - 1] !== trimmedCommand)
+            (commandHistory.length === 0 ||
+                commandHistory[commandHistory.length - 1] !== trimmedCommand)
         ) {
-            this.commandHistory.push(trimmedCommand);
-            if (this.commandHistory.length > Config.TERMINAL.MAX_HISTORY_SIZE)
-                this.commandHistory.shift();
+            commandHistory.push(trimmedCommand);
+            if (commandHistory.length > Config.TERMINAL.MAX_HISTORY_SIZE)
+                commandHistory.shift();
         }
-        this.historyIndex = this.commandHistory.length;
+        historyIndex = commandHistory.length;
     }
 
-    getPrevious() {
-        if (this.commandHistory.length > 0 && this.historyIndex > 0) {
-            this.historyIndex--;
-            return this.commandHistory[this.historyIndex];
+    function getPrevious() {
+        if (commandHistory.length > 0 && historyIndex > 0) {
+            historyIndex--;
+            return commandHistory[historyIndex];
         }
         return null;
     }
 
-    getNext() {
-        if (this.historyIndex < this.commandHistory.length - 1) {
-            this.historyIndex++;
-            return this.commandHistory[this.historyIndex];
-        } else if (this.historyIndex >= this.commandHistory.length - 1) {
-            this.historyIndex = this.commandHistory.length;
+    function getNext() {
+        if (historyIndex < commandHistory.length - 1) {
+            historyIndex++;
+            return commandHistory[historyIndex];
+        } else if (historyIndex >= commandHistory.length - 1) {
+            historyIndex = commandHistory.length;
             return "";
         }
         return null;
     }
 
-    resetIndex() {
-        this.historyIndex = this.commandHistory.length;
+    function resetIndex() {
+        historyIndex = commandHistory.length;
     }
 
-    getFullHistory() {
-        return [...this.commandHistory];
+    function getFullHistory() {
+        return [...commandHistory];
     }
 
-    clearHistory() {
-        this.commandHistory = [];
-        this.historyIndex = 0;
+    function clearHistory() {
+        commandHistory = [];
+        historyIndex = 0;
     }
 
-    setHistory(newHistory) {
-        this.commandHistory = Array.isArray(newHistory) ? [...newHistory] : [];
-        if (this.commandHistory.length > Config.TERMINAL.MAX_HISTORY_SIZE)
-            this.commandHistory = this.commandHistory.slice(
-                this.commandHistory.length - Config.TERMINAL.MAX_HISTORY_SIZE
+    function setHistory(newHistory) {
+        commandHistory = Array.isArray(newHistory) ? [...newHistory] : [];
+        if (commandHistory.length > Config.TERMINAL.MAX_HISTORY_SIZE)
+            commandHistory = commandHistory.slice(
+                commandHistory.length - Config.TERMINAL.MAX_HISTORY_SIZE
             );
-        this.historyIndex = this.commandHistory.length;
+        historyIndex = commandHistory.length;
     }
-}
 
+    return {
+        add,
+        getPrevious,
+        getNext,
+        resetIndex,
+        getFullHistory,
+        clearHistory,
+        setHistory,
+    };
+})();
 
 const AliasManager = (() => {
     "use strict";
@@ -163,13 +184,12 @@ const AliasManager = (() => {
         return { ...aliases };
     }
 
-    function resolveAlias(commandString, environment) {
+    function resolveAlias(commandString) {
         const parts = commandString.split(/\s+/);
         let commandName = parts[0];
         const remainingArgs = parts.slice(1).join(" ");
         const MAX_RECURSION = 10;
         let count = 0;
-
         while (aliases[commandName] && count < MAX_RECURSION) {
             const aliasValue = aliases[commandName];
             const aliasParts = aliasValue.split(/\s+/);
@@ -245,85 +265,103 @@ const SessionManager = (() => {
     }
 
     function saveAutomaticState(username) {
-        // This function will likely need to be adapted to save state for a specific tab/session ID
-        // For now, it remains as-is, but we must acknowledge this will change.
         if (!username) {
             console.warn(
                 "saveAutomaticState: No username provided. State not saved."
             );
             return;
         }
-        const activeSession = TerminalManager.getActiveSession(); // This will be the new way
-        if (!activeSession) return;
-
-
+        const currentInput = TerminalUI.getCurrentInputValue();
         const autoState = {
-            currentPath: activeSession.currentPath,
-            outputHTML: activeSession.domElements.output.innerHTML,
-            currentInput: activeSession.domElements.input.textContent,
-            commandHistory: activeSession.history.getFullHistory(),
-            environmentVariables: activeSession.environment.getAll(),
+            currentPath: FileSystemManager.getCurrentPath(),
+            outputHTML: DOM.outputDiv ? DOM.outputDiv.innerHTML : "",
+            currentInput: currentInput,
+            commandHistory: HistoryManager.getFullHistory(),
+            environmentVariables: EnvironmentManager.getAll(),
         };
         StorageManager.saveItem(
-            _getAutomaticSessionStateKey(username), // This might need session ID too
+            _getAutomaticSessionStateKey(username),
             autoState,
             `Auto session for ${username}`
         );
     }
 
     function loadAutomaticState(username) {
-        // This function will also need adaptation for the multi-tab world.
-        // It will likely set the state of the *first* tab on initial load.
         if (!username) {
             console.warn(
                 "loadAutomaticState: No username provided. Cannot load state."
             );
+            if (DOM.outputDiv) DOM.outputDiv.innerHTML = "";
+            TerminalUI.setCurrentInputValue("");
+            FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
+            HistoryManager.clearHistory();
+            void OutputManager.appendToOutput(
+                `${Config.MESSAGES.WELCOME_PREFIX} ${Config.USER.DEFAULT_NAME}${Config.MESSAGES.WELCOME_SUFFIX}`
+            );
+            TerminalUI.updatePrompt();
+            if (DOM.outputDiv) DOM.outputDiv.scrollTop = DOM.outputDiv.scrollHeight;
             return false;
         }
         const autoState = StorageManager.loadItem(
             _getAutomaticSessionStateKey(username),
             `Auto session for ${username}`
         );
-
-        const session = TerminalManager.getActiveSession(); // Will get the initial session
-        if (!session) return false;
-
         if (autoState) {
-            session.currentPath = autoState.currentPath || `/home/${username}` || Config.FILESYSTEM.ROOT_PATH;
-            session.domElements.output.innerHTML = autoState.outputHTML || "";
-            session.domElements.input.textContent = autoState.currentInput || "";
-            session.history.setHistory(autoState.commandHistory || []);
-            session.environment.load(autoState.environmentVariables);
+            FileSystemManager.setCurrentPath(
+                autoState.currentPath || Config.FILESYSTEM.ROOT_PATH
+            );
+            if (DOM.outputDiv) {
+                if (autoState.hasOwnProperty("outputHTML")) {
+                    DOM.outputDiv.innerHTML = autoState.outputHTML || "";
+                } else {
+                    DOM.outputDiv.innerHTML = "";
+                    void OutputManager.appendToOutput(
+                        `${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`
+                    );
+                }
+            }
+            TerminalUI.setCurrentInputValue(autoState.currentInput || "");
+            HistoryManager.setHistory(autoState.commandHistory || []);
+            EnvironmentManager.load(autoState.environmentVariables);
         } else {
-            session.domElements.output.innerHTML = "";
+            if (DOM.outputDiv) DOM.outputDiv.innerHTML = "";
+            TerminalUI.setCurrentInputValue("");
             const homePath = `/home/${username}`;
-            session.currentPath = FileSystemManager.getNodeByPath(homePath) ? homePath : Config.FILESYSTEM.ROOT_PATH;
-            session.history.clearHistory();
-            session.environment.initialize(username);
-            OutputManager.appendToOutput(
-                `${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`,
-                session.domElements.output
+            if (FileSystemManager.getNodeByPath(homePath)) {
+                FileSystemManager.setCurrentPath(homePath);
+            } else {
+                FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
+            }
+            HistoryManager.clearHistory();
+
+            const newEnv = {};
+            newEnv['USER'] = username;
+            newEnv['HOME'] = `/home/${username}`;
+            newEnv['HOST'] = Config.OS.DEFAULT_HOST_NAME;
+            newEnv['PATH'] = '/bin:/usr/bin';
+            EnvironmentManager.load(newEnv);
+
+            void OutputManager.appendToOutput(
+                `${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`
             );
         }
-        TerminalManager.updatePrompt();
-        session.domElements.output.scrollTop = session.domElements.output.scrollHeight;
+        TerminalUI.updatePrompt();
+        if (DOM.outputDiv) DOM.outputDiv.scrollTop = DOM.outputDiv.scrollHeight;
         return !!autoState;
     }
 
     async function saveManualState() {
         const currentUser = UserManager.getCurrentUser();
-        const activeSession = TerminalManager.getActiveSession();
-        if (!activeSession) return {success: false, error: "No active session to save."};
-
+        const currentInput = TerminalUI.getCurrentInputValue();
         const manualStateData = {
             user: currentUser.name,
             osVersion: Config.OS.VERSION,
             timestamp: new Date().toISOString(),
-            currentPath: activeSession.currentPath,
-            outputHTML: activeSession.domElements.output.innerHTML,
-            currentInput: activeSession.domElements.input.textContent,
+            currentPath: FileSystemManager.getCurrentPath(),
+            outputHTML: DOM.outputDiv ? DOM.outputDiv.innerHTML : "",
+            currentInput: currentInput,
             fsDataSnapshot: Utils.deepCopyNode(FileSystemManager.getFsData()),
-            commandHistory: activeSession.history.getFullHistory(),
+            commandHistory: HistoryManager.getFullHistory(),
         };
         if (
             StorageManager.saveItem(
@@ -351,8 +389,12 @@ const SessionManager = (() => {
         );
         if (manualStateData) {
             if (manualStateData.user && manualStateData.user !== currentUser.name) {
-                const message = `Warning: Saved state is for user '${manualStateData.user}'. Current user is '${currentUser.name}'. Load aborted. Use 'login ${manualStateData.user}' then 'loadstate'.`;
-                await OutputManager.appendToOutput(message, {typeClass: Config.CSS_CLASSES.WARNING_MSG});
+                await OutputManager.appendToOutput(
+                    `Warning: Saved state is for user '${manualStateData.user}'. Current user is '${currentUser.name}'. Load aborted. Use 'login ${manualStateData.user}' then 'loadstate'.`,
+                    {
+                        typeClass: Config.CSS_CLASSES.WARNING_MSG,
+                    }
+                );
                 return {
                     success: false,
                     message: `Saved state user mismatch. Current: ${currentUser.name}, Saved: ${manualStateData.user}.`,
@@ -368,9 +410,6 @@ const SessionManager = (() => {
                     userNameToRestoreTo: currentUser.name,
                 },
                 onConfirm: async (data) => {
-                    const session = TerminalManager.getActiveSession();
-                    if (!session) return;
-
                     FileSystemManager.setFsData(
                         Utils.deepCopyNode(data.pendingData.fsDataSnapshot) || {
                             [Config.FILESYSTEM.ROOT_PATH]: {
@@ -382,20 +421,23 @@ const SessionManager = (() => {
                             },
                         }
                     );
-                    session.currentPath = data.pendingData.currentPath || Config.FILESYSTEM.ROOT_PATH;
-                    session.domElements.output.innerHTML = data.pendingData.outputHTML || "";
-                    session.domElements.input.textContent = data.pendingData.currentInput || "";
-                    session.history.setHistory(data.pendingData.commandHistory || []);
+                    FileSystemManager.setCurrentPath(
+                        data.pendingData.currentPath || Config.FILESYSTEM.ROOT_PATH
+                    );
+                    if (DOM.outputDiv)
+                        DOM.outputDiv.innerHTML = data.pendingData.outputHTML || "";
+                    TerminalUI.setCurrentInputValue(data.pendingData.currentInput || "");
+                    HistoryManager.setHistory(data.pendingData.commandHistory || []);
                     await FileSystemManager.save(data.userNameToRestoreTo);
                     await OutputManager.appendToOutput(
                         Config.MESSAGES.SESSION_LOADED_MSG,
                         {
                             typeClass: Config.CSS_CLASSES.SUCCESS_MSG,
-                            outputEl: session.domElements.output
                         }
                     );
-                    TerminalManager.updatePrompt();
-                    session.domElements.output.scrollTop = session.domElements.output.scrollHeight;
+                    TerminalUI.updatePrompt();
+                    if (DOM.outputDiv)
+                        DOM.outputDiv.scrollTop = DOM.outputDiv.scrollHeight;
                 },
                 onCancel: () => {
                     OutputManager.appendToOutput(Config.MESSAGES.LOAD_STATE_CANCELLED, {
@@ -446,9 +488,8 @@ const SessionManager = (() => {
     }
 
     async function performFullReset() {
-        TerminalManager.getActiveSession().domElements.output.innerHTML = "";
-        TerminalManager.getActiveSession().domElements.input.textContent = "";
-
+        OutputManager.clearOutput();
+        TerminalUI.clearInput();
         const allKeys = StorageManager.getAllLocalStorageKeys();
 
         const OS_KEY_PREFIX = 'oopisOs';
@@ -478,12 +519,10 @@ const SessionManager = (() => {
         await OutputManager.appendToOutput("Reset complete. Rebooting OopisOS...", {
             typeClass: Config.CSS_CLASSES.SUCCESS_MSG,
         });
-
-        const activeSession = TerminalManager.getActiveSession();
-        if (activeSession) {
-            activeSession.domElements.input.parentElement.classList.add(Config.CSS_CLASSES.HIDDEN);
+        TerminalUI.setInputState(false);
+        if (DOM.inputLineContainerDiv) {
+            DOM.inputLineContainerDiv.classList.add(Config.CSS_CLASSES.HIDDEN);
         }
-
         setTimeout(() => {
             window.location.reload();
         }, 1500);

@@ -1,4 +1,3 @@
-// aedmark/oopis-os-dev/Oopis-OS-DEV-33c780ad7f3af576fec163e3a060e1960f4bc842/scripts/commands/ls.js
 (() => {
     "use strict";
 
@@ -52,13 +51,13 @@
         return sortedItems;
     }
 
-    function formatToColumns(names, sessionContext) {
+    function formatToColumns(names) {
         if (names.length === 0) return "";
-        const terminalWidth = sessionContext.domElements.terminal?.clientWidth || 80 * 8;
+        const terminalWidth = DOM.terminalDiv?.clientWidth || 80 * 8;
         const charWidth = Utils.getCharacterDimensions().width || 8;
         const displayableCols = Math.floor(terminalWidth / charWidth);
         const longestName = names.reduce((max, name) => Math.max(max, name.length), 0);
-        const colWidth = longestName + 2;
+        const colWidth = longestName + 2; // Add padding
         const numColumns = Math.max(1, Math.floor(displayableCols / colWidth));
         const numRows = Math.ceil(names.length / numColumns);
         const grid = Array(numRows).fill(null).map(() => Array(numColumns).fill(""));
@@ -72,8 +71,8 @@
         return grid.map(row => row.map((item, colIndex) => (colIndex === row.length - 1) ? item : item.padEnd(colWidth)).join("")).join("\n");
     }
 
-    async function listSinglePathContents(targetPathArg, effectiveFlags, currentUser, sessionContext) {
-        const pathValidation = FileSystemManager.validatePath("ls", targetPathArg, {}, sessionContext.currentPath);
+    async function listSinglePathContents(targetPathArg, effectiveFlags, currentUser) {
+        const pathValidation = FileSystemManager.validatePath("ls", targetPathArg);
         if (pathValidation.error) return { success: false, error: pathValidation.error };
 
         const targetNode = pathValidation.node;
@@ -106,7 +105,9 @@
             currentPathOutputLines.push(singleItemResultOutput);
         } else {
             if (itemDetailsList.length === 0 && targetNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
-                // No output for empty dir in standard mode, handled in caller
+                if (!effectiveFlags.long) {
+                    currentPathOutputLines.push(Config.MESSAGES.DIRECTORY_EMPTY);
+                }
             } else if (effectiveFlags.long) {
                 if (itemDetailsList.length > 0) currentPathOutputLines.push(`total ${itemDetailsList.length}`);
                 itemDetailsList.forEach(item => { currentPathOutputLines.push(formatLongListItem(item, effectiveFlags)); });
@@ -120,13 +121,13 @@
                     const nameSuffix = item.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE ? Config.FILESYSTEM.PATH_SEPARATOR : "";
                     return `${item.name}${nameSuffix}`;
                 });
-                currentPathOutputLines.push(formatToColumns(namesToFormat, sessionContext));
+                currentPathOutputLines.push(formatToColumns(namesToFormat));
             }
         }
         return { success: true, output: currentPathOutputLines.join("\n"), items: itemDetailsList, isDir: targetNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE };
     }
 
-    async function _handleStandardListing(pathsToList, effectiveFlags, currentUser, sessionContext) {
+    async function _handleStandardListing(pathsToList, effectiveFlags, currentUser) {
         let outputBlocks = [];
         let overallSuccess = true;
         const fileArgs = [];
@@ -134,7 +135,7 @@
         const errorOutputs = [];
 
         for (const path of pathsToList) {
-            const validation = FileSystemManager.validatePath("ls", path, {}, sessionContext.currentPath);
+            const validation = FileSystemManager.validatePath("ls", path);
             if (validation.error) {
                 errorOutputs.push(validation.error);
                 overallSuccess = false;
@@ -147,7 +148,7 @@
 
         const fileResults = [];
         for (const path of fileArgs) {
-            const listResult = await listSinglePathContents(path, effectiveFlags, currentUser, sessionContext);
+            const listResult = await listSinglePathContents(path, effectiveFlags, currentUser);
             if (listResult.success && listResult.output) {
                 fileResults.push(listResult.output);
             } else if (!listResult.success) {
@@ -167,7 +168,7 @@
             if (pathsToList.length > 1) {
                 outputBlocks.push(`${path}:`);
             }
-            const listResult = await listSinglePathContents(path, effectiveFlags, currentUser, sessionContext);
+            const listResult = await listSinglePathContents(path, effectiveFlags, currentUser);
             if (listResult.success && listResult.output) {
                 outputBlocks.push(listResult.output);
             } else if (!listResult.success) {
@@ -180,7 +181,7 @@
         return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: finalOutput };
     }
 
-    async function _handleRecursiveListing(pathsToList, effectiveFlags, currentUser, sessionContext) {
+    async function _handleRecursiveListing(pathsToList, effectiveFlags, currentUser) {
         let outputBlocks = [];
         let overallSuccess = true;
 
@@ -191,7 +192,7 @@
                 blockOutputs.push("");
                 blockOutputs.push(`${currentPath}:`);
             }
-            const listResult = await listSinglePathContents(currentPath, displayFlags, currentUser, sessionContext);
+            const listResult = await listSinglePathContents(currentPath, displayFlags, currentUser);
             if (!listResult.success) {
                 blockOutputs.push(listResult.error);
                 encounteredErrorInThisBranch = true;
@@ -245,7 +246,7 @@
             { argIndex: 0, optional: true, options: { allowMissing: false } }
         ],
         coreLogic: async (context) => {
-            const {args, flags, currentUser, options, sessionContext} = context;
+            const {args, flags, currentUser, options} = context;
 
             const effectiveFlags = { ...flags };
             if (options && !options.isInteractive && !effectiveFlags.long && !effectiveFlags.oneColumn) {
@@ -255,12 +256,51 @@
             const pathsToList = args.length > 0 ? args : ["."];
 
             if (effectiveFlags.recursive) {
-                return await _handleRecursiveListing(pathsToList, effectiveFlags, currentUser, sessionContext);
+                return await _handleRecursiveListing(pathsToList, effectiveFlags, currentUser);
             } else {
-                return await _handleStandardListing(pathsToList, effectiveFlags, currentUser, sessionContext);
+                return await _handleStandardListing(pathsToList, effectiveFlags, currentUser);
             }
         },
     };
 
-    CommandRegistry.register("ls", lsCommandDefinition, "Lists directory contents and file information.", "See `man ls` for details.");
+    const lsDescription = "Lists directory contents and file information.";
+    const lsHelpText = `Usage: ls [OPTION]... [FILE]...
+
+List information about the FILEs (the current directory by default).
+Sort entries alphabetically if none of -tSUXU is specified.
+
+DESCRIPTION
+       The ls command lists files and directories. By default, it lists
+       the contents of the current directory. If one or more files or
+       directories are given, it lists information about them. When the
+       output is not a terminal (e.g., a pipe), it defaults to a single
+       column format.
+
+OPTIONS
+       -a, --all
+              Do not ignore entries starting with .
+       -d
+              List directories themselves, not their contents.
+       -l
+              Use a long listing format, showing permissions, owner,
+              size, and modification time.
+       -R, --recursive
+              List subdirectories recursively.
+       -r, --reverse
+              Reverse order while sorting.
+       -S
+              Sort by file size, largest first.
+       -t
+              Sort by modification time, newest first.
+       -X
+              Sort alphabetically by entry extension.
+       -U
+              Do not sort; list entries in directory order.
+       -1
+              List one file per line. (This is the default for non-interactive output).
+       -h, --human-readable
+              With -l, print sizes in human-readable format (e.g., 1K 234M 2G).`;
+
+
+    CommandRegistry.register("ls", lsCommandDefinition, lsDescription, lsHelpText);
 })();

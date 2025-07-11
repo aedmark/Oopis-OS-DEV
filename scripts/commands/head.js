@@ -21,7 +21,7 @@
             }
 
             if (input === null) {
-                return { success: false, error: "head: No readable input provided." };
+                return {success: false, error: "head: No readable input provided."};
             }
 
             let lineCount = 10;
@@ -49,7 +49,7 @@
                 output = input.split('\n').slice(0, lineCount).join('\n');
             }
 
-            return { success: true, output: output };
+            return {success: true, output: output};
         },
     };
 

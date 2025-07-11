@@ -432,6 +432,7 @@ you build the JSON structure.
 #### The Anatomy of an Adventure (.json)
 
 The entire game state is defined by a handful of key objects in your JSON file.
+
 ##### Rooms
 
 These are the locations in your world. Each room has a unique ID, a name, a description, and a list of `exits` that link
@@ -596,6 +597,7 @@ so you'll only see what you're allowed to see.
 
 OopisOS is different because it's built on a simple, powerful idea: **we don't trust you, and we don't trust ourselves.
 ** The system is architected to be secure by default, not by effort.
+
 ## The Bedrock
 
 The security model is built on three pillars: **client-side sandboxing**, **explicit user permissions**, and *

@@ -18,7 +18,7 @@
             const input = inputItems.map(item => item.content).join('\\n');
 
             if (input === null || input === undefined) {
-                return { success: false, error: "cksum: No readable input provided." };
+                return {success: false, error: "cksum: No readable input provided."};
             }
 
             const crc32 = (str) => {

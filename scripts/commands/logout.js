@@ -7,12 +7,14 @@
             exact: 0,
         },
 
-        coreLogic: async (context) => {
-            const {sessionContext} = context; // Capture sessionContext
-            // Pass sessionContext to UserManager
-            const result = await UserManager.logout(sessionContext);
+        coreLogic: async () => {
+            const result = await UserManager.logout();
 
-            // OutputManager calls are now handled within UserManager
+            if (result.success && result.isLogout) {
+                OutputManager.clearOutput();
+                await OutputManager.appendToOutput(`${Config.MESSAGES.WELCOME_PREFIX} ${result.newUser}${Config.MESSAGES.WELCOME_SUFFIX}`);
+            }
+
             return {
                 ...result,
                 output: result.message,
@@ -22,6 +24,7 @@
     };
 
     const logoutDescription = "Logs out of the current user session.";
+
     const logoutHelpText = `Usage: logout
 
 Log out of the current user session.

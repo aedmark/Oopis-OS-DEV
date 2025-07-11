@@ -83,7 +83,7 @@
             }
 
             if (inputError) {
-                return { success: false, error: "awk: No readable input provided." };
+                return {success: false, error: "awk: No readable input provided."};
             }
 
             const separator = flags.fieldSeparator ? new RegExp(flags.fieldSeparator) : /\s+/;

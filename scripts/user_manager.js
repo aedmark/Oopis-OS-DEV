@@ -38,7 +38,7 @@ const UserManager = (() => {
         return users.hasOwnProperty(username);
     }
 
-    async function register(username, password, sessionContext) { // MODIFIED
+    async function register(username, password) {
         const formatValidation = Utils.validateUsernameFormat(username);
         if (!formatValidation.isValid)
             return {
@@ -142,15 +142,15 @@ const UserManager = (() => {
         }
     }
 
-    async function sudoExecute(commandStr, options, sessionContext) { // MODIFIED
+    async function sudoExecute(commandStr, options) {
         const originalUser = currentUser;
         try {
             currentUser = { name: 'root' };
-            // Pass sessionContext to the command executor
-            return await CommandExecutor.processSingleCommand(commandStr, {...options, sessionContext});
+            return await CommandExecutor.processSingleCommand(commandStr, options);
         } catch (e) {
             return { success: false, error: `sudo: an unexpected error occurred during execution: ${e.message}` };
         } finally {
+            // CRITICAL: Always de-escalate privileges back to the original user.
             currentUser = originalUser;
         }
     }
@@ -194,7 +194,7 @@ const UserManager = (() => {
         }
     }
 
-    async function _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options, sessionContext) { // MODIFIED
+    async function _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const authResult = await _authenticateUser(username, providedPassword);
 
         if (!authResult.success) {
@@ -207,24 +207,22 @@ const UserManager = (() => {
                     async (passwordFromPrompt) => {
                         const finalAuthResult = await _authenticateUser(username, passwordFromPrompt);
                         if (finalAuthResult.success) {
-                            // Pass sessionContext to the success callback
-                            resolve(await successCallback(username, sessionContext));
+                            resolve(await successCallback(username));
                         } else {
                             resolve({ success: false, error: finalAuthResult.error || failureMessage });
                         }
                     },
                     () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED }),
                     true,
-                    options,
-                    sessionContext // Pass sessionContext to modal
+                    options
                 );
             });
         }
-        // Pass sessionContext to the success callback
-        return await successCallback(username, sessionContext);
+        return await successCallback(username);
     }
 
-    async function login(username, providedPassword, options = {}, sessionContext) { // MODIFIED
+    async function login(username, providedPassword, options = {}) {
+        const currentStack = SessionManager.getStack();
         const currentUserName = getCurrentUser().name;
 
         if (username === currentUserName) {
@@ -232,81 +230,72 @@ const UserManager = (() => {
             return { success: true, message: message, noAction: true };
         }
 
-        return _handleAuthFlow(username, providedPassword, _performLogin, "Login failed.", options, sessionContext); // MODIFIED
+        if (currentStack.includes(username)) {
+            return {
+                success: false,
+                error: `${Config.MESSAGES.ALREADY_LOGGED_IN_AS_PREFIX}${username}${Config.MESSAGES.ALREADY_LOGGED_IN_AS_SUFFIX}`
+            };
+        }
+
+        return _handleAuthFlow(username, providedPassword, _performLogin, "Login failed.", options);
     }
 
-    async function _performLogin(username, sessionContext) { // MODIFIED
+    async function _performLogin(username) {
+        if (currentUser.name !== Config.USER.DEFAULT_NAME) {
+            SessionManager.saveAutomaticState(currentUser.name);
+            SudoManager.clearUserTimestamp(currentUser.name);
+        }
         SessionManager.clearUserStack(username);
         currentUser = { name: username };
-
-        const allSessions = TerminalManager.getAllSessions();
-        allSessions.forEach(session => {
-            session.environment.initialize(username);
-            const homePath = `/home/${username}`;
-            session.currentPath = FileSystemManager.getNodeByPath(homePath) ? homePath : Config.FILESYSTEM.ROOT_PATH;
-            TerminalManager.updatePrompt(session);
-        });
-
-        // Use the provided sessionContext to clear the right screen
-        OutputManager.clearOutput(sessionContext);
-        await OutputManager.appendToOutput(
-            `${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`,
-            {sessionContext: sessionContext} // MODIFIED
-        );
-
-        FileSystemManager.setCurrentPath(sessionContext.currentPath || Config.FILESYSTEM.ROOT_PATH);
-
+        SessionManager.loadAutomaticState(username);
+        const homePath = `/home/${username}`;
+        if (FileSystemManager.getNodeByPath(homePath)) {
+            FileSystemManager.setCurrentPath(homePath);
+        } else {
+            FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
+        }
         return { success: true, message: `Logged in as ${username}.`, isLogin: true };
     }
 
-
-    async function su(username, providedPassword, options = {}, sessionContext) { // MODIFIED
+    async function su(username, providedPassword, options = {}) {
         if (currentUser.name === username) {
             return { success: true, message: `Already user '${username}'.`, noAction: true };
         }
-        return _handleAuthFlow(username, providedPassword, _performSu, "su: Authentication failure.", options, sessionContext); // MODIFIED
+        return _handleAuthFlow(username, providedPassword, _performSu, "su: Authentication failure.", options);
     }
 
-    async function _performSu(username, sessionContext) { // MODIFIED
+    async function _performSu(username) {
+        SessionManager.saveAutomaticState(currentUser.name);
         SessionManager.pushUserToStack(username);
         currentUser = { name: username };
-
-        sessionContext.environment.initialize(username);
+        SessionManager.loadAutomaticState(username);
         const homePath = `/home/${username}`;
-        sessionContext.currentPath = FileSystemManager.getNodeByPath(homePath) ? homePath : Config.FILESYSTEM.ROOT_PATH;
-        FileSystemManager.setCurrentPath(sessionContext.currentPath);
-        TerminalManager.updatePrompt(sessionContext);
-        OutputManager.clearOutput(sessionContext); // MODIFIED
-        await OutputManager.appendToOutput(
-            `${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`,
-            {sessionContext: sessionContext} // MODIFIED
-        );
-
+        if (FileSystemManager.getNodeByPath(homePath)) {
+            FileSystemManager.setCurrentPath(homePath);
+        } else {
+            FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
+        }
         return { success: true, message: `Switched to user: ${username}.` };
     }
 
-    async function logout(sessionContext) { // MODIFIED
+    async function logout() {
         const oldUser = currentUser.name;
         if (SessionManager.getStack().length <= 1) {
             return { success: true, message: `Cannot log out from user '${oldUser}'. This is the only active session. Use 'login' to switch to a different user.`, noAction: true };
         }
 
+        SessionManager.saveAutomaticState(oldUser);
+        SudoManager.clearUserTimestamp(oldUser);
         SessionManager.popUserFromStack();
         const newUsername = SessionManager.getCurrentUserFromStack();
         currentUser = { name: newUsername };
-
-        // Use the provided sessionContext
-        sessionContext.environment.initialize(newUsername);
+        SessionManager.loadAutomaticState(newUsername);
         const homePath = `/home/${newUsername}`;
-        sessionContext.currentPath = FileSystemManager.getNodeByPath(homePath) ? homePath : Config.FILESYSTEM.ROOT_PATH;
-        FileSystemManager.setCurrentPath(sessionContext.currentPath);
-        TerminalManager.updatePrompt(sessionContext);
-        OutputManager.clearOutput(sessionContext); // MODIFIED
-        await OutputManager.appendToOutput(
-            `${Config.MESSAGES.WELCOME_PREFIX} ${newUsername}${Config.MESSAGES.WELCOME_SUFFIX}`,
-            {sessionContext: sessionContext} // MODIFIED
-        );
-
+        if (FileSystemManager.getNodeByPath(homePath)) {
+            FileSystemManager.setCurrentPath(homePath);
+        } else {
+            FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
+        }
         return { success: true, message: `Logged out from ${oldUser}. Now logged in as ${newUsername}.`, isLogout: true, newUser: newUsername };
     }
 

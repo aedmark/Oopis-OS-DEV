@@ -23,10 +23,10 @@
         ],
 
         coreLogic: async (context) => {
-            const {options, sessionContext} = context;
+            const {options} = context;
             const pathInfo = context.validatedPaths[0];
 
-            if (sessionContext.currentPath === pathInfo.resolvedPath) {
+            if (FileSystemManager.getCurrentPath() === pathInfo.resolvedPath) {
                 return {
                     success: true,
                     output: `${Config.MESSAGES.ALREADY_IN_DIRECTORY_PREFIX}${pathInfo.resolvedPath}${Config.MESSAGES.ALREADY_IN_DIRECTORY_SUFFIX} ${Config.MESSAGES.NO_ACTION_TAKEN}`,
@@ -34,11 +34,10 @@
                 };
             }
 
-            sessionContext.currentPath = pathInfo.resolvedPath;
-            FileSystemManager.setCurrentPath(pathInfo.resolvedPath); // Also update global for other managers
+            FileSystemManager.setCurrentPath(pathInfo.resolvedPath);
 
             if (options.isInteractive) {
-                TerminalManager.updatePrompt(sessionContext);
+                TerminalUI.updatePrompt();
             }
 
             return {

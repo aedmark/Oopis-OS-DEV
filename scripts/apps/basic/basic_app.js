@@ -1,4 +1,3 @@
-// Oopis-OS-DEV-825c6202665784182a6647839fb2fd731904b7f3/scripts/apps/basic/basic_app.js
 const BasicUI = (() => {
     "use strict";
     let elements = {};
@@ -88,10 +87,7 @@ const BasicManager = (() => {
     };
 
     function enter(context, options) {
-        if (isActive) {
-            OutputManager.appendToOutput("basic: A session is already active. This application does not support multiple instances.", {typeClass: 'text-error'});
-            return;
-        }
+        if (isActive) return;
         isActive = true;
 
         loadOptions = options;

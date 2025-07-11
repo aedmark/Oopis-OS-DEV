@@ -18,13 +18,6 @@
         coreLogic: async (context) => {
             const {args, options, currentUser, validatedPaths} = context;
 
-            if (typeof EditorManager !== 'undefined' && EditorManager.isActive()) {
-                return {
-                    success: false,
-                    error: "edit: A Modal session is already active. Please close it before opening a new one."
-                };
-            }
-
             if (!options.isInteractive) {
                 return {success: false, error: "edit: Can only be run in interactive mode."};
             }

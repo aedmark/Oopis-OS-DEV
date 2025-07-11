@@ -8,7 +8,7 @@
         },
 
         coreLogic: async (context) => {
-            const {options, currentUser, sessionContext} = context;
+            const {options, currentUser} = context;
             if (!options.isInteractive) {
                 return {
                     success: false,
@@ -30,7 +30,6 @@
                     onConfirm: () => resolve(true),
                     onCancel: () => resolve(false),
                     options,
-                    sessionContext,
                 })
             );
 
@@ -65,18 +64,17 @@
                 };
             }
 
-            if (sessionContext.currentPath.startsWith(userHomePath)) {
-                sessionContext.currentPath = userHomePath;
+            const currentPath = FileSystemManager.getCurrentPath();
+            if (currentPath.startsWith(userHomePath)) {
                 FileSystemManager.setCurrentPath(userHomePath);
             }
 
-            TerminalManager.updatePrompt(sessionContext);
-            OutputManager.clearOutput(sessionContext);
+            TerminalUI.updatePrompt();
+            OutputManager.clearOutput();
 
             const successMessage = `Home directory for user '${username}' has been cleared.`;
             await OutputManager.appendToOutput(successMessage, {
                 typeClass: Config.CSS_CLASSES.SUCCESS_MSG,
-                outputEl: sessionContext.domElements.output
             });
 
             return {

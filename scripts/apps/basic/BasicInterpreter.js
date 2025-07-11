@@ -232,7 +232,7 @@ class BasicInterpreter {
                 break;
             }
             case 'GOSUB': {
-                const sortedLines = Array.from(this.program.keys()).sort((a,b)=>a-b);
+                const sortedLines = Array.from(this.program.keys()).sort((a, b) => a - b);
                 const currentIndex = sortedLines.indexOf(this.programCounter);
                 const nextLine = sortedLines[currentIndex + 1];
                 if (nextLine) {
@@ -340,7 +340,10 @@ class BasicInterpreter {
                 const currentUser = UserManager.getCurrentUser().name;
                 const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
                 const absPath = FileSystemManager.getAbsolutePath(filePath);
-                const saveResult = await FileSystemManager.createOrUpdateFile(absPath, content, { currentUser, primaryGroup });
+                const saveResult = await FileSystemManager.createOrUpdateFile(absPath, content, {
+                    currentUser,
+                    primaryGroup
+                });
                 if (!saveResult.success) throw new Error(`Failed to write to file: ${saveResult.error}`);
                 await FileSystemManager.save();
                 break;
@@ -479,13 +482,20 @@ class BasicInterpreter {
         const left = await this._evaluateExpression(parts[0]);
         const right = await this._evaluateExpression(parts[1]);
         switch (operator) {
-            case '=': return left == right;
-            case '<>': return left != right;
-            case '<': return left < right;
-            case '>': return left > right;
-            case '<=': return left <= right;
-            case '>=': return left >= right;
-            default: return false;
+            case '=':
+                return left == right;
+            case '<>':
+                return left != right;
+            case '<':
+                return left < right;
+            case '>':
+                return left > right;
+            case '<=':
+                return left <= right;
+            case '>=':
+                return left >= right;
+            default:
+                return false;
         }
     }
 }

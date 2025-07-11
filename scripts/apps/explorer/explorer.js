@@ -1,4 +1,3 @@
-// Oopis-OS-DEV-825c6202665784182a6647839fb2fd731904b7f3/scripts/apps/explorer/explorer.js
 const ExplorerUI = (() => {
     "use strict";
     let elements = {};
@@ -157,10 +156,7 @@ const ExplorerManager = (() => {
     };
 
     async function enter(startPath = null) {
-        if (isActive) {
-            OutputManager.appendToOutput("explore: A session is already active. This application does not support multiple instances.", {typeClass: 'text-error'});
-            return;
-        }
+        if (isActive) return;
 
         let initialPath = startPath || FileSystemManager.getCurrentPath();
         const pathValidation = FileSystemManager.validatePath("explore", initialPath, { allowMissing: false });

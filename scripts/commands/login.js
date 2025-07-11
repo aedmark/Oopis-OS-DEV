@@ -11,15 +11,17 @@
         },
 
         coreLogic: async (context) => {
-            const {args, options, sessionContext} = context; // Capture sessionContext
+            const {args, options} = context;
             const username = args[0];
             const providedPassword = args.length === 2 ? args[1] : null;
 
-            // Pass sessionContext to UserManager
-            const result = await UserManager.login(username, providedPassword, options, sessionContext);
+            const result = await UserManager.login(username, providedPassword, options);
 
-            // OutputManager calls are now handled within UserManager, so no need to repeat them here.
-            // The result object is returned directly for the CommandExecutor to handle.
+            if (result.success && result.isLogin) {
+                OutputManager.clearOutput();
+                await OutputManager.appendToOutput(`${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`);
+            }
+
             return {
                 success: result.success,
                 output: result.noAction ? result.message : null,
@@ -30,6 +32,7 @@
     };
 
     const loginDescription = "Logs in as a user, starting a new session.";
+
     const loginHelpText = `Usage: login <username> [password]
 
 Log in as a user and start a new session.

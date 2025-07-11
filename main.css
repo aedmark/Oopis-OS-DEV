@@ -145,7 +145,6 @@ body {
 #terminal-bezel {
     flex-grow: 1;
     display: flex;
-    flex-direction: column; /* Changed to column for tabs */
     background-color: var(--color-background-medium);
     border-radius: var(--border-radius-md); /* Match the terminal's rounding */
     box-shadow: var(--shadow-inset-dark), var(--shadow-drop-medium);
@@ -155,86 +154,8 @@ body {
     position: relative;
 }
 
-
 /* 4. Terminal Component (BEM-like)
 /* ========================================================================== */
-
-#tabs-container {
-    display: flex;
-    flex-shrink: 0;
-    align-items: center; /* Align items vertically */
-    border-bottom: 2px solid var(--color-border-primary);
-    margin-bottom: var(--spacing-sm);
-    padding-left: var(--spacing-sm); /* Add padding for the new tab button */
-}
-
-#new-tab-btn {
-    background-color: var(--color-accent-green);
-    color: var(--color-background-darkest);
-    border: none;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    font-size: 1.2rem;
-    line-height: 24px;
-    text-align: center;
-    cursor: pointer;
-    margin-right: var(--spacing-sm);
-    flex-shrink: 0;
-}
-
-#new-tab-btn:hover {
-    background-color: var(--color-accent-lime);
-}
-
-
-.terminal-tab {
-    padding: var(--spacing-sm) var(--spacing-md);
-    background-color: var(--color-background-light);
-    border: 1px solid var(--color-border-primary);
-    border-bottom: none;
-    border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
-    cursor: pointer;
-    color: var(--color-text-subtle);
-    margin-right: 2px;
-    position: relative;
-    top: 3px; /* Adjusted for alignment with the border */
-    display: flex; /* For aligning close button */
-    align-items: center; /* For aligning close button */
-}
-
-.terminal__input-line.locked .terminal__input {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.terminal-tab.active {
-    background-color: var(--color-background-darkest);
-    color: var(--color-text-primary);
-    border-color: var(--color-border-secondary);
-    border-top: 2px solid var(--color-accent-green);
-}
-
-.terminal-tab .close-tab-btn {
-    margin-left: var(--spacing-sm);
-    background: none;
-    border: none;
-    color: var(--color-text-subtle);
-    font-weight: bold;
-    cursor: pointer;
-}
-
-.terminal-tab.active .close-tab-btn,
-.terminal-tab .close-tab-btn:hover {
-    color: var(--color-error);
-}
-
-#terminal-sessions-container {
-    flex-grow: 1;
-    position: relative;
-    min-height: 0;
-}
-
 
 .terminal {
     width: 100%;
@@ -247,9 +168,7 @@ body {
     overflow: hidden;
     display: grid;
     grid-template-rows: 1fr auto;
-    position: absolute; /* Changed for layering */
-    top: 0;
-    left: 0;
+    position: relative;
 }
 
 .terminal__output {

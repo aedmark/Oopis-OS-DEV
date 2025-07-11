@@ -23,11 +23,11 @@ const PaintUI = (() => {
         const toolGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [
             elements.pencilBtn = createToolBtn('pencil', 'p', '✎'),
             elements.eraserBtn = createToolBtn('eraser', 'e', '✐'),
-            elements.lineBtn = createToolBtn('line', 'l', '╱'),
-            elements.rectBtn = createToolBtn('rect', 'r', '▬'),
+            elements.lineBtn = createToolBtn('line', 'l', '—'),
+            elements.rectBtn = createToolBtn('rect', 'r', '▢'),
             elements.circleBtn = createToolBtn('circle', 'c', '◯'),
-            elements.fillBtn = createToolBtn('fill', 'f', '▓'),
-            elements.selectBtn = createToolBtn('select', 's', '✛'),
+            elements.fillBtn = createToolBtn('fill', 'f', '⛁'),
+            elements.selectBtn = createToolBtn('select', 's', '⬚'),
         ]);
 
         const colorSwatches = initialState.PALETTE.map(color =>

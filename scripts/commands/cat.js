@@ -24,7 +24,7 @@
             }
 
             if (!flags.numberLines) {
-                return { success: true, output: input };
+                return {success: true, output: input};
             }
 
             // The rest of the logic remains the same but now operates on a guaranteed input string.
@@ -34,7 +34,7 @@
             const processedLines = (lines.length > 0 && lines.at(-1) === '' ? lines.slice(0, -1) : lines);
             const numberedOutput = processedLines.map(line => `     ${String(lineCounter++).padStart(5)}  ${line}`).join('\n');
 
-            return { success: true, output: numberedOutput };
+            return {success: true, output: numberedOutput};
         },
     };
 
