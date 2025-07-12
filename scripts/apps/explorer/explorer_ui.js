@@ -155,37 +155,68 @@ const ExplorerUI = (() => {
         elements.treePane.appendChild(treeRoot);
     }
 
-    function renderMainPane(items) {
-        if (!elements.mainPane) return;
-        elements.mainPane.innerHTML = ''; // Clear previous content
+    function renderMainPane(items, currentPath) {
+    if (!elements.mainPane) return;
+    elements.mainPane.innerHTML = '';
 
-        if (items.length === 0) {
-            elements.mainPane.appendChild(Utils.createElement('div', { className: 'p-4 text-zinc-500', textContent: '(Directory is empty)' }));
-            return;
-        }
+    // Add a context menu for the pane itself (for creating new files/dirs)
+    elements.mainPane.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const menuItems = [
+            { label: 'New File...', callback: () => callbacks.onCreateFile(currentPath) },
+            { label: 'New Directory...', callback: () => callbacks.onCreateDirectory(currentPath) }
+        ];
+        _createContextMenu(menuItems, e.clientX, e.clientY);
+    });
 
-        const list = Utils.createElement('ul', { className: 'explorer-file-list' });
-        items.forEach(item => {
-            const icon = Utils.createElement('span', { className: 'mr-2 w-4 inline-block', textContent: item.type === 'directory' ? '📁' : '📄' });
-            const name = Utils.createElement('span', { className: 'explorer-item-name', textContent: item.name });
-            const perms = Utils.createElement('span', { className: 'explorer-item-perms', textContent: FileSystemManager.formatModeToString(item.node) });
-            const size = Utils.createElement('span', { className: 'explorer-item-size', textContent: item.type === 'file' ? Utils.formatBytes(item.size) : ''});
-
-            const li = Utils.createElement('li', {
-                    'data-path': item.path,
-                    title: item.path
-                },
-                icon, name, perms, size
-            );
-
-            li.addEventListener('dblclick', () => callbacks.onMainItemActivate(item.path, item.type));
-
-            // Context menu is now handled by the parent mainPane listener
-
-            list.appendChild(li);
-        });
-        elements.mainPane.appendChild(list);
+    if (items.length === 0) {
+        elements.mainPane.appendChild(Utils.createElement('div', {
+            className: 'p-4 text-zinc-500',
+            textContent: '(Directory is empty)'
+        }));
+        return;
     }
+
+    const list = Utils.createElement('ul', { className: 'explorer-file-list' });
+    items.forEach(item => {
+        const icon = Utils.createElement('span', {
+            className: 'mr-2 w-4 inline-block',
+            textContent: item.type === 'directory' ? '📁' : '📄'
+        });
+        const name = Utils.createElement('span', { className: 'explorer-item-name', textContent: item.name });
+        const perms = Utils.createElement('span', { className: 'explorer-item-perms', textContent: FileSystemManager.formatModeToString(item.node) });
+        const size = Utils.createElement('span', {
+            className: 'explorer-item-size',
+            textContent: item.type === 'file' ? Utils.formatBytes(item.size) : ''
+        });
+
+        const li = Utils.createElement('li', {
+            'data-path': item.path,
+            title: item.path
+        }, icon, name, perms, size);
+
+        // --- FIXED ---
+        // Added dblclick event listener for file/directory activation
+        li.addEventListener('dblclick', () => callbacks.onMainItemActivate(item.path, item.type));
+
+        // --- FIXED ---
+        // Added contextmenu event listener for individual item actions
+        li.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const menuItems = [
+                { label: 'Rename...', callback: () => callbacks.onRename(item.path, item.name) },
+                { label: 'Delete', callback: () => callbacks.onDelete(item.path, item.name) },
+                { label: 'Move', callback: () => callbacks.onMove(item.path, null) }
+            ];
+            _createContextMenu(menuItems, e.clientX, e.clientY);
+        });
+
+        list.appendChild(li);
+    });
+    elements.mainPane.appendChild(list);
+}
 
 
     function updateStatusBar(path, itemCount) {
