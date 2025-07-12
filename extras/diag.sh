@@ -15,6 +15,7 @@ testpass
 testpass
 mkdir -p /home/diagUser/diag_workspace/
 chown diagUser /home/diagUser/diag_workspace/
+groupadd testgroup
 chgrp testgroup /home/diagUser/diag_workspace/
 chmod 775 /home/diagUser/diag_workspace/
 delay 500
@@ -115,7 +116,6 @@ echo ""
 echo "===== Phase 4: Testing Group Permissions & Ownership (Expanded) ====="
 delay 400
 login root mcgoopis
-groupadd testgroup
 useradd testuser
 testpass
 testpass
@@ -179,7 +179,7 @@ echo "--- Test: Granular sudo permissions ---"
 useradd sudouser2
 testpass
 testpass
-echo "sudouser2 ls" >> /etc/sudoers
+echo "sudouser2 ALL=(ALL) /bin/ls" >> /etc/sudoers
 login sudouser2 testpass
 echo "Attempting allowed specific command (ls)..."
 sudo ls /home/root
