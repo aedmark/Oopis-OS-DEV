@@ -179,7 +179,7 @@ echo "--- Test: Granular sudo permissions ---"
 useradd sudouser2
 testpass
 testpass
-echo "sudouser2 ALL=(ALL) /bin/ls" >> /etc/sudoers
+echo "sudouser2 ls" >> /etc/sudoers
 login sudouser2 testpass
 echo "Attempting allowed specific command (ls)..."
 sudo ls /home/root
