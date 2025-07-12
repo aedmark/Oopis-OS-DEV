@@ -1,42 +1,34 @@
+// scripts/commands/awk.js
 (() => {
     "use strict";
     const awkCommandDefinition = {
         commandName: "awk",
+        isInputStream: true, // Add this
         flagDefinitions: [
             { name: "fieldSeparator", short: "-F", takesValue: true }
         ],
         coreLogic: async (context) => {
-            const {flags, args, options, currentUser} = context;
+            const {flags, args, options, currentUser, inputItems, inputError} = context; // Modified
 
             if (args.length === 0) {
                 return { success: false, error: "awk: missing program" };
             }
 
             const programString = args[0];
-            const filePaths = args.slice(1);
 
             const program = _parseProgram(programString);
             if (program.error) {
                 return { success: false, error: `awk: program error: ${program.error}` };
             }
 
-            let inputText = "";
-            if (filePaths.length > 0) {
-                const contents = [];
-                for (const pathArg of filePaths) {
-                    const pathInfo = FileSystemManager.validatePath("awk", pathArg, {expectedType: 'file'});
-                    if (pathInfo.error) return {success: false, error: pathInfo.error};
-                    if (!FileSystemManager.hasPermission(pathInfo.node, currentUser, "read")) return {
-                        success: false,
-                        error: `awk: ${pathArg}: Permission denied`
-                    };
-                    contents.push(pathInfo.node.content || "");
-                }
-                inputText = contents.join('\n');
-            } else if (options.stdinContent !== null) {
-                inputText = options.stdinContent;
-            } else {
-                return {success: false, error: "awk: No input provided."};
+            if (inputError) {
+                return {success: false, error: "awk: No readable input provided."};
+            }
+
+            const inputText = (inputItems && inputItems.length > 0) ? inputItems.map(item => item.content).join('\n') : ""; // Modified
+
+            if (!inputText) {
+                 return {success: false, error: "awk: No input provided."};
             }
 
             const separator = flags.fieldSeparator ? new RegExp(flags.fieldSeparator) : /\s+/;

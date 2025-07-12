@@ -15,3 +15,5 @@
 /.testing/
 /package-lock.json
 /.vs/
+.idx/dev.nix
+.vscode/settings.json

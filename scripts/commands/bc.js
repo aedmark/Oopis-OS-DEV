@@ -1,3 +1,4 @@
+// scripts/commands/bc.js
 (() => {
     "use strict";
 
@@ -72,9 +73,20 @@
 
     const bcCommandDefinition = {
         commandName: "bc",
+        isInputStream: true, // Add this
         coreLogic: async (context) => {
-            const { args, options } = context;
-            const input = (args.length > 0 ? args.join(' ') : options.stdinContent) || '';
+            const { args, inputItems, inputError } = context; // Modified
+            let input = "";
+
+            if (args.length > 0) {
+                input = args.join(' ');
+            } else if (inputItems && inputItems.length > 0) {
+                input = inputItems.map(item => item.content).join('\n');
+            }
+
+            if (inputError) {
+                return {success: false, error: "bc: No readable input provided."};
+            }
 
             if (!input.trim()) {
                 return { success: true, output: "" };
