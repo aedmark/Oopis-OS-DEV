@@ -30,8 +30,39 @@ const ExplorerUI = (() => {
             className: 'explorer-container'
         }, header, mainContainer, elements.statusBar);
 
+        // This single listener will handle all context menu logic for the main pane.
+        elements.mainPane.addEventListener('contextmenu', (e) => {
+            e.preventDefault(); // Prevent the default browser menu.
+            
+            const listItem = e.target.closest('li[data-path]');
+
+            if (listItem) {
+                // User right-clicked on a file or directory item
+                const path = listItem.getAttribute('data-path');
+                const name = listItem.querySelector('.explorer-item-name').textContent;
+                const menuItems = [
+                    { label: 'Rename...', callback: () => callbacks.onRename(path, name) },
+                    { label: 'Delete', callback: () => callbacks.onDelete(path, name) },
+                    { label: 'Move', callback: () => callbacks.onMove(path, null) }
+                ];
+                _createContextMenu(menuItems, e.clientX, e.clientY);
+            } else {
+                // User right-clicked on the background of the main pane
+                const currentPath = elements.statusBar.textContent.split('  |')[0].replace('Path: ', '');
+                const menuItems = [
+                    { label: 'New File...', callback: () => callbacks.onCreateFile(currentPath) },
+                    { label: 'New Directory...', callback: () => callbacks.onCreateDirectory(currentPath) }
+                ];
+                _createContextMenu(menuItems, e.clientX, e.clientY);
+            }
+        });
+
         // Close context menu when clicking elsewhere
-        document.addEventListener('click', () => _removeContextMenu(), true);
+        document.addEventListener('click', (e) => {
+            if (activeContextMenu && !activeContextMenu.contains(e.target)) {
+                _removeContextMenu();
+            }
+        }, true);
 
         return elements.container;
     }
@@ -44,10 +75,14 @@ const ExplorerUI = (() => {
     }
     
     function _createContextMenu(items, x, y) {
-        _removeContextMenu(); // Remove any existing menu
+        _removeContextMenu(); // Remove any existing menu before creating a new one.
+
         const menu = Utils.createElement('div', { className: 'context-menu' });
         menu.style.left = `${x}px`;
         menu.style.top = `${y}px`;
+        
+        // Clicks inside the menu should not close it.
+        menu.addEventListener('click', e => e.stopPropagation());
 
         items.forEach(item => {
             if (item.separator) {
@@ -55,8 +90,7 @@ const ExplorerUI = (() => {
                 return;
             }
             const menuItem = Utils.createElement('div', { className: 'context-menu-item', textContent: item.label });
-            menuItem.addEventListener('click', (e) => {
-                e.stopPropagation();
+            menuItem.addEventListener('click', () => {
                 item.callback();
                 _removeContextMenu();
             });
@@ -66,7 +100,6 @@ const ExplorerUI = (() => {
         document.body.appendChild(menu);
         activeContextMenu = menu;
     }
-
 
     function renderTree(treeData, selectedPath, expandedPaths) {
         if (!elements.treePane) return;
@@ -122,20 +155,9 @@ const ExplorerUI = (() => {
         elements.treePane.appendChild(treeRoot);
     }
 
-    function renderMainPane(items, currentPath) {
+    function renderMainPane(items) {
         if (!elements.mainPane) return;
-        elements.mainPane.innerHTML = '';
-
-        elements.mainPane.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const menuItems = [
-                { label: 'New File...', callback: () => callbacks.onCreateFile(currentPath) },
-                { label: 'New Directory...', callback: () => callbacks.onCreateDirectory(currentPath) }
-            ];
-            _createContextMenu(menuItems, e.clientX, e.clientY);
-        });
-
+        elements.mainPane.innerHTML = ''; // Clear previous content
 
         if (items.length === 0) {
             elements.mainPane.appendChild(Utils.createElement('div', { className: 'p-4 text-zinc-500', textContent: '(Directory is empty)' }));
@@ -158,21 +180,13 @@ const ExplorerUI = (() => {
 
             li.addEventListener('dblclick', () => callbacks.onMainItemActivate(item.path, item.type));
 
-            li.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const menuItems = [
-                    { label: 'Rename...', callback: () => callbacks.onRename(item.path, item.name) },
-                    { label: 'Delete', callback: () => callbacks.onDelete(item.path, item.name) },
-                    { label: 'Move', callback: () => callbacks.onMove(item.path, null) }
-                ];
-                _createContextMenu(menuItems, e.clientX, e.clientY);
-            });
+            // Context menu is now handled by the parent mainPane listener
 
             list.appendChild(li);
         });
         elements.mainPane.appendChild(list);
     }
+
 
     function updateStatusBar(path, itemCount) {
         if (!elements.statusBar) return;
@@ -180,20 +194,31 @@ const ExplorerUI = (() => {
     }
 
     function setMoveCursor(isMoving) {
-        elements.container.style.cursor = isMoving ? 'move' : 'default';
+        if (elements.container) {
+            elements.container.style.cursor = isMoving ? 'move' : 'default';
+        }
     }
 
     function highlightItem(path, isHighlighted) {
-        const itemElement = elements.mainPane.querySelector(`[data-path="${path}"]`);
-        if (itemElement) {
-            itemElement.style.backgroundColor = isHighlighted ? 'var(--color-info)' : '';
-            itemElement.style.color = isHighlighted ? 'var(--color-background-darkest)' : '';
+        // Clear previous highlights
+        const allItems = elements.mainPane.querySelectorAll('li');
+        allItems.forEach(li => {
+            li.style.backgroundColor = '';
+            li.style.color = '';
+        });
+
+        // Apply new highlight
+        if (isHighlighted) {
+            const itemElement = elements.mainPane.querySelector(`[data-path="${path}"]`);
+            if (itemElement) {
+                itemElement.style.backgroundColor = 'var(--color-info)';
+                itemElement.style.color = 'var(--color-background-darkest)';
+            }
         }
     }
 
     function reset() {
         _removeContextMenu();
-        document.removeEventListener('click', () => _removeContextMenu(), true);
         elements = {};
         callbacks = {};
     }
