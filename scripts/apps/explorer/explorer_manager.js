@@ -28,15 +28,23 @@ const ExplorerManager = (() => {
             }
             _updateView(path);
         },
-        onMainItemActivate: (path, type) => {
-            if (type === 'directory') {
-                expandedPaths.add(path);
-                _updateView(path);
-            } else {
-                // Assuming a default action for files, e.g., opening with 'edit'
-                CommandExecutor.processSingleCommand(`edit "${path}"`, { isInteractive: true });
-            }
-        },
+        // Make the callback function asynchronous
+	onMainItemActivate: async (path, type) => {
+		if (type === 'directory') {
+			expandedPaths.add(path);
+			_updateView(path);
+		} else {
+			// First, initiate the exit of the explorer.
+		exit();
+
+       // Then, wait briefly for the UI to update.
+       // This pause is critical to prevent the race condition.
+	await new Promise(resolve => setTimeout(resolve, 50)); // 50ms delay
+
+       // Now that the explorer is closed, safely open the editor.
+    await CommandExecutor.processSingleCommand(`edit "${path}"`, { isInteractive: true });
+    }
+},
 
         // --- NEW CALLBACKS ---
         onCreateFile: (path) => {
