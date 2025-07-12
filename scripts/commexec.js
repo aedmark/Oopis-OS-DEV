@@ -1,3 +1,5 @@
+// /scripts/commexec.js
+
 const CommandExecutor = (() => {
   "use strict";
   let backgroundProcessIdCounter = 0;
@@ -252,6 +254,7 @@ const CommandExecutor = (() => {
     const job = activeJobs[jobId];
     if (job && job.abortController) {
       job.abortController.abort("Killed by user command.");
+      MessageBusManager.unregisterJob(jobId);
       delete activeJobs[jobId];
       return {
         success: true,
@@ -336,12 +339,13 @@ const CommandExecutor = (() => {
     const nowISO = new Date().toISOString();
     for (let i = 0; i < pipeline.segments.length; i++) {
       const segment = pipeline.segments[i];
+      const execOptions = { isInteractive, scriptingContext };
+      if (pipeline.isBackground) {
+        execOptions.jobId = pipeline.jobId;
+      }
       lastResult = await _executeCommandHandler(
           segment,
-          {
-            isInteractive,
-            scriptingContext
-          },
+          execOptions,
           currentStdin,
           signal
       );
@@ -663,6 +667,7 @@ const CommandExecutor = (() => {
         pipeline.isBackground = true;
         const jobId = ++backgroundProcessIdCounter;
         pipeline.jobId = jobId;
+        MessageBusManager.registerJob(jobId);
         const abortController = new AbortController();
         activeJobs[jobId] = {id: jobId, command: cmdToEcho, abortController};
         await OutputManager.appendToOutput(`${Config.MESSAGES.BACKGROUND_PROCESS_STARTED_PREFIX}${jobId}${Config.MESSAGES.BACKGROUND_PROCESS_STARTED_SUFFIX}`, {typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG});
@@ -682,6 +687,7 @@ const CommandExecutor = (() => {
             });
           } finally {
             delete activeJobs[jobId];
+            MessageBusManager.unregisterJob(jobId);
           }
         }, 0);
         result = { success: true };

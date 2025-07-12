@@ -3,34 +3,42 @@
     "use strict";
     const awkCommandDefinition = {
         commandName: "awk",
-        isInputStream: true, // Add this
+        // isInputStream is removed to allow for correct argument parsing.
         flagDefinitions: [
             { name: "fieldSeparator", short: "-F", takesValue: true }
         ],
         coreLogic: async (context) => {
-            const {flags, args, options, currentUser, inputItems, inputError} = context; // Modified
+            const {flags, args, options, currentUser } = context;
 
             if (args.length === 0) {
                 return { success: false, error: "awk: missing program" };
             }
 
+            // The first argument is the program, not a file.
             const programString = args[0];
-
             const program = _parseProgram(programString);
             if (program.error) {
                 return { success: false, error: `awk: program error: ${program.error}` };
             }
 
-            if (inputError) {
-                return {success: false, error: "awk: No readable input provided."};
+            // Determine the input source: either from a file argument or piped stdin.
+            let inputText;
+            if (args.length > 1) {
+                const pathValidation = FileSystemManager.validatePath("awk", args[1], { expectedType: 'file' });
+                if (pathValidation.error) {
+                    return { success: false, error: pathValidation.error };
+                }
+                if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
+                    return { success: false, error: `awk: cannot read file: ${args[1]}` };
+                }
+                inputText = pathValidation.node.content || "";
+            } else if (options.stdinContent !== null && options.stdinContent !== undefined) {
+                inputText = options.stdinContent;
+            } else {
+                return { success: false, error: "awk: No input provided. Please specify a file or pipe data." };
             }
 
-            const inputText = (inputItems && inputItems.length > 0) ? inputItems.map(item => item.content).join('\n') : ""; // Modified
-
-            if (!inputText) {
-                 return {success: false, error: "awk: No input provided."};
-            }
-
+            // The rest of the logic remains largely the same, as it correctly processes the inputText.
             const separator = flags.fieldSeparator ? new RegExp(flags.fieldSeparator) : /\s+/;
             let outputLines = [];
             let nr = 0;
@@ -71,6 +79,7 @@
         }
     };
 
+    // The helper functions _parseProgram and _executeAction remain unchanged.
     function _parseProgram(programString) {
         const program = {begin: null, end: null, rules: [], error: null,};
         const ruleRegex = /(BEGIN)\s*{([^}]*)}|(END)\s*{([^}]*)}|(\/[^/]*\/)\s*{([^}]*)}/g;

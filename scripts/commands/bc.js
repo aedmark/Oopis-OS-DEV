@@ -2,7 +2,10 @@
 (() => {
     "use strict";
 
+    // The _safeEvaluate function remains unchanged. It correctly
+    // parses and computes the mathematical expression.
     const _safeEvaluate = (expression) => {
+        // Shunting-yard algorithm for safe expression evaluation
         const cleanExpression = expression.replace(/\s+/g, '');
         const tokens = cleanExpression.match(/(\d+\.?\d*|\+|-|\*|\/|%|\(|\))/g);
 
@@ -73,26 +76,29 @@
 
     const bcCommandDefinition = {
         commandName: "bc",
-        isInputStream: true, // Add this
+        // isInputStream is removed to prevent the shell from treating
+        // arguments as file paths for this command.
         coreLogic: async (context) => {
-            const { args, inputItems, inputError } = context; // Modified
+            // The context now correctly differentiates between piped input
+            // and direct arguments.
+            const { args, options } = context;
             let input = "";
 
-            if (args.length > 0) {
+            // Prioritize piped input if it exists.
+            if (options.stdinContent !== null && options.stdinContent !== undefined) {
+                input = options.stdinContent;
+            } else if (args.length > 0) {
+                // Otherwise, use the command-line arguments.
                 input = args.join(' ');
-            } else if (inputItems && inputItems.length > 0) {
-                input = inputItems.map(item => item.content).join('\n');
-            }
-
-            if (inputError) {
-                return {success: false, error: "bc: No readable input provided."};
             }
 
             if (!input.trim()) {
+                // It's not an error to receive no input; just do nothing.
                 return { success: true, output: "" };
             }
 
             try {
+                // The core calculation logic remains the same.
                 const result = _safeEvaluate(input);
                 return { success: true, output: String(result) };
             } catch (e) {
