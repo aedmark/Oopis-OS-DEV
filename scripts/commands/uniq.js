@@ -1,36 +1,31 @@
-// Corrected File: aedmark/oopis-os-dev/Oopis-OS-DEV-d433f2298e4704d53000b05f98b059a46e2196eb/scripts/commands/uniq.js
+// scripts/commands/uniq.js
 (() => {
     "use strict";
 
     const uniqCommandDefinition = {
         commandName: "uniq",
+        isInputStream: true, // Add this
         flagDefinitions: [
             { name: "count", short: "-c", long: "--count" },
             { name: "repeated", short: "-d", long: "--repeated" },
             { name: "unique", short: "-u", long: "--unique" },
         ],
         coreLogic: async (context) => {
-            const {args, flags, options, currentUser} = context;
-            let inputText;
+            const {flags, inputItems, inputError} = context; // Modified
 
-            if (args.length > 0) {
-                const pathInfo = FileSystemManager.validatePath("uniq", args[0], {expectedType: 'file'});
-                if (pathInfo.error) return {success: false, error: pathInfo.error};
-                if (!FileSystemManager.hasPermission(pathInfo.node, currentUser, "read")) return {
-                    success: false,
-                    error: `uniq: ${args[0]}: Permission denied`
-                };
-                inputText = pathInfo.node.content;
-            } else if (options.stdinContent !== null) {
-                inputText = options.stdinContent;
-            } else {
+            if (inputError) {
+                return {success: false, error: "uniq: No readable input provided."};
+            }
+
+            const inputText = (inputItems && inputItems.length > 0) ? inputItems.map(item => item.content).join('\n') : "";
+
+            if (!inputText) {
                 return {success: true, output: ""};
             }
 
-            if (flags.repeated && flags.unique) return {
-                success: false,
-                error: "uniq: printing only unique and repeated lines is mutually exclusive"
-            };
+            if (flags.repeated && flags.unique) {
+                return { success: false, error: "uniq: printing only unique and repeated lines is mutually exclusive"};
+            }
 
             let lines = inputText.split('\n');
             if (lines.length === 0 || (lines.length === 1 && lines[0] === '')) return {success: true, output: ""};
