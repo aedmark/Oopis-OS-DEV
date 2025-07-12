@@ -2,6 +2,7 @@ const ExplorerUI = (() => {
     "use strict";
     let elements = {};
     let callbacks = {};
+    let activeContextMenu = null;
 
     function buildLayout(cb) {
         callbacks = cb;
@@ -29,8 +30,43 @@ const ExplorerUI = (() => {
             className: 'explorer-container'
         }, header, mainContainer, elements.statusBar);
 
+        // Close context menu when clicking elsewhere
+        document.addEventListener('click', () => _removeContextMenu(), true);
+
         return elements.container;
     }
+    
+    function _removeContextMenu() {
+        if (activeContextMenu) {
+            activeContextMenu.remove();
+            activeContextMenu = null;
+        }
+    }
+    
+    function _createContextMenu(items, x, y) {
+        _removeContextMenu(); // Remove any existing menu
+        const menu = Utils.createElement('div', { className: 'context-menu' });
+        menu.style.left = `${x}px`;
+        menu.style.top = `${y}px`;
+
+        items.forEach(item => {
+            if (item.separator) {
+                menu.appendChild(Utils.createElement('div', { className: 'context-menu-separator' }));
+                return;
+            }
+            const menuItem = Utils.createElement('div', { className: 'context-menu-item', textContent: item.label });
+            menuItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                item.callback();
+                _removeContextMenu();
+            });
+            menu.appendChild(menuItem);
+        });
+
+        document.body.appendChild(menu);
+        activeContextMenu = menu;
+    }
+
 
     function renderTree(treeData, selectedPath, expandedPaths) {
         if (!elements.treePane) return;
@@ -86,9 +122,20 @@ const ExplorerUI = (() => {
         elements.treePane.appendChild(treeRoot);
     }
 
-    function renderMainPane(items) {
+    function renderMainPane(items, currentPath) {
         if (!elements.mainPane) return;
         elements.mainPane.innerHTML = '';
+
+        elements.mainPane.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const menuItems = [
+                { label: 'New File...', callback: () => callbacks.onCreateFile(currentPath) },
+                { label: 'New Directory...', callback: () => callbacks.onCreateDirectory(currentPath) }
+            ];
+            _createContextMenu(menuItems, e.clientX, e.clientY);
+        });
+
 
         if (items.length === 0) {
             elements.mainPane.appendChild(Utils.createElement('div', { className: 'p-4 text-zinc-500', textContent: '(Directory is empty)' }));
@@ -100,7 +147,7 @@ const ExplorerUI = (() => {
             const icon = Utils.createElement('span', { className: 'mr-2 w-4 inline-block', textContent: item.type === 'directory' ? '📁' : '📄' });
             const name = Utils.createElement('span', { className: 'explorer-item-name', textContent: item.name });
             const perms = Utils.createElement('span', { className: 'explorer-item-perms', textContent: FileSystemManager.formatModeToString(item.node) });
-            const size = Utils.createElement('span', { className: 'explorer-item-size', textContent: Utils.formatBytes(item.size) });
+            const size = Utils.createElement('span', { className: 'explorer-item-size', textContent: item.type === 'file' ? Utils.formatBytes(item.size) : ''});
 
             const li = Utils.createElement('li', {
                     'data-path': item.path,
@@ -110,6 +157,18 @@ const ExplorerUI = (() => {
             );
 
             li.addEventListener('dblclick', () => callbacks.onMainItemActivate(item.path, item.type));
+
+            li.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const menuItems = [
+                    { label: 'Rename...', callback: () => callbacks.onRename(item.path, item.name) },
+                    { label: 'Delete', callback: () => callbacks.onDelete(item.path, item.name) },
+                    { label: 'Move', callback: () => callbacks.onMove(item.path, null) }
+                ];
+                _createContextMenu(menuItems, e.clientX, e.clientY);
+            });
+
             list.appendChild(li);
         });
         elements.mainPane.appendChild(list);
@@ -120,10 +179,24 @@ const ExplorerUI = (() => {
         elements.statusBar.textContent = `Path: ${path}  |  Items: ${itemCount}`;
     }
 
+    function setMoveCursor(isMoving) {
+        elements.container.style.cursor = isMoving ? 'move' : 'default';
+    }
+
+    function highlightItem(path, isHighlighted) {
+        const itemElement = elements.mainPane.querySelector(`[data-path="${path}"]`);
+        if (itemElement) {
+            itemElement.style.backgroundColor = isHighlighted ? 'var(--color-info)' : '';
+            itemElement.style.color = isHighlighted ? 'var(--color-background-darkest)' : '';
+        }
+    }
+
     function reset() {
+        _removeContextMenu();
+        document.removeEventListener('click', () => _removeContextMenu(), true);
         elements = {};
         callbacks = {};
     }
 
-    return { buildLayout, renderTree, renderMainPane, updateStatusBar, reset };
+    return { buildLayout, renderTree, renderMainPane, updateStatusBar, setMoveCursor, highlightItem, reset };
 })();

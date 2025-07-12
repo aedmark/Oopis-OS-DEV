@@ -98,6 +98,13 @@ ls -lr
 echo "--- Test: cat -n ---"
 cat -n diff_a.txt
 delay 700
+echo "--- Test: cd into a file (should fail) ---"
+delay 200
+echo "this is a file" > not_a_directory.txt
+delay 300
+check_fail "cd not_a_directory.txt"
+delay 200
+rm not_a_directory.txt
 echo "---------------------------------------------------------------------"
 
 
@@ -414,10 +421,6 @@ rm oopis_curl.txt
 echo "--- Test: man and help ---"
 man ls
 help cp
-# --- Test: backup and export (execution check) ---
-echo "Verifying backup and export commands can be initiated from a script (will trigger downloads)..."
-# backup
-# export text_file.txt
 echo "Network & Docs tests complete."
 delay 700
 echo "---------------------------------------------------------------------"
