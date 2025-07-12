@@ -1,5 +1,3 @@
-// scripts/sudo_manager.js
-
 const SudoManager = (() => {
     "use strict";
 
@@ -8,15 +6,14 @@ const SudoManager = (() => {
 
     function _parseSudoers() {
         const sudoersNode = FileSystemManager.getNodeByPath(Config.SUDO.SUDOERS_PATH);
-        const config = { users: {}, groups: {}, timeout: Config.SUDO.DEFAULT_TIMEOUT }; // Default fallback
-
         if (!sudoersNode || sudoersNode.type !== 'file') {
-            sudoersConfig = config;
+            sudoersConfig = { users: {}, groups: {}, timeout: Config.SUDO.DEFAULT_TIMEOUT }; // Default fallback
             return;
         }
 
         const content = sudoersNode.content || '';
         const lines = content.split('\n');
+        const config = { users: {}, groups: {}, timeout: Config.SUDO.DEFAULT_TIMEOUT };
 
         lines.forEach(line => {
             line = line.trim();
@@ -49,9 +46,7 @@ const SudoManager = (() => {
     }
 
     function _getSudoersConfig() {
-        if (!sudoersConfig) {
-            _parseSudoers();
-        }
+        _parseSudoers(); // Always re-parse to get the latest rules.
         return sudoersConfig;
     }
 
@@ -110,6 +105,7 @@ const SudoManager = (() => {
             }
         }
 
+        // Return false if no permissions match after checking all possibilities.
         return false;
     }
 
