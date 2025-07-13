@@ -125,54 +125,54 @@
         commandName: "adventure",
         completionType: "paths",
         flagDefinitions: [
-            { name: 'create', short: '--create' }
+            {name: 'create', short: '--create'}
         ],
         argValidation: {
             max: 2,
             error: "Usage: adventure [--create] [path_to_adventure.json]",
         },
-        pathValidation: [
-            {
-                argIndex: 0,
-                optional: true,
-                options: {
-                    allowMissing: true,
-                    expectedType: 'file',
-                },
-            },
-        ],
         coreLogic: async (context) => {
-            const { args, currentUser, validatedPaths, options, flags } = context;
+            const {args, currentUser, options, flags} = context;
 
             if (flags.create) {
                 const filename = args[0];
                 if (!filename) {
-                    return { success: false, error: "Usage: adventure --create <filename.json>" };
+                    return {success: false, error: "Usage: adventure --create <filename.json>"};
                 }
                 if (!filename.endsWith('.json')) {
-                    return { success: false, error: "Filename must end with .json" };
+                    return {success: false, error: "Filename must end with .json"};
                 }
 
                 let initialData = {};
-                const pathInfo = FileSystemManager.validatePath("adventure_create", filename, { allowMissing: true });
+                const pathInfo = FileSystemManager.validatePath("adventure_create", filename, {allowMissing: true});
 
                 if (pathInfo.node) {
                     try {
                         initialData = JSON.parse(pathInfo.node.content || '{}');
                     } catch (e) {
-                        return { success: false, error: `Could not parse existing file '${filename}'. It may be corrupt.` };
+                        return {
+                            success: false,
+                            error: `Could not parse existing file '${filename}'. It may be corrupt.`
+                        };
                     }
                 } else {
                     initialData = {
                         title: "New Adventure",
                         startingRoomId: "start",
-                        winCondition: { type: "playerHasItem", itemId: "macguffin" },
+                        winCondition: {type: "playerHasItem", itemId: "macguffin"},
                         winMessage: "You found the MacGuffin! You win!",
                         rooms: {
-                            start: { name: "The Starting Room", description: "A blank canvas for your adventure." }
+                            start: {name: "The Starting Room", description: "A blank canvas for your adventure."}
                         },
                         items: {
-                            macguffin: { id: "macguffin", name: "a shiny MacGuffin", noun: "macguffin", description: "It's very shiny.", location: "start", canTake: true }
+                            macguffin: {
+                                id: "macguffin",
+                                name: "a shiny MacGuffin",
+                                noun: "macguffin",
+                                description: "It's very shiny.",
+                                location: "start",
+                                canTake: true
+                            }
                         },
                         npcs: {},
                         daemons: {}
@@ -180,52 +180,58 @@
                 }
 
                 if (typeof Adventure_create === 'undefined' || !Adventure_create.enter) {
-                    return { success: false, error: "AdventureCreator module not found. Catastrophic blueprint failure." };
+                    return {
+                        success: false,
+                        error: "AdventureCreator module not found. Catastrophic blueprint failure."
+                    };
                 }
 
                 Adventure_create.enter(filename, initialData, context);
-                return { success: true, output: "" };
+                return {success: true, output: ""};
             }
 
             if (typeof TextAdventureModal === "undefined" || typeof TextAdventureEngine === "undefined") {
-                return { success: false, error: "Adventure module is not properly loaded." };
+                return {success: false, error: "Adventure module is not properly loaded."};
             }
             if (TextAdventureModal.isActive()) {
-                return { success: false, error: "An adventure is already in progress." };
+                return {success: false, error: "An adventure is already in progress."};
             }
 
             let adventureToLoad;
 
             if (args.length > 0) {
-                const filePath = args[0];
-                const pathInfo = validatedPaths[0];
+                const pathValidation = FileSystemManager.validatePath(args[0], {
+                    expectedType: 'file',
+                    permissions: ['read']
+                });
 
-                if (pathInfo.error) return { success: false, error: pathInfo.error };
-                if (!pathInfo.node) return { success: false, error: `adventure: File not found at '${filePath}'.` };
-                if (!FileSystemManager.hasPermission(pathInfo.node, currentUser, "read")) {
-                    return { success: false, error: `adventure: Cannot read file '${filePath}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}` };
+                if (pathValidation.error) {
+                    return {success: false, error: `adventure: ${pathValidation.error}`};
                 }
+
                 try {
-                    adventureToLoad = JSON.parse(pathInfo.node.content);
+                    adventureToLoad = JSON.parse(pathValidation.node.content);
                     if (!adventureToLoad.rooms || !adventureToLoad.startingRoomId) {
-                        return { success: false, error: `adventure: Invalid adventure file format in '${filePath}'.` };
+                        return {success: false, error: `adventure: Invalid adventure file format in '${args[0]}'.`};
                     }
-                    if (!adventureToLoad.title) adventureToLoad.title = filePath;
+                    if (!adventureToLoad.title) adventureToLoad.title = args[0];
                 } catch (e) {
-                    return { success: false, error: `adventure: Error parsing adventure file '${filePath}': ${e.message}` };
+                    return {
+                        success: false,
+                        error: `adventure: Error parsing adventure file '${args[0]}': ${e.message}`
+                    };
                 }
             } else {
                 adventureToLoad = defaultAdventureData;
             }
 
             const scriptingContext = options.scriptingContext || null;
-
-            await TextAdventureEngine.startAdventure(adventureToLoad, { scriptingContext: scriptingContext });
+            await TextAdventureEngine.startAdventure(adventureToLoad, {scriptingContext: scriptingContext});
 
             if (scriptingContext && scriptingContext.isScripting) {
                 while (scriptContext.currentLineIndex < scriptContext.lines.length - 1 && TextAdventureModal.isActive()) {
                     let nextCommand = await TextAdventureModal.requestInput("");
-                    if(nextCommand === null) break;
+                    if (nextCommand === null) break;
                     await TextAdventureEngine.processCommand(nextCommand);
                 }
                 if (TextAdventureModal.isActive()) {
@@ -233,14 +239,11 @@
                 }
             }
 
-            return {
-                success: true,
-                output: ``,
-            };
-        },
-    };
+            return {success: true, output: ""};
+        }
+    }
 
-    const adventureDescription = "Starts an interactive text adventure game or creation tool.";
+            const adventureDescription = "Starts an interactive text adventure game or creation tool.";
     const adventureHelpText = `Usage: adventure [--create] [path_to_game.json]
 
 Launches the OopisOS interactive text adventure engine.

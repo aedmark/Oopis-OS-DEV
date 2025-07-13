@@ -4,21 +4,14 @@
 
     const codeCommandDefinition = {
         commandName: "code",
-        completionType: "paths",
+        completionType: "paths", // Explicitly declare for tab completion
         argValidation: {
             max: 1,
             error: "Usage: code [filepath]"
         },
-        pathValidation: [{
-            argIndex: 0,
-            optional: true,
-            options: {
-                allowMissing: true,
-                expectedType: 'file'
-            }
-        }],
+        // REMOVED: pathValidation property is gone.
         coreLogic: async (context) => {
-            const {args, options, currentUser, validatedPaths} = context;
+            const {args, options, currentUser} = context;
 
             if (!options.isInteractive) {
                 return {success: false, error: "code: Can only be run in interactive mode."};
@@ -34,19 +27,26 @@
             let fileContent = "";
 
             if (pathArg) {
-                const pathInfo = validatedPaths[0];
-                if (pathInfo.error) {
-                    return {success: false, error: `code: ${pathInfo.error}`};
+                // --- NEW: Explicit validation sequence ---
+                const pathValidation = FileSystemManager.validatePath(pathArg, {
+                    allowMissing: true,
+                    expectedType: 'file'
+                });
+
+                if (pathValidation.error && !pathValidation.node && !pathValidation.error.includes("No such file or directory")) {
+                    return {success: false, error: `code: ${pathValidation.error}`};
                 }
-                if (pathInfo.node && !FileSystemManager.hasPermission(pathInfo.node, currentUser, "read")) {
-                    return {success: false, error: `code: cannot read file '${pathArg}': Permission denied`};
+
+                if (pathValidation.node) {
+                    if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
+                        return {success: false, error: `code: cannot read file '${pathArg}': Permission denied`};
+                    }
+                    fileNode = pathValidation.node;
+                    fileContent = fileNode.content || "";
                 }
-                fileNode = pathInfo.node;
-                resolvedPath = pathInfo.resolvedPath;
-                fileContent = fileNode ? fileNode.content : "";
+                resolvedPath = pathValidation.resolvedPath;
             }
 
-            // The command's only job is to launch the application manager.
             CodeManager.enter(resolvedPath, fileContent);
 
             return {success: true, output: ""};

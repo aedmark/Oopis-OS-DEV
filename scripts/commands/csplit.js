@@ -1,3 +1,4 @@
+// scripts/commands/csplit.js
 (() => {
     "use strict";
 
@@ -14,21 +15,22 @@
         argValidation: {
             min: 2,
         },
-        pathValidation: [
-            {
-                argIndex: 0,
-                options: { expectedType: 'file' }
-            }
-        ],
-        permissionChecks: [
-            {
-                pathArgIndex: 0,
-                permissions: ["read"]
-            }
-        ],
+        // REMOVED: pathValidation and permissionChecks are gone.
         coreLogic: async (context) => {
-            const { args, flags, currentUser, validatedPaths } = context;
-            const fileNode = validatedPaths[0].node;
+            const { args, flags, currentUser } = context;
+
+            // --- NEW: Explicit validation sequence ---
+            const fileValidation = FileSystemManager.validatePath(args[0], {
+                expectedType: 'file',
+                permissions: ['read']
+            });
+
+            if (fileValidation.error) {
+                return { success: false, error: `csplit: ${fileValidation.error}` };
+            }
+            const fileNode = fileValidation.node;
+            // --- End of new validation sequence ---
+
             const content = fileNode.content || "";
             const lines = content.split('\n');
 

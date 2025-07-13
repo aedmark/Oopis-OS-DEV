@@ -1,3 +1,4 @@
+// scripts/commands/basic.js
 (() => {
     "use strict";
 
@@ -8,17 +9,8 @@
             max: 1,
             error: "Usage: basic [filename.bas]"
         },
-        pathValidation: [{
-            argIndex: 0,
-            optional: true,
-            options: { allowMissing: true, expectedType: 'file' }
-        }],
-        permissionChecks: [{
-            pathArgIndex: 0,
-            permissions: ["read"]
-        }],
         coreLogic: async (context) => {
-            const { options, validatedPaths } = context;
+            const { args, options, currentUser } = context;
 
             if (!options.isInteractive) {
                 return { success: false, error: "basic: Cannot be run in a non-interactive mode." };
@@ -30,10 +22,28 @@
 
             let fileContent = null;
             let filePath = null;
-            if (validatedPaths[0] && validatedPaths[0].node) {
-                fileContent = validatedPaths[0].node.content;
-                filePath = validatedPaths[0].resolvedPath;
+
+            if (args.length > 0) {
+                const pathArg = args[0];
+                const validationResult = FileSystemManager.validatePath(pathArg, {
+                    expectedType: 'file',
+                    permissions: ['read']
+                });
+
+                if (validationResult.error) {
+                    // We allow missing files, so we only fail if there's an error OTHER than not found.
+                    if (!validationResult.node && validationResult.error.includes("No such file or directory")) {
+                        filePath = FileSystemManager.getAbsolutePath(pathArg);
+                        fileContent = "";
+                    } else {
+                        return { success: false, error: `basic: ${validationResult.error}` };
+                    }
+                } else {
+                    filePath = validationResult.resolvedPath;
+                    fileContent = validationResult.node.content;
+                }
             }
+
 
             BasicManager.enter(context, { content: fileContent, path: filePath });
 

@@ -4,29 +4,31 @@
 
     const runCommandDefinition = {
         commandName: "run",
-        completionType: "paths", // This line is added.
+        completionType: "paths",
         argValidation: {
             min: 1,
         },
-        pathValidation: [
-            {
-                argIndex: 0,
-                options: {
-                    expectedType: Config.FILESYSTEM.DEFAULT_FILE_TYPE,
-                },
-            },
-        ],
-        permissionChecks: [
-            {
-                pathArgIndex: 0,
-                permissions: ["read", "execute"],
-            },
-        ],
+        // The command now handles its own validation.
         coreLogic: async (context) => {
-            const {args, options, signal} = context;
+            const {args, options, signal, currentUser} = context;
             const scriptPathArg = args[0];
+
+            // --- NEW: Explicit validation sequence ---
+            const resolvedPath = FileSystemManager.getAbsolutePath(scriptPathArg);
+            const scriptNode = FileSystemManager.getNodeByPath(resolvedPath);
+
+            if (!scriptNode) {
+                return { success: false, error: `run: ${scriptPathArg}: No such file or directory` };
+            }
+            if (scriptNode.type !== 'file') {
+                return { success: false, error: `run: ${scriptPathArg}: Is not a file` };
+            }
+            if (!FileSystemManager.hasPermission(scriptNode, currentUser, 'read') || !FileSystemManager.hasPermission(scriptNode, currentUser, 'execute')) {
+                return { success: false, error: `run: ${scriptPathArg}: Permission denied` };
+            }
+            // --- End of new validation sequence ---
+
             const scriptArgs = args.slice(1);
-            const scriptNode = context.validatedPaths[0].node;
             const fileExtension = Utils.getFileExtension(scriptPathArg);
             const MAX_SCRIPT_STEPS = Config.FILESYSTEM.MAX_SCRIPT_STEPS;
             const MAX_RECURSION_DEPTH = 100;
