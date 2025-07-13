@@ -1,6 +1,7 @@
 // scripts/commands/grep.js
 const grepCommandDefinition = {
     commandName: "grep",
+    completionType: "paths", // Preserved for tab completion.
     flagDefinitions: [
         { name: "ignoreCase", short: "-i", long: "--ignore-case" },
         { name: "invertMatch", short: "-v", long: "--invert-match" },
@@ -12,116 +13,129 @@ const grepCommandDefinition = {
     coreLogic: async (context) => {
         const { args, flags, currentUser, options } = context;
 
-        if (args.length === 0) {
-            return { success: false, error: "grep: missing pattern" };
-        }
-
-        const patternStr = args[0];
-        const filePaths = args.slice(1);
-        let regex;
-
         try {
-            regex = new RegExp(patternStr, flags.ignoreCase ? "i" : "");
-        } catch (e) {
-            return { success: false, error: `grep: invalid regular expression '${patternStr}': ${e.message}` };
-        }
-
-        const outputLines = [];
-        let totalMatches = 0;
-
-        const processContent = (content, filePathForDisplay, displayFileName) => {
-            const lines = content.split("\n");
-            let fileMatchCount = 0;
-            let fileOutput = [];
-
-            lines.forEach((line, index) => {
-                if (index === lines.length - 1 && line === "") return;
-
-                const isMatch = regex.test(line);
-                const effectiveMatch = flags.invertMatch ? !isMatch : isMatch;
-
-                if (effectiveMatch) {
-                    fileMatchCount++;
-                    if (!flags.count) {
-                        let outputLine = "";
-                        if (displayFileName) {
-                            outputLine += `${filePathForDisplay}:`;
-                        }
-                        if (flags.lineNumber) {
-                            outputLine += `${index + 1}:`;
-                        }
-                        outputLine += line;
-                        fileOutput.push(outputLine);
-                    }
-                }
-            });
-
-            if (flags.count) {
-                let countOutput = "";
-                if (displayFileName) {
-                    countOutput += `${filePathForDisplay}:`;
-                }
-                countOutput += fileMatchCount;
-                outputLines.push(countOutput);
-            } else {
-                outputLines.push(...fileOutput);
+            if (args.length === 0) {
+                return { success: false, error: "grep: missing pattern" };
             }
-            totalMatches += fileMatchCount;
-        };
 
-        async function searchDirectory(directoryPath) {
-            const dirNode = FileSystemManager.getNodeByPath(directoryPath);
-            if (!dirNode || dirNode.type !== 'directory') return;
+            const patternStr = args[0];
+            const filePaths = args.slice(1);
+            let regex;
 
-            const children = Object.keys(dirNode.children).sort();
-            for (const childName of children) {
-                const childPath = FileSystemManager.getAbsolutePath(childName, directoryPath);
-                const childNode = dirNode.children[childName];
-                if (childNode.type === 'directory') {
-                    if (FileSystemManager.hasPermission(childNode, currentUser, "read")) {
-                        await searchDirectory(childPath);
-                    }
-                } else if (childNode.type === 'file') {
-                    if (FileSystemManager.hasPermission(childNode, currentUser, "read")) {
-                        processContent(childNode.content || "", childPath, true);
-                    }
-                }
+            try {
+                regex = new RegExp(patternStr, flags.ignoreCase ? "i" : "");
+            } catch (e) {
+                return { success: false, error: `grep: invalid regular expression '${patternStr}': ${e.message}` };
             }
-        }
 
-        if (filePaths.length > 0) {
-            for (const pathArg of filePaths) {
-                const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
-                const node = FileSystemManager.getNodeByPath(resolvedPath);
+            const outputLines = [];
+            let hadError = false;
 
-                if (!node) {
-                    outputLines.push(`grep: ${pathArg}: No such file or directory`);
-                    continue;
-                }
+            const processContent = (content, filePathForDisplay, displayFileName) => {
+                const lines = content.split("\\n");
+                let fileMatchCount = 0;
+                let fileOutput = [];
 
-                if (!FileSystemManager.hasPermission(node, currentUser, "read")) {
-                    outputLines.push(`grep: ${pathArg}: Permission denied`);
-                    continue;
-                }
+                lines.forEach((line, index) => {
+                    if (index === lines.length - 1 && line === "") return;
 
-                if (node.type === 'directory' && flags.recursive) {
-                    await searchDirectory(resolvedPath);
-                } else if (node.type === 'directory' && !flags.recursive) {
-                    outputLines.push(`grep: ${pathArg}: is a directory`);
+                    const isMatch = regex.test(line);
+                    const effectiveMatch = flags.invertMatch ? !isMatch : isMatch;
+
+                    if (effectiveMatch) {
+                        fileMatchCount++;
+                        if (!flags.count) {
+                            let outputLine = "";
+                            if (displayFileName) {
+                                outputLine += `${filePathForDisplay}:`;
+                            }
+                            if (flags.lineNumber) {
+                                outputLine += `${index + 1}:`;
+                            }
+                            outputLine += line;
+                            fileOutput.push(outputLine);
+                        }
+                    }
+                });
+
+                if (flags.count) {
+                    let countOutput = "";
+                    if (displayFileName) {
+                        countOutput += `${filePathForDisplay}:`;
+                    }
+                    countOutput += fileMatchCount;
+                    outputLines.push(countOutput);
                 } else {
-                    processContent(node.content || "", pathArg, filePaths.length > 1);
+                    outputLines.push(...fileOutput);
+                }
+            };
+
+            async function searchDirectory(directoryPath) {
+                const dirNode = FileSystemManager.getNodeByPath(directoryPath);
+                if (!dirNode || dirNode.type !== 'directory') return;
+
+                const children = Object.keys(dirNode.children).sort();
+                for (const childName of children) {
+                    const childPath = FileSystemManager.getAbsolutePath(childName, directoryPath);
+                    const childNode = dirNode.children[childName];
+                    if (childNode.type === 'directory') {
+                        if (FileSystemManager.hasPermission(childNode, currentUser, "read")) {
+                            await searchDirectory(childPath);
+                        } else {
+                            outputLines.push(`grep: ${childPath}: Permission denied`);
+                            hadError = true;
+                        }
+                    } else if (childNode.type === 'file') {
+                        if (FileSystemManager.hasPermission(childNode, currentUser, "read")) {
+                            processContent(childNode.content || "", childPath, true);
+                        } else {
+                            outputLines.push(`grep: ${childPath}: Permission denied`);
+                            hadError = true;
+                        }
+                    }
                 }
             }
-        } else if (options.stdinContent !== null) {
-            processContent(options.stdinContent, '(standard input)', false);
-        } else {
-            return { success: false, error: "grep: missing operand" };
-        }
 
-        return {
-            success: true,
-            output: outputLines.join("\n"),
-        };
+            if (filePaths.length > 0) {
+                for (const pathArg of filePaths) {
+                    const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+                    const node = FileSystemManager.getNodeByPath(resolvedPath);
+
+                    if (!node) {
+                        outputLines.push(`grep: ${pathArg}: No such file or directory`);
+                        hadError = true;
+                        continue;
+                    }
+
+                    if (!FileSystemManager.hasPermission(node, currentUser, "read")) {
+                        outputLines.push(`grep: ${pathArg}: Permission denied`);
+                        hadError = true;
+                        continue;
+                    }
+
+                    if (node.type === 'directory' && flags.recursive) {
+                        await searchDirectory(resolvedPath);
+                    } else if (node.type === 'directory' && !flags.recursive) {
+                        outputLines.push(`grep: ${pathArg}: is a directory`);
+                        hadError = true;
+                    } else {
+                        processContent(node.content || "", pathArg, filePaths.length > 1);
+                    }
+                }
+            } else if (options.stdinContent !== null) {
+                processContent(options.stdinContent, '(standard input)', false);
+            } else {
+                return { success: false, error: "grep: missing operand" };
+            }
+
+            return {
+                success: !hadError,
+                output: outputLines.join("\\n"),
+                error: hadError ? "One or more errors occurred." : null
+            };
+        } catch (e) {
+            return { success: false, error: `grep: An unexpected error occurred: ${e.message}` };
+        }
     },
 };
 
