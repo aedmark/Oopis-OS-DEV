@@ -1,3 +1,4 @@
+// scripts/commands/zip.js
 (() => {
     "use strict";
 
@@ -31,6 +32,7 @@
             exact: 2,
             error: "Usage: zip <archive.zip> <path_to_zip>"
         },
+        // REMOVED: pathValidation is gone.
         coreLogic: async (context) => {
             const { args, currentUser } = context;
             let archivePath = args[0];
@@ -40,18 +42,25 @@
                 archivePath += '.zip';
             }
 
-            const sourceValidation = FileSystemManager.validatePath("zip", sourcePath);
+            // --- NEW: Explicit validation sequence ---
+            const sourceValidation = FileSystemManager.validatePath(sourcePath, {
+                permissions: ['read']
+            });
             if (sourceValidation.error) {
-                return { success: false, error: sourceValidation.error };
+                return { success: false, error: `zip: ${sourceValidation.error}` };
             }
 
-            const archiveValidation = FileSystemManager.validatePath("zip", archivePath, { allowMissing: true });
-            if (archiveValidation.error && !archiveValidation.optionsUsed.allowMissing) {
-                return { success: false, error: archiveValidation.error };
+            const archiveValidation = FileSystemManager.validatePath(archivePath, {
+                allowMissing: true,
+                expectedType: 'file'
+            });
+            if (archiveValidation.error && !archiveValidation.node && !archiveValidation.error.includes("No such file or directory")) {
+                return { success: false, error: `zip: ${archiveValidation.error}` };
             }
-            if (archiveValidation.node && archiveValidation.node.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
+            if (archiveValidation.node && archiveValidation.node.type === 'directory') {
                 return { success: false, error: `zip: cannot overwrite directory '${archivePath}' with a file` };
             }
+            // --- End of new validation sequence ---
 
             await OutputManager.appendToOutput(`Zipping '${sourcePath}'...`);
 

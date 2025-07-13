@@ -1,3 +1,4 @@
+// scripts/commands/printscreen.js
 (() => {
     "use strict";
 
@@ -8,22 +9,14 @@
             exact: 1,
             error: "Usage: printscreen <filepath>",
         },
-        pathValidation: [
-            {
-                argIndex: 0,
-                options: {
-                    allowMissing: true,
-                    disallowRoot: true,
-                },
-            },
-        ],
-
+        // REMOVED: pathValidation property is gone.
         coreLogic: async (context) => {
-            const { args, currentUser, validatedPaths } = context;
+            const { args, currentUser } = context;
             const filePathArg = args[0];
-            const pathInfo = validatedPaths[0];
-            const resolvedPath = pathInfo.resolvedPath;
             const nowISO = new Date().toISOString();
+
+            // --- NEW: Explicit validation sequence ---
+            const resolvedPath = FileSystemManager.getAbsolutePath(filePathArg);
 
             if (resolvedPath === Config.FILESYSTEM.ROOT_PATH) {
                 return {
@@ -39,9 +32,7 @@
                 };
             }
 
-            const outputContent = DOM.outputDiv ? DOM.outputDiv.innerText : "";
-
-            const existingNode = pathInfo.node;
+            const existingNode = FileSystemManager.getNodeByPath(resolvedPath);
 
             if (existingNode) {
                 if (existingNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
@@ -50,73 +41,25 @@
                         error: `printscreen: Cannot overwrite directory '${filePathArg}'.`,
                     };
                 }
-                if (
-                    !FileSystemManager.hasPermission(existingNode, currentUser, "write")
-                ) {
+                if (!FileSystemManager.hasPermission(existingNode, currentUser, "write")) {
                     return {
                         success: false,
                         error: `printscreen: '${filePathArg}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}`,
                     };
                 }
-                existingNode.content = outputContent;
-            } else {
+            }
+            // --- End of new validation sequence ---
 
-                const parentDirResult =
-                    FileSystemManager.createParentDirectoriesIfNeeded(resolvedPath);
-                if (parentDirResult.error) {
-                    return {
-                        success: false,
-                        error: `printscreen: ${parentDirResult.error}`,
-                    };
-                }
-                const parentNodeForCreation = parentDirResult.parentNode;
-                const fileName = resolvedPath.substring(
-                    resolvedPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR) + 1
-                );
+            const outputContent = DOM.outputDiv ? DOM.outputDiv.innerText : "";
 
-                if (!parentNodeForCreation) {
-                    console.error(
-                        "printscreen: parentNodeForCreation is null despite createParentDirectoriesIfNeeded success."
-                    );
-                    return {
-                        success: false,
-                        error: `printscreen: Critical internal error obtaining parent directory for '${filePathArg}'.`,
-                    };
-                }
+            const saveResult = await FileSystemManager.createOrUpdateFile(
+                resolvedPath,
+                outputContent,
+                { currentUser, primaryGroup: UserManager.getPrimaryGroupForUser(currentUser), existingNode }
+            );
 
-                if (
-                    !FileSystemManager.hasPermission(
-                        parentNodeForCreation,
-                        currentUser,
-                        "write"
-                    )
-                ) {
-                    return {
-                        success: false,
-                        error: `printscreen: Cannot create file in '${FileSystemManager.getAbsolutePath(
-                            fileName,
-                            parentNodeForCreation.path
-                        )}', permission denied in parent.`,
-                    };
-                }
-
-                const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
-                if (!primaryGroup) {
-                    return {
-                        success: false,
-                        error:
-                            "printscreen: critical - could not determine primary group for user.",
-                    };
-                }
-
-                parentNodeForCreation.children[fileName] = {
-                    type: Config.FILESYSTEM.DEFAULT_FILE_TYPE,
-                    content: outputContent,
-                    owner: currentUser,
-                    group: primaryGroup,
-                    mode: Config.FILESYSTEM.DEFAULT_FILE_MODE,
-                    mtime: nowISO,
-                };
+            if (!saveResult.success) {
+                return { success: false, error: `printscreen: ${saveResult.error}`};
             }
 
             FileSystemManager._updateNodeAndParentMtime(resolvedPath, nowISO);
@@ -137,7 +80,6 @@
     };
 
     const printscreenDescription = "Saves the visible terminal output to a file.";
-
     const printscreenHelpText = `Usage: printscreen <filepath>
 
 Save the visible terminal output to a file.

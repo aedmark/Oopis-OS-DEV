@@ -1,3 +1,4 @@
+// scripts/commands/unzip.js
 (() => {
     "use strict";
 
@@ -64,12 +65,9 @@
             max: 2,
             error: "Usage: unzip <archive.zip> [destination_path]"
         },
-        pathValidation: [{
-            argIndex: 0,
-            options: { expectedType: 'file' }
-        }],
+        // REMOVED: pathValidation is gone
         coreLogic: async (context) => {
-            const { args, currentUser, validatedPaths } = context;
+            const { args, currentUser } = context;
             const archivePathArg = args[0];
             const destinationPathArg = args.length > 1 ? args[1] : '.';
 
@@ -77,7 +75,17 @@
                 return { success: false, error: `unzip: invalid file extension for '${archivePathArg}'. Must be .zip` };
             }
 
-            const archiveNode = validatedPaths[0].node;
+            // --- NEW: Explicit validation sequence ---
+            const archiveValidation = FileSystemManager.validatePath(archivePathArg, {
+                expectedType: 'file',
+                permissions: ['read']
+            });
+            if (archiveValidation.error) {
+                return { success: false, error: `unzip: ${archiveValidation.error}` };
+            }
+            const archiveNode = archiveValidation.node;
+            // --- End of new validation sequence ---
+
             let archiveContent;
             try {
                 archiveContent = JSON.parse(archiveNode.content);
@@ -85,16 +93,13 @@
                 return { success: false, error: `unzip: Archive is corrupted or not a valid .zip file.` };
             }
 
-            const destValidation = FileSystemManager.validatePath("unzip", destinationPathArg, {
-                allowMissing: true
+            const destValidation = FileSystemManager.validatePath(destinationPathArg, {
+                allowMissing: true,
+                expectedType: 'directory'
             });
 
-            if (destValidation.error && !(destValidation.optionsUsed.allowMissing && !destValidation.node)) {
-                return { success: false, error: destValidation.error };
-            }
-
-            if (destValidation.node && destValidation.node.type !== Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
-                return { success: false, error: `unzip: destination '${destinationPathArg}' is not a directory.`};
+            if (destValidation.error && !(destValidation.node === null && destValidation.error.includes("No such file or directory"))) {
+                return { success: false, error: `unzip: ${destValidation.error}` };
             }
 
             const resolvedDestPath = destValidation.resolvedPath;

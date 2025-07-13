@@ -10,6 +10,7 @@
             { name: "repeated", short: "-d", long: "--repeated" },
             { name: "unique", short: "-u", long: "--unique" },
         ],
+        // REMOVED: isInputStream property is gone.
         coreLogic: async (context) => {
             const {flags, args, options, currentUser } = context;
 
@@ -17,22 +18,22 @@
                 return { success: false, error: "uniq: printing only unique and repeated lines is mutually exclusive"};
             }
 
-            // Determine input source: file argument or piped stdin.
             let inputText;
             if (args.length > 0) {
-                const pathValidation = FileSystemManager.validatePath("uniq", args[0], { expectedType: 'file' });
+                // --- NEW: Explicit validation sequence ---
+                const pathValidation = FileSystemManager.validatePath(args[0], {
+                    expectedType: 'file',
+                    permissions: ['read']
+                });
                 if (pathValidation.error) {
-                    return { success: false, error: pathValidation.error };
+                    return { success: false, error: `uniq: ${pathValidation.error}` };
                 }
-                if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
-                    return { success: false, error: `uniq: cannot read file: ${args[0]}` };
-                }
+                // --- End of new validation sequence ---
                 inputText = pathValidation.node.content || "";
             } else if (options.stdinContent !== null && options.stdinContent !== undefined) {
                 inputText = options.stdinContent;
             } else {
-                // If no file and no stdin, do nothing.
-                return { success: true, output: "" };
+                return { success: true, output: "" }; // No input, no output.
             }
 
             if (!inputText) {
@@ -40,14 +41,12 @@
             }
 
             let lines = inputText.split('\n');
-            // Gracefully handle empty input or input with only a trailing newline.
             if (lines.length === 0 || (lines.length === 1 && lines[0] === '')) return {success: true, output: ""};
 
             const outputLines = [];
             let currentLine = lines[0];
             let count = 1;
 
-            // Process the lines as before.
             for (let i = 1; i <= lines.length; i++) {
                 if (i < lines.length && lines[i] === currentLine) {
                     count++;
@@ -97,4 +96,4 @@ EXAMPLES
               Displays only the lines that appeared more than once.`;
 
     CommandRegistry.register("uniq", uniqCommandDefinition, uniqDescription, uniqHelpText);
-})();
+})();d

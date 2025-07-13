@@ -1,14 +1,7 @@
+// scripts/commands/ocrypt.js
 (() => {
     "use strict";
 
-    // --- High-level Encryption/Decryption Logic ---
-
-    /**
-     * Derives a cryptographic key from a password and salt using PBKDF2.
-     * @param {string} password - The user-provided password.
-     * @param {Uint8Array} salt - The salt for the key derivation.
-     * @returns {Promise<CryptoKey>} A promise that resolves to the derived CryptoKey.
-     */
     async function getKey(password, salt) {
         const enc = new TextEncoder();
         const keyMaterial = await window.crypto.subtle.importKey(
@@ -32,12 +25,6 @@
         );
     }
 
-    /**
-     * Encrypts plaintext data using AES-GCM.
-     * @param {string} plaintext - The data to encrypt.
-     * @param {string} password - The password to use for encryption.
-     * @returns {Promise<string>} A promise resolving to a JSON string containing the encrypted data and metadata.
-     */
     async function encryptData(plaintext, password) {
         const salt = window.crypto.getRandomValues(new Uint8Array(16));
         const iv = window.crypto.getRandomValues(new Uint8Array(12));
@@ -64,12 +51,6 @@
         return JSON.stringify(output, null, 2);
     }
 
-    /**
-     * Decrypts a JSON object containing encrypted data.
-     * @param {string} jsonString - The JSON string from the encrypted file.
-     * @param {string} password - The password to use for decryption.
-     * @returns {Promise<string>} A promise resolving to the decrypted plaintext.
-     */
     async function decryptData(jsonString, password) {
         const encryptedData = JSON.parse(jsonString);
         const salt = new Uint8Array(atob(encryptedData.salt).split('').map(c => c.charCodeAt(0)));
@@ -90,9 +71,6 @@
             throw new Error("Decryption failed. The password may be incorrect or the data corrupted.");
         }
     }
-
-
-    // --- Command Definition ---
 
     const ocryptCommandDefinition = {
         commandName: "ocrypt",
@@ -131,10 +109,10 @@
                 if (!password) return { success: false, error: "ocrypt: password cannot be empty." };
             }
 
-            const pathValidation = FileSystemManager.validatePath("ocrypt", filePath, { allowMissing: flags.encrypt, expectedType: 'file' });
+            const pathValidation = FileSystemManager.validatePath(filePath, { allowMissing: flags.encrypt, expectedType: 'file' });
 
             if (pathValidation.error && !pathValidation.optionsUsed.allowMissing) {
-                return { success: false, error: pathValidation.error };
+                return { success: false, error: `ocrypt: ${pathValidation.error}` };
             }
 
             if (flags.encrypt) {
@@ -158,6 +136,9 @@
             } else { // Decrypt
                 if (!pathValidation.node) {
                     return { success: false, error: `ocrypt: file not found: ${filePath}` };
+                }
+                if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
+                    return { success: false, error: `ocrypt: cannot read '${filePath}': Permission denied` };
                 }
                 try {
                     const decryptedContent = await decryptData(pathValidation.node.content, password);

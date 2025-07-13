@@ -1,3 +1,4 @@
+// scripts/commands/wget.js
 (() => {
     "use strict";
 
@@ -12,7 +13,6 @@
             min: 1,
             error: "Usage: wget [-O <file>] <URL>"
         },
-
         coreLogic: async (context) => {
             const {
                 args,
@@ -35,14 +35,19 @@
                 }
             }
 
-            const pathValidation = FileSystemManager.validatePath("wget", outputFileName, {
+            // --- NEW: Explicit validation sequence ---
+            const pathValidation = FileSystemManager.validatePath(outputFileName, {
                 allowMissing: true,
                 disallowRoot: true
             });
-            if (pathValidation.error) return {
-                success: false,
-                error: pathValidation.error
-            };
+
+            if (pathValidation.error) {
+                return { success: false, error: `wget: ${pathValidation.error}` };
+            }
+            if(pathValidation.node && pathValidation.node.type === 'directory') {
+                return { success: false, error: `wget: '${outputFileName}' is a directory` };
+            }
+            // --- End of new validation sequence ---
 
             await OutputManager.appendToOutput(`--OopisOS WGET--\nResolving ${url}...`);
 
@@ -110,7 +115,6 @@
     };
 
     const wgetDescription = "The non-interactive network downloader.";
-
     const wgetHelpText = `Usage: wget [-O <file>] <URL>
 
 The non-interactive network downloader.

@@ -1,3 +1,4 @@
+// scripts/commands/shuf.js
 (() => {
     "use strict";
 
@@ -43,13 +44,17 @@
                 lines = options.stdinContent.split('\n');
             } else if (args.length > 0) {
                 const pathArg = args[0];
-                const pathValidation = FileSystemManager.validatePath("shuf", pathArg, { expectedType: 'file' });
+
+                // --- NEW: Explicit validation sequence ---
+                const pathValidation = FileSystemManager.validatePath(pathArg, {
+                    expectedType: 'file',
+                    permissions: ['read']
+                });
                 if (pathValidation.error) {
-                    return { success: false, error: pathValidation.error };
+                    return { success: false, error: `shuf: ${pathValidation.error}` };
                 }
-                if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
-                    return { success: false, error: `shuf: cannot open '${pathArg}' for reading: Permission denied` };
-                }
+                // --- End of new validation sequence ---
+
                 lines = (pathValidation.node.content || '').split('\n');
             } else {
                 return { success: false, error: "shuf: no input source specified. Use a file, a pipe, or the -i or -e options." };
@@ -77,7 +82,6 @@
     };
 
     const shufDescription = "Generates a random permutation of lines.";
-
     const shufHelpText = `Usage: shuf [OPTION]... [FILE]
    or:  shuf -e [ARG]...
    or:  shuf -i LO-HI

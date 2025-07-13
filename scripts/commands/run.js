@@ -4,16 +4,16 @@
 
     const runCommandDefinition = {
         commandName: "run",
-        completionType: "paths",
+        completionType: "paths", // This declaration is restored and is essential.
         argValidation: {
             min: 1,
         },
-        // The command now handles its own validation.
+        // No pathValidation or permissionChecks here, as is right and proper.
         coreLogic: async (context) => {
             const {args, options, signal, currentUser} = context;
             const scriptPathArg = args[0];
 
-            // --- NEW: Explicit validation sequence ---
+            // Explicit, self-contained validation sequence.
             const resolvedPath = FileSystemManager.getAbsolutePath(scriptPathArg);
             const scriptNode = FileSystemManager.getNodeByPath(resolvedPath);
 
@@ -26,7 +26,6 @@
             if (!FileSystemManager.hasPermission(scriptNode, currentUser, 'read') || !FileSystemManager.hasPermission(scriptNode, currentUser, 'execute')) {
                 return { success: false, error: `run: ${scriptPathArg}: Permission denied` };
             }
-            // --- End of new validation sequence ---
 
             const scriptArgs = args.slice(1);
             const fileExtension = Utils.getFileExtension(scriptPathArg);

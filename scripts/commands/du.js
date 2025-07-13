@@ -1,3 +1,4 @@
+// scripts/commands/du.js
 (() => {
     "use strict";
 
@@ -8,6 +9,7 @@
             { name: "humanReadable", short: "-h", long: "--human-readable" },
             { name: "summarize", short: "-s", long: "--summarize" },
         ],
+        // REMOVED: pathValidation property is gone.
         coreLogic: async (context) => {
             const { args, flags, currentUser } = context;
             const paths = args.length > 0 ? args : ['.'];
@@ -19,19 +21,16 @@
             };
 
             for (const pathArg of paths) {
-                const pathValidation = FileSystemManager.validatePath("du", pathArg);
+                // --- NEW: Explicit validation sequence ---
+                const pathValidation = FileSystemManager.validatePath(pathArg, { permissions: ['read'] });
+
                 if (pathValidation.error) {
-                    outputLines.push(pathValidation.error);
+                    outputLines.push(`du: ${pathValidation.error}`);
                     hadError = true;
                     continue;
                 }
                 const startNode = pathValidation.node;
-
-                if (!FileSystemManager.hasPermission(startNode, currentUser, "read")) {
-                    outputLines.push(`du: cannot read directory '${pathArg}': Permission denied`);
-                    hadError = true;
-                    continue;
-                }
+                // --- End of new validation sequence ---
 
                 if (flags.summarize) {
                     const totalSize = FileSystemManager.calculateNodeSize(startNode);
