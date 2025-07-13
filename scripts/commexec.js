@@ -17,10 +17,9 @@ const CommandExecutor = (() => {
   async function* _generateInputContent(context, firstFileArgIndex = 0) {
     const {args, options, currentUser} = context;
 
-    // CORRECTED LOGIC: Prioritize stdinContent as direct input.
     if (options.stdinContent !== null && options.stdinContent !== undefined) {
       yield {success: true, content: options.stdinContent, sourceName: 'stdin'};
-      return; // Stop further processing if we have piped input
+      return;
     }
 
     const fileArgs = args.slice(firstFileArgIndex);
@@ -29,7 +28,7 @@ const CommandExecutor = (() => {
     }
 
     for (const pathArg of fileArgs) {
-      const pathValidation = FileSystemManager.validatePath("input stream", pathArg, {expectedType: 'file'});
+      const pathValidation = FileSystemManager.validatePath(pathArg, {expectedType: 'file'});
       if (pathValidation.error) {
         yield {success: false, error: pathValidation.error, sourceName: pathArg};
         continue;
@@ -60,68 +59,11 @@ const CommandExecutor = (() => {
         }
       }
 
-      const validatedPaths = {};
-      if (definition.pathValidation) {
-        for (const pv of definition.pathValidation) {
-          const pathArg = remainingArgs[pv.argIndex];
-          if (pathArg === undefined) {
-            if (pv.optional) {
-              continue;
-            }
-            return {
-              success: false,
-              error: `${definition.commandName}: Missing expected path argument at index ${pv.argIndex}.`,
-            };
-          }
-          const pathValidationResult = FileSystemManager.validatePath(
-              definition.commandName || "command",
-              pathArg,
-              pv.options
-          );
-          if (pathValidationResult.error) {
-            if (!(pv.options.allowMissing && !pathValidationResult.node)) {
-              return {
-                success: false,
-                error: pathValidationResult.error,
-              };
-            }
-          }
-          validatedPaths[pv.argIndex] = pathValidationResult;
-        }
-      }
-
-      if (definition.permissionChecks) {
-        for (const pc of definition.permissionChecks) {
-          const validatedPath = validatedPaths[pc.pathArgIndex];
-          if (!validatedPath || !validatedPath.node) {
-            continue;
-          }
-
-          for (const perm of pc.permissions) {
-            if (
-                !FileSystemManager.hasPermission(
-                    validatedPath.node,
-                    currentUser,
-                    perm
-                )
-            ) {
-              return {
-                success: false,
-                error: `${definition.commandName || ""}: '${
-                    remainingArgs[pc.pathArgIndex]
-                }'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}`,
-              };
-            }
-          }
-        }
-      }
-
       const context = {
         args: remainingArgs,
         options,
         flags,
         currentUser,
-        validatedPaths,
         signal: options.signal,
       };
 
@@ -262,7 +204,7 @@ const CommandExecutor = (() => {
     if (job && job.abortController) {
       job.abortController.abort("Killed by user command.");
       if (job.promise) {
-        await job.promise.catch(() => {}); // Wait for the job to fully terminate
+        await job.promise.catch(() => {});
       }
       MessageBusManager.unregisterJob(jobId);
       delete activeJobs[jobId];
@@ -321,7 +263,7 @@ const CommandExecutor = (() => {
       output: "",
     };
     if (pipeline.inputRedirectFile) {
-      const pathValidation = FileSystemManager.validatePath("input redirection", pipeline.inputRedirectFile, {expectedType: 'file'});
+      const pathValidation = FileSystemManager.validatePath(pipeline.inputRedirectFile, {expectedType: 'file'});
       if (pathValidation.error) {
         return { success: false, error: pathValidation.error };
       }
@@ -390,8 +332,9 @@ const CommandExecutor = (() => {
     if (pipeline.redirection && lastResult.success) {
       const { type: redirType, file: redirFile } = pipeline.redirection;
       const outputToRedir = lastResult.output || "";
+
+      // THIS IS THE CORRECTED CALL
       const redirVal = FileSystemManager.validatePath(
-          "redirection",
           redirFile,
           {
             allowMissing: true,
@@ -399,6 +342,7 @@ const CommandExecutor = (() => {
             defaultToCurrentIfEmpty: false,
           }
       );
+
       if (
           redirVal.error &&
           !(redirVal.optionsUsed.allowMissing && !redirVal.node)
