@@ -1,3 +1,4 @@
+// scripts/commands/upload.js
 (() => {
     "use strict";
 
@@ -23,14 +24,15 @@
             let anyChangeMade = false;
 
             if (args.length === 1) {
-                const destPathValidation = FileSystemManager.validatePath(
-                    "upload (destination)",
-                    args[0],
-                    { expectedType: Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE }
-                );
-                if (destPathValidation.error)
-                    return { success: false, error: destPathValidation.error };
-                targetDirPath = destPathValidation.resolvedPath;
+                const resolvedDest = FileSystemManager.getAbsolutePath(args[0]);
+                const destNode = FileSystemManager.getNodeByPath(resolvedDest);
+                if(!destNode) {
+                    return { success: false, error: `upload: destination '${args[0]}' does not exist` };
+                }
+                if(destNode.type !== 'directory') {
+                    return { success: false, error: `upload: destination '${args[0]}' is not a directory` };
+                }
+                targetDirPath = resolvedDest;
             }
 
             const initialTargetDirNode = FileSystemManager.getNodeByPath(targetDirPath);
@@ -84,8 +86,8 @@
                         const content = await file.text();
                         const relativePath = (flags.recursive && file.webkitRelativePath) ? file.webkitRelativePath : file.name;
                         const fullDestPath = FileSystemManager.getAbsolutePath(relativePath, targetDirPath);
-                        const parentDestPath = fullDestPath.substring(0, fullDestPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR)) || Config.FILESYSTEM.ROOT_PATH;
-                        const finalFileName = fullDestPath.substring(fullDestPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR) + 1);
+                        const parentDestPath = fullDestPath.substring(0, fullDestPath.lastIndexOf('/')) || '/';
+                        const finalFileName = fullDestPath.substring(fullDestPath.lastIndexOf('/') + 1);
 
                         const parentDirResult = FileSystemManager.createParentDirectoriesIfNeeded(fullDestPath);
                         if (parentDirResult.error) {
@@ -157,7 +159,6 @@
     };
 
     const uploadDescription = "Uploads files or folders from your local machine to OopisOS.";
-
     const uploadHelpText = `Usage: upload [-f] [-r] [destination_directory]
 
 Upload one or more files from your local machine to OopisOS.
