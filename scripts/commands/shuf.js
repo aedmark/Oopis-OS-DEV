@@ -11,6 +11,7 @@
 
     const shufCommandDefinition = {
         commandName: "shuf",
+        completionType: "paths",
         flagDefinitions: [
             { name: "count", short: "-n", long: "--head-count", takesValue: true },
             { name: "inputRange", short: "-i", long: "--input-range", takesValue: true },

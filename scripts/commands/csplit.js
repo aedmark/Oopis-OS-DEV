@@ -3,6 +3,7 @@
 
     const csplitCommandDefinition = {
         commandName: "csplit",
+        completionType: "paths",
         flagDefinitions: [
             { name: "prefix", short: "-f", long: "--prefix", takesValue: true },
             { name: "keepFiles", short: "-k", long: "--keep-files" },

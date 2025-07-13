@@ -3,6 +3,7 @@
     "use strict";
     const awkCommandDefinition = {
         commandName: "awk",
+        completionType: "paths",
         // isInputStream is removed to allow for correct argument parsing.
         flagDefinitions: [
             { name: "fieldSeparator", short: "-F", takesValue: true }

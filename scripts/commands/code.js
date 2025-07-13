@@ -4,6 +4,7 @@
 
     const codeCommandDefinition = {
         commandName: "code",
+        completionType: "paths",
         argValidation: {
             max: 1,
             error: "Usage: code [filepath]"

@@ -58,6 +58,7 @@
 
     const unzipCommandDefinition = {
         commandName: "unzip",
+        completionType: "paths",
         argValidation: {
             min: 1,
             max: 2,

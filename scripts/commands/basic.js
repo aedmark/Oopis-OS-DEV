@@ -3,6 +3,7 @@
 
     const basicCommandDefinition = {
         commandName: "basic",
+        completionType: "paths",
         argValidation: {
             max: 1,
             error: "Usage: basic [filename.bas]"

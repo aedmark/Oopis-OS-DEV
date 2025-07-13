@@ -3,6 +3,7 @@
 
     const printscreenCommandDefinition = {
         commandName: "printscreen",
+        completionType: "paths",
         argValidation: {
             exact: 1,
             error: "Usage: printscreen <filepath>",

@@ -123,6 +123,7 @@
 
     const adventureCommandDefinition = {
         commandName: "adventure",
+        completionType: "paths",
         flagDefinitions: [
             { name: 'create', short: '--create' }
         ],
@@ -136,7 +137,7 @@
                 optional: true,
                 options: {
                     allowMissing: true,
-                    expectedType: Config.FILESYSTEM.DEFAULT_FILE_TYPE,
+                    expectedType: 'file',
                 },
             },
         ],

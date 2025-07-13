@@ -46,6 +46,7 @@
 
     const chidiCommandDefinition = {
         commandName: "chidi",
+        completionType: "paths",
         flagDefinitions: [
             {name: "new", short: "-n", long: "--new"},
             {name: "provider", short: "-p", long: "--provider", takesValue: true},

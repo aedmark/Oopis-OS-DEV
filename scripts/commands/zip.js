@@ -26,6 +26,7 @@
 
     const zipCommandDefinition = {
         commandName: "zip",
+        completionType: "paths",
         argValidation: {
             exact: 2,
             error: "Usage: zip <archive.zip> <path_to_zip>"

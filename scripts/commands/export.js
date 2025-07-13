@@ -17,6 +17,7 @@
      */
     const exportCommandDefinition = {
         commandName: "export",
+        completionType: "paths",
         argValidation: {
             exact: 1,
             error: "expects exactly one file path.",

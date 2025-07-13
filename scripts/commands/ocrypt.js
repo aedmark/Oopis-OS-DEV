@@ -96,6 +96,7 @@
 
     const ocryptCommandDefinition = {
         commandName: "ocrypt",
+        completionType: "paths",
         flagDefinitions: [
             { name: "encrypt", short: "-e", long: "--encrypt" },
             { name: "decrypt", short: "-d", long: "--decrypt" }

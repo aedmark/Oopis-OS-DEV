@@ -3,6 +3,7 @@
 
     const paintCommandDefinition = {
         commandName: "paint",
+        completionType: "paths",
         argValidation: {
             max: 1,
             error: "Usage: paint [filename.oopic]"

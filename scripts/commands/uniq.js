@@ -4,7 +4,7 @@
 
     const uniqCommandDefinition = {
         commandName: "uniq",
-        // isInputStream is removed.
+        completionType: "paths",
         flagDefinitions: [
             { name: "count", short: "-c", long: "--count" },
             { name: "repeated", short: "-d", long: "--repeated" },

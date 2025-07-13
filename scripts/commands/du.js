@@ -3,6 +3,7 @@
 
     const duCommandDefinition = {
         commandName: "du",
+        completionType: "paths",
         flagDefinitions: [
             { name: "humanReadable", short: "-h", long: "--human-readable" },
             { name: "summarize", short: "-s", long: "--summarize" },
