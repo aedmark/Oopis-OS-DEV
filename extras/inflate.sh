@@ -96,11 +96,10 @@ echo -e "config_option_a=true\nconfig_option_b=999\n# A shared line\nconfig_opti
 echo "#!/bin/oopis_shell" > src/fix_me.sh
 echo "echo 'This script is supposed to list the contents of a directory.'" >> src/fix_me.sh
 echo "TARGET_DIR='/home/Guest/docs'" >> src/fix_me.sh
-echo "cd \$TARGET_DIR" >> src/fix_me.sh # This line is correct
+echo "cd $TARGET_DIR" >> src/fix_me.sh
 echo "ls" >> src/fix_me.sh
 echo "echo '...but this next part is broken.'" >> src/fix_me.sh
 echo "TARGET_FILE='/home/Guest/README.md'" >> src/fix_me.sh
-echo "cd \$TARGET_FILE" # This will fail, you can't cd into a file
 chmod 755 src/fix_me.sh
 delay 300
 echo '#!/bin/oopis_shell' > src/backup_docs.sh
@@ -201,10 +200,17 @@ echo "Logging in as root. Kneel before your god."
 login root mcgoopis
 delay 300
 echo "Creating a more complex user/group environment..."
+groupadd developers
+delay 200
+useradd dev1
+newpass
+newpass
+delay 200
 groupadd research
 useradd analyst
 testpass
 testpass
+delay 200
 usermod -aG research dev1
 usermod -aG research analyst
 mkdir /home/project_y
@@ -234,10 +240,7 @@ mkdir ./doomed_dir
 echo "So long, and thanks for all the fish." > ./doomed_dir/message.txt
 login root mcgoopis
 echo "Setting up a shared project for a new developer..."
-groupadd developers
-useradd dev1
-newpass
-newpass
+delay 200
 usermod -aG developers dev1
 mkdir /home/project_x
 chgrp developers /home/project_x

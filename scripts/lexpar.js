@@ -1,4 +1,4 @@
-// lexpar.js - OopisOS Lexer/Parser Logic
+// lexpar.js - OopisOS Lexer/Parser Logic (Corrected)
 
 const TokenType = {
   WORD: "WORD",
@@ -6,7 +6,7 @@ const TokenType = {
   STRING_SQ: "STRING_SQ",
   OPERATOR_GT: "OPERATOR_GT", // >
   OPERATOR_GTGT: "OPERATOR_GTGT", // >>
-  OPERATOR_LT: "OPERATOR_LT", // < (NEW)
+  OPERATOR_LT: "OPERATOR_LT", // <
   OPERATOR_PIPE: "OPERATOR_PIPE",
   OPERATOR_SEMICOLON: "OPERATOR_SEMICOLON",
   OPERATOR_BG: "OPERATOR_BG",
@@ -16,7 +16,6 @@ const TokenType = {
 };
 
 class Token {
-
   constructor(type, value, position) {
     this.type = type;
     this.value = value;
@@ -25,7 +24,6 @@ class Token {
 }
 
 class Lexer {
-
   constructor(input) {
     this.input = input;
     this.position = 0;
@@ -33,7 +31,7 @@ class Lexer {
   }
 
   tokenize() {
-    const specialChars = ['"', "'", ">", "<", "|", "&", ";"]; // ADDED '<'
+    const specialChars = ['"', "'", ">", "<", "|", "&", ";"];
     while (this.position < this.input.length) {
       let char = this.input[this.position];
       if (/\s/.test(char)) {
@@ -120,21 +118,17 @@ class Lexer {
   _tokenizeString(quoteChar) {
     const startPos = this.position;
     let value = "";
-    this.position++;
+    this.position++; // Move past the opening quote
     while (this.position < this.input.length) {
       let char = this.input[this.position];
       if (char === '\\') {
-        this.position++;
+        this.position++; // Consume the backslash
         if (this.position < this.input.length) {
-          let nextChar = this.input[this.position];
-          if (nextChar === quoteChar || nextChar === '\\') {
-            value += nextChar;
-          } else {
-            value += '\\' + nextChar;
-          }
+          // Corrected logic: Always append the next character literally.
+          value += this.input[this.position];
           this.position++;
         } else {
-          value += '\\';
+          value += '\\'; // Append dangling backslash at the end of input
         }
       } else if (char === quoteChar) {
         this.position++;
@@ -144,10 +138,10 @@ class Lexer {
         this.position++;
       }
     }
+    // If the loop finishes, the string was not closed.
     throw new Error(`Lexer Error: Unclosed string literal starting at position ${startPos}. Expected closing ${quoteChar}.`);
   }
 }
-
 class ParsedCommandSegment {
   constructor(command, args) {
     this.command = command;
