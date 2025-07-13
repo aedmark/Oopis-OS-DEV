@@ -4,70 +4,38 @@
 
     const catCommandDefinition = {
         commandName: "cat",
+        completionType: "paths", // Restored for tab completion
         isInputStream: true,
         flagDefinitions: [
             { name: "numberLines", short: "-n", long: "--number" }
         ],
         coreLogic: async (context) => {
-            const { flags, args, currentUser, options } = context;
+            try {
+                const { flags, inputItems, inputError } = context;
 
-            // Handle piped input first
-            if (options.stdinContent !== null && options.stdinContent !== undefined) {
-                const lines = options.stdinContent.split('\n');
+                if (inputError) {
+                    return { success: false, error: "cat: One or more files could not be read." };
+                }
+
+                if (!inputItems || inputItems.length === 0) {
+                    // If there are no file args and no stdin, it's not an error, just empty output.
+                    return { success: true, output: "" };
+                }
+
+                const content = inputItems.map(item => item.content).join('\\n');
+
                 if (flags.numberLines) {
-                    const numberedOutput = lines.map((line, i) => `     ${String(i + 1).padStart(5)}  ${line}`).join('\n');
+                    let lineCounter = 1;
+                    const lines = content.split('\\n');
+                    const processedLines = (lines.length > 0 && lines[lines.length - 1] === '') ? lines.slice(0, -1) : lines;
+                    const numberedOutput = processedLines.map(line => `     ${String(lineCounter++).padStart(5)}  ${line}`).join('\\n');
                     return { success: true, output: numberedOutput };
                 }
-                return { success: true, output: options.stdinContent };
+
+                return { success: true, output: content };
+            } catch (e) {
+                return { success: false, error: `cat: An unexpected error occurred: ${e.message}` };
             }
-
-            if (args.length === 0) {
-                return { success: false, error: "cat: missing file operand" };
-            }
-
-            let allContent = [];
-            let hadError = false;
-
-            for (const pathArg of args) {
-                const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
-                const node = FileSystemManager.getNodeByPath(resolvedPath);
-
-                if (!node) {
-                    allContent.push(`cat: ${pathArg}: No such file or directory`);
-                    hadError = true;
-                    continue;
-                }
-
-                if (node.type !== 'file') {
-                    allContent.push(`cat: ${pathArg}: Is not a file`);
-                    hadError = true;
-                    continue;
-                }
-
-                if (!FileSystemManager.hasPermission(node, currentUser, 'read')) {
-                    allContent.push(`cat: ${pathArg}: Permission denied`);
-                    hadError = true;
-                    continue;
-                }
-
-                allContent.push(node.content || "");
-            }
-
-            const combinedContent = allContent.join('\n');
-
-            if (hadError) {
-                return { success: false, error: combinedContent };
-            }
-
-            if (flags.numberLines) {
-                let lineCounter = 1;
-                const lines = combinedContent.split('\n');
-                const processedLines = (lines.length > 0 && lines[lines.length - 1] === '') ? lines.slice(0, -1) : lines;
-                const numberedOutput = processedLines.map(line => `     ${String(lineCounter++).padStart(5)}  ${line}`).join('\n');
-                return { success: true, output: numberedOutput };
-            }
-
-            return { success: true, output: combinedContent };
         },
     };
 

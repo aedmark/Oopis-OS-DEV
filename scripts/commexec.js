@@ -134,67 +134,6 @@ const CommandExecutor = (() => {
     return await loadingPromises[commandName];
   }
 
-  async function _expandGlobPatterns(commandString) {
-    const GLOB_WHITELIST = ['ls', 'rm', 'cat', 'cp', 'mv', 'chmod', 'chown', 'chgrp'];
-    const args = commandString.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
-
-    if (args.length === 0 || !GLOB_WHITELIST.includes(args[0])) {
-      return commandString;
-    }
-
-    const expandedArgs = [args[0]];
-    let hasExpansionOccurred = false;
-
-    for (let i = 1; i < args.length; i++) {
-      const originalArg = args[i];
-      const isQuoted = (originalArg.startsWith('"') && originalArg.endsWith('"')) || (originalArg.startsWith("'") && originalArg.endsWith("'"));
-
-      const globPattern = isQuoted ? originalArg.slice(1, -1) : originalArg;
-      const hasGlobChar = globPattern.includes('*') || globPattern.includes('?');
-
-      if (hasGlobChar) {
-        const lastSlashIndex = globPattern.lastIndexOf('/');
-        let pathPrefix = '.';
-        let patternPart = globPattern;
-
-        if (lastSlashIndex > -1) {
-          pathPrefix = globPattern.substring(0, lastSlashIndex + 1);
-          patternPart = globPattern.substring(lastSlashIndex + 1);
-        }
-
-        const searchDir = (pathPrefix === '/') ? '/' : FileSystemManager.getAbsolutePath(pathPrefix, FileSystemManager.getCurrentPath());
-        const dirNode = FileSystemManager.getNodeByPath(searchDir);
-
-        if (dirNode && dirNode.type === 'directory') {
-          const regex = Utils.globToRegex(patternPart);
-          if (regex) {
-            const matches = Object.keys(dirNode.children)
-                .filter(name => regex.test(name))
-                .map(name => {
-                  const fullPath = FileSystemManager.getAbsolutePath(name, searchDir);
-                  return fullPath.includes(' ') ? `"${fullPath}"` : fullPath;
-                });
-
-            if (matches.length > 0) {
-              expandedArgs.push(...matches);
-              hasExpansionOccurred = true;
-            } else {
-              expandedArgs.push(originalArg);
-            }
-          } else {
-            expandedArgs.push(originalArg);
-          }
-        } else {
-          expandedArgs.push(originalArg);
-        }
-      } else {
-        expandedArgs.push(originalArg);
-      }
-    }
-
-    return hasExpansionOccurred ? expandedArgs.join(' ') : commandString;
-  }
-
   function getActiveJobs() {
     return activeJobs;
   }
@@ -240,9 +179,7 @@ const CommandExecutor = (() => {
         console.error(`Error in command handler for '${segment.command}':`, e);
         return {
           success: false,
-          error: `Command '${segment.command}' failed: ${
-              e.message || "Unknown error"
-          }`,
+          error: `${segment.command}: ${e.message || "Unknown error"}`,
         };
       }
     } else if (segment.command) {
@@ -536,7 +473,60 @@ const CommandExecutor = (() => {
     }
     const commandAfterAliases = aliasResult.newCommand;
 
-    const commandToParse = await _expandGlobPatterns(commandAfterAliases);
+    // Expand glob patterns
+    const args = commandAfterAliases.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
+    const expandedArgs = [];
+    if (args.length > 0) {
+      expandedArgs.push(args[0]);
+    }
+    let hasExpansionOccurred = false;
+
+    for (let i = 1; i < args.length; i++) {
+      const originalArg = args[i];
+      const isQuoted = (originalArg.startsWith('"') && originalArg.endsWith('"')) || (originalArg.startsWith("'") && originalArg.endsWith("'"));
+      const globPattern = isQuoted ? originalArg.slice(1, -1) : originalArg;
+      const hasGlobChar = globPattern.includes('*') || globPattern.includes('?');
+
+      if (hasGlobChar && !isQuoted) { // Only expand unquoted globs
+        const lastSlashIndex = globPattern.lastIndexOf('/');
+        let pathPrefix = '.';
+        let patternPart = globPattern;
+
+        if (lastSlashIndex > -1) {
+          pathPrefix = globPattern.substring(0, lastSlashIndex + 1);
+          patternPart = globPattern.substring(lastSlashIndex + 1);
+        }
+
+        const searchDir = (pathPrefix === '/') ? '/' : FileSystemManager.getAbsolutePath(pathPrefix, FileSystemManager.getCurrentPath());
+        const dirNode = FileSystemManager.getNodeByPath(searchDir);
+
+        if (dirNode && dirNode.type === 'directory') {
+          const regex = Utils.globToRegex(patternPart);
+          if (regex) {
+            const matches = Object.keys(dirNode.children)
+                .filter(name => regex.test(name))
+                .map(name => {
+                  const fullPath = FileSystemManager.getAbsolutePath(name, searchDir);
+                  return fullPath.includes(' ') ? `"${fullPath}"` : fullPath;
+                });
+
+            if (matches.length > 0) {
+              expandedArgs.push(...matches);
+              hasExpansionOccurred = true;
+            } else {
+              expandedArgs.push(originalArg);
+            }
+          } else {
+            expandedArgs.push(originalArg);
+          }
+        } else {
+          expandedArgs.push(originalArg);
+        }
+      } else {
+        expandedArgs.push(originalArg);
+      }
+    }
+    const commandToParse = hasExpansionOccurred ? expandedArgs.join(' ') : commandAfterAliases;
     return commandToParse;
   }
 
@@ -680,4 +670,4 @@ const CommandExecutor = (() => {
     _ensureCommandLoaded,
     precacheCommonCommands
   };
-})();
+})();``
