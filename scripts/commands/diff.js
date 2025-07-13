@@ -1,3 +1,4 @@
+// scripts/commands/diff.js
 (() => {
     "use strict";
 
@@ -7,31 +8,24 @@
             exact: 2,
             error: "Usage: diff <file1> <file2>",
         },
-        pathValidation: [{
-            argIndex: 0,
-            options: {
-                expectedType: Config.FILESYSTEM.DEFAULT_FILE_TYPE
-            }
-        }, {
-            argIndex: 1,
-            options: {
-                expectedType: Config.FILESYSTEM.DEFAULT_FILE_TYPE
-            }
-        }, ],
-        permissionChecks: [{
-            pathArgIndex: 0,
-            permissions: ["read"]
-        }, {
-            pathArgIndex: 1,
-            permissions: ["read"]
-        }, ],
-
         coreLogic: async (context) => {
-            const {
-                validatedPaths
-            } = context;
-            const file1Node = validatedPaths[0].node;
-            const file2Node = validatedPaths[1].node;
+            const { args, currentUser } = context;
+            const file1Path = args[0];
+            const file2Path = args[1];
+
+            const validation1 = FileSystemManager.validatePath(file1Path, { expectedType: 'file', permissions: ['read'] });
+            if (validation1.error) {
+                return { success: false, error: `diff: ${file1Path}: ${validation1.error}` };
+            }
+
+            const validation2 = FileSystemManager.validatePath(file2Path, { expectedType: 'file', permissions: ['read'] });
+            if (validation2.error) {
+                return { success: false, error: `diff: ${file2Path}: ${validation2.error}` };
+            }
+
+            const file1Node = validation1.node;
+            const file2Node = validation2.node;
+
             const diffResult = DiffUtils.compare(
                 file1Node.content || "",
                 file2Node.content || ""
@@ -45,7 +39,6 @@
     };
 
     const diffDescription = "Compares two files line by line.";
-
     const diffHelpText = `Usage: diff <file1> <file2>
 
 Compare two files line by line.
@@ -61,7 +54,7 @@ DESCRIPTION
 
 EXAMPLES
        diff original.txt updated.txt
-              Shows the differences between the two text files.`;
+              Shows the differences between the two text text files.`;
 
     CommandRegistry.register("diff", diffCommandDefinition, diffDescription, diffHelpText);
 })();

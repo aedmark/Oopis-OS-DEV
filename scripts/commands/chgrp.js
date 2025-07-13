@@ -1,21 +1,26 @@
+// scripts/commands/chgrp.js
 (() => {
     "use strict";
 
     const chgrpCommandDefinition = {
         commandName: "chgrp",
         argValidation: { exact: 2, error: "Usage: chgrp <groupname> <path>" },
-        pathValidation: [{ argIndex: 1 }],
-
         coreLogic: async (context) => {
-            const { args, currentUser, validatedPaths } = context;
+            const { args, currentUser } = context;
             const groupName = args[0];
-            const pathInfo = validatedPaths[1];
-            const node = pathInfo.node;
+            const pathArg = args[1];
+
+            const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+            const node = FileSystemManager.getNodeByPath(resolvedPath);
+
+            if (!node) {
+                return { success: false, error: `chgrp: cannot access '${pathArg}': No such file or directory` };
+            }
 
             if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
                 return {
                     success: false,
-                    error: `chgrp: changing group of '${pathInfo.resolvedPath}': Operation not permitted`,
+                    error: `chgrp: changing group of '${pathArg}': Operation not permitted`,
                 };
             }
             if (!GroupManager.groupExists(groupName)) {
@@ -39,7 +44,6 @@
     };
 
     const chgrpDescription = "Changes the group ownership of a file or directory.";
-
     const chgrpHelpText = `Usage: chgrp <group> <path>
 
 Change the group ownership of a file or directory.

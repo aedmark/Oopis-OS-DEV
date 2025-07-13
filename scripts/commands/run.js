@@ -1,4 +1,4 @@
-// aedmark/oopis-os-dev/Oopis-OS-DEV-e5518cea540819416617bfa81def39b31b5d26d1/scripts/commands/run.js
+// scripts/commands/run.js
 (() => {
     "use strict";
 
@@ -7,25 +7,24 @@
         argValidation: {
             min: 1,
         },
-        pathValidation: [
-            {
-                argIndex: 0,
-                options: {
-                    expectedType: Config.FILESYSTEM.DEFAULT_FILE_TYPE,
-                },
-            },
-        ],
-        permissionChecks: [
-            {
-                pathArgIndex: 0,
-                permissions: ["read", "execute"],
-            },
-        ],
         coreLogic: async (context) => {
-            const {args, options, signal} = context;
+            const {args, options, signal, currentUser} = context;
             const scriptPathArg = args[0];
             const scriptArgs = args.slice(1);
-            const scriptNode = context.validatedPaths[0].node;
+
+            const resolvedPath = FileSystemManager.getAbsolutePath(scriptPathArg);
+            const scriptNode = FileSystemManager.getNodeByPath(resolvedPath);
+
+            if (!scriptNode) {
+                return { success: false, error: `run: ${scriptPathArg}: No such file or directory` };
+            }
+            if (scriptNode.type !== 'file') {
+                return { success: false, error: `run: ${scriptPathArg}: Is not a file` };
+            }
+            if (!FileSystemManager.hasPermission(scriptNode, currentUser, 'read') || !FileSystemManager.hasPermission(scriptNode, currentUser, 'execute')) {
+                return { success: false, error: `run: ${scriptPathArg}: Permission denied` };
+            }
+
             const fileExtension = Utils.getFileExtension(scriptPathArg);
             const MAX_SCRIPT_STEPS = Config.FILESYSTEM.MAX_SCRIPT_STEPS;
             const MAX_RECURSION_DEPTH = 100;
@@ -60,7 +59,6 @@
             }
 
             let overallScriptSuccess = true;
-            let finalResult = {};
 
             try {
                 if (scriptingContext.recursionDepth > MAX_RECURSION_DEPTH) {
@@ -134,11 +132,10 @@
                 }
             }
 
-            finalResult = {
+            return {
                 success: overallScriptSuccess,
                 error: overallScriptSuccess ? null : `Script '${scriptPathArg}' failed.`
             };
-            return finalResult;
         }
     };
 

@@ -1,3 +1,4 @@
+// scripts/commands/ls.js
 (() => {
     "use strict";
 
@@ -29,7 +30,7 @@
             const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             dateStr = `${months[d.getMonth()].padEnd(3)} ${d.getDate().toString().padStart(2, " ")} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
         }
-        const nameSuffix = itemDetails.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE && !effectiveFlags.dirsOnly ? Config.FILESYSTEM.PATH_SEPARATOR : "";
+        const nameSuffix = itemDetails.type === 'directory' && !effectiveFlags.dirsOnly ? '/' : "";
         return `${perms}  ${String(itemDetails.linkCount).padStart(2)} ${owner}${group}${size} ${dateStr} ${itemDetails.name}${nameSuffix}`;
     }
 
@@ -57,7 +58,7 @@
         const charWidth = Utils.getCharacterDimensions().width || 8;
         const displayableCols = Math.floor(terminalWidth / charWidth);
         const longestName = names.reduce((max, name) => Math.max(max, name.length), 0);
-        const colWidth = longestName + 2; // Add padding
+        const colWidth = longestName + 2;
         const numColumns = Math.max(1, Math.floor(displayableCols / colWidth));
         const numRows = Math.ceil(names.length / numColumns);
         const grid = Array(numRows).fill(null).map(() => Array(numColumns).fill(""));
@@ -72,10 +73,13 @@
     }
 
     async function listSinglePathContents(targetPathArg, effectiveFlags, currentUser) {
-        const pathValidation = FileSystemManager.validatePath("ls", targetPathArg);
-        if (pathValidation.error) return { success: false, error: pathValidation.error };
+        const resolvedPath = FileSystemManager.getAbsolutePath(targetPathArg);
+        const targetNode = FileSystemManager.getNodeByPath(resolvedPath);
 
-        const targetNode = pathValidation.node;
+        if (!targetNode) {
+            return { success: false, error: `ls: cannot access '${targetPathArg}': No such file or directory` };
+        }
+
         if (!FileSystemManager.hasPermission(targetNode, currentUser, "read")) {
             return { success: false, error: `ls: cannot access '${targetPathArg}': Permission denied` };
         }
@@ -84,147 +88,45 @@
         let singleItemResultOutput = null;
 
         if (effectiveFlags.dirsOnly) {
-            const details = getItemDetails(targetPathArg, targetNode, pathValidation.resolvedPath);
+            const details = getItemDetails(targetPathArg, targetNode, resolvedPath);
             if (details) singleItemResultOutput = effectiveFlags.long ? formatLongListItem(details, effectiveFlags) : details.name;
-        } else if (targetNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
+        } else if (targetNode.type === 'directory') {
             const childrenNames = Object.keys(targetNode.children);
             for (const name of childrenNames) {
                 if (!effectiveFlags.all && name.startsWith(".")) continue;
-                const details = getItemDetails(name, targetNode.children[name], FileSystemManager.getAbsolutePath(name, pathValidation.resolvedPath));
+                const details = getItemDetails(name, targetNode.children[name], FileSystemManager.getAbsolutePath(name, resolvedPath));
                 if (details) itemDetailsList.push(details);
             }
             itemDetailsList = sortItems(itemDetailsList, effectiveFlags);
         } else {
-            const fileName = pathValidation.resolvedPath.substring(pathValidation.resolvedPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR) + 1);
-            const details = getItemDetails(fileName, targetNode, pathValidation.resolvedPath);
+            const fileName = resolvedPath.substring(resolvedPath.lastIndexOf('/') + 1);
+            const details = getItemDetails(fileName, targetNode, resolvedPath);
             if (details) singleItemResultOutput = effectiveFlags.long ? formatLongListItem(details, effectiveFlags) : details.name;
         }
 
         let currentPathOutputLines = [];
         if (singleItemResultOutput !== null) {
             currentPathOutputLines.push(singleItemResultOutput);
+        } else if (itemDetailsList.length === 0 && targetNode.type === 'directory') {
+            if (!effectiveFlags.long) {
+                currentPathOutputLines.push(Config.MESSAGES.DIRECTORY_EMPTY);
+            }
+        } else if (effectiveFlags.long) {
+            if (itemDetailsList.length > 0) currentPathOutputLines.push(`total ${itemDetailsList.length}`);
+            itemDetailsList.forEach(item => { currentPathOutputLines.push(formatLongListItem(item, effectiveFlags)); });
+        } else if (effectiveFlags.oneColumn) {
+            itemDetailsList.forEach(item => {
+                const nameSuffix = item.type === 'directory' ? '/' : "";
+                currentPathOutputLines.push(`${item.name}${nameSuffix}`);
+            });
         } else {
-            if (itemDetailsList.length === 0 && targetNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
-                if (!effectiveFlags.long) {
-                    currentPathOutputLines.push(Config.MESSAGES.DIRECTORY_EMPTY);
-                }
-            } else if (effectiveFlags.long) {
-                if (itemDetailsList.length > 0) currentPathOutputLines.push(`total ${itemDetailsList.length}`);
-                itemDetailsList.forEach(item => { currentPathOutputLines.push(formatLongListItem(item, effectiveFlags)); });
-            } else if (effectiveFlags.oneColumn) {
-                itemDetailsList.forEach(item => {
-                    const nameSuffix = item.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE ? Config.FILESYSTEM.PATH_SEPARATOR : "";
-                    currentPathOutputLines.push(`${item.name}${nameSuffix}`);
-                });
-            } else {
-                const namesToFormat = itemDetailsList.map(item => {
-                    const nameSuffix = item.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE ? Config.FILESYSTEM.PATH_SEPARATOR : "";
-                    return `${item.name}${nameSuffix}`;
-                });
-                currentPathOutputLines.push(formatToColumns(namesToFormat));
-            }
+            const namesToFormat = itemDetailsList.map(item => {
+                const nameSuffix = item.type === 'directory' ? '/' : "";
+                return `${item.name}${nameSuffix}`;
+            });
+            currentPathOutputLines.push(formatToColumns(namesToFormat));
         }
-        return { success: true, output: currentPathOutputLines.join("\n"), items: itemDetailsList, isDir: targetNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE };
-    }
-
-    async function _handleStandardListing(pathsToList, effectiveFlags, currentUser) {
-        let outputBlocks = [];
-        let overallSuccess = true;
-        const fileArgs = [];
-        const dirArgs = [];
-        const errorOutputs = [];
-
-        for (const path of pathsToList) {
-            const validation = FileSystemManager.validatePath("ls", path);
-            if (validation.error) {
-                errorOutputs.push(validation.error);
-                overallSuccess = false;
-            } else if (validation.node.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE || effectiveFlags.dirsOnly) {
-                dirArgs.push(path);
-            } else {
-                fileArgs.push(path);
-            }
-        }
-
-        const fileResults = [];
-        for (const path of fileArgs) {
-            const listResult = await listSinglePathContents(path, effectiveFlags, currentUser);
-            if (listResult.success && listResult.output) {
-                fileResults.push(listResult.output);
-            } else if (!listResult.success) {
-                errorOutputs.push(listResult.error);
-                overallSuccess = false;
-            }
-        }
-        if (fileResults.length > 0) {
-            outputBlocks.push(fileResults.join(effectiveFlags.long || effectiveFlags.oneColumn ? '\n' : '  '));
-        }
-
-        for (let i = 0; i < dirArgs.length; i++) {
-            const path = dirArgs[i];
-            if (outputBlocks.length > 0 || errorOutputs.length > 0) {
-                outputBlocks.push("");
-            }
-            if (pathsToList.length > 1) {
-                outputBlocks.push(`${path}:`);
-            }
-            const listResult = await listSinglePathContents(path, effectiveFlags, currentUser);
-            if (listResult.success && listResult.output) {
-                outputBlocks.push(listResult.output);
-            } else if (!listResult.success) {
-                errorOutputs.push(listResult.error);
-                overallSuccess = false;
-            }
-        }
-
-        const finalOutput = [...errorOutputs, ...outputBlocks].join('\n');
-        return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: finalOutput };
-    }
-
-    async function _handleRecursiveListing(pathsToList, effectiveFlags, currentUser) {
-        let outputBlocks = [];
-        let overallSuccess = true;
-
-        async function displayRecursive(currentPath, displayFlags, depth = 0) {
-            let blockOutputs = [];
-            let encounteredErrorInThisBranch = false;
-            if (depth > 0 || pathsToList.length > 1) {
-                blockOutputs.push("");
-                blockOutputs.push(`${currentPath}:`);
-            }
-            const listResult = await listSinglePathContents(currentPath, displayFlags, currentUser);
-            if (!listResult.success) {
-                blockOutputs.push(listResult.error);
-                encounteredErrorInThisBranch = true;
-                return { outputs: blockOutputs, encounteredError: encounteredErrorInThisBranch };
-            }
-            if (listResult.output) {
-                blockOutputs.push(listResult.output);
-            }
-            if (listResult.items && listResult.isDir) {
-                const subdirectories = listResult.items.filter(item => item.type === 'directory' && item.name !== "." && item.name !== "..");
-                for (const dirItem of subdirectories) {
-                    const subDirResult = await displayRecursive(dirItem.path, displayFlags, depth + 1);
-                    blockOutputs.push(...subDirResult.outputs);
-                    if (subDirResult.encounteredError) encounteredErrorInThisBranch = true;
-                }
-            }
-            return { outputs: blockOutputs, encounteredError: encounteredErrorInThisBranch };
-        }
-
-        for (const path of pathsToList) {
-            const recursiveResult = await displayRecursive(path, effectiveFlags);
-            outputBlocks.push(...recursiveResult.outputs);
-            if (recursiveResult.encounteredError) {
-                overallSuccess = false;
-            }
-        }
-
-        if (outputBlocks.length > 0 && outputBlocks[0] === "") {
-            outputBlocks.shift();
-        }
-
-        return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: outputBlocks.join("\n") };
+        return { success: true, output: currentPathOutputLines.join("\n"), items: itemDetailsList, isDir: targetNode.type === 'directory' };
     }
 
     const lsCommandDefinition = {
@@ -242,9 +144,6 @@
             { name: "oneColumn", short: "-1" },
             { name: "humanReadable", short: "-h", long: "--human-readable" }
         ],
-        pathValidation: [
-            { argIndex: 0, optional: true, options: { allowMissing: false } }
-        ],
         coreLogic: async (context) => {
             const {args, flags, currentUser, options} = context;
 
@@ -256,9 +155,103 @@
             const pathsToList = args.length > 0 ? args : ["."];
 
             if (effectiveFlags.recursive) {
-                return await _handleRecursiveListing(pathsToList, effectiveFlags, currentUser);
+                let outputBlocks = [];
+                let overallSuccess = true;
+
+                async function displayRecursive(currentPath, displayFlags, depth = 0) {
+                    let blockOutputs = [];
+                    let encounteredErrorInThisBranch = false;
+                    if (depth > 0 || pathsToList.length > 1) {
+                        blockOutputs.push("");
+                        blockOutputs.push(`${currentPath}:`);
+                    }
+                    const listResult = await listSinglePathContents(currentPath, displayFlags, currentUser);
+                    if (!listResult.success) {
+                        blockOutputs.push(listResult.error);
+                        encounteredErrorInThisBranch = true;
+                        return { outputs: blockOutputs, encounteredError: encounteredErrorInThisBranch };
+                    }
+                    if (listResult.output) {
+                        blockOutputs.push(listResult.output);
+                    }
+                    if (listResult.items && listResult.isDir) {
+                        const subdirectories = listResult.items.filter(item => item.type === 'directory' && item.name !== "." && item.name !== "..");
+                        for (const dirItem of subdirectories) {
+                            const subDirResult = await displayRecursive(dirItem.path, displayFlags, depth + 1);
+                            blockOutputs.push(...subDirResult.outputs);
+                            if (subDirResult.encounteredError) encounteredErrorInThisBranch = true;
+                        }
+                    }
+                    return { outputs: blockOutputs, encounteredError: encounteredErrorInThisBranch };
+                }
+
+                for (const path of pathsToList) {
+                    const recursiveResult = await displayRecursive(path, effectiveFlags);
+                    outputBlocks.push(...recursiveResult.outputs);
+                    if (recursiveResult.encounteredError) {
+                        overallSuccess = false;
+                    }
+                }
+
+                if (outputBlocks.length > 0 && outputBlocks[0] === "") {
+                    outputBlocks.shift();
+                }
+
+                return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: outputBlocks.join("\n") };
+
             } else {
-                return await _handleStandardListing(pathsToList, effectiveFlags, currentUser);
+                let outputBlocks = [];
+                let overallSuccess = true;
+                const fileArgs = [];
+                const dirArgs = [];
+                const errorOutputs = [];
+
+                for (const path of pathsToList) {
+                    const resolvedPath = FileSystemManager.getAbsolutePath(path);
+                    const node = FileSystemManager.getNodeByPath(resolvedPath);
+                    if (!node) {
+                        errorOutputs.push(`ls: cannot access '${path}': No such file or directory`);
+                        overallSuccess = false;
+                    } else if (node.type === 'directory' || effectiveFlags.dirsOnly) {
+                        dirArgs.push(path);
+                    } else {
+                        fileArgs.push(path);
+                    }
+                }
+
+                const fileResults = [];
+                for (const path of fileArgs) {
+                    const listResult = await listSinglePathContents(path, effectiveFlags, currentUser);
+                    if (listResult.success && listResult.output) {
+                        fileResults.push(listResult.output);
+                    } else if (!listResult.success) {
+                        errorOutputs.push(listResult.error);
+                        overallSuccess = false;
+                    }
+                }
+                if (fileResults.length > 0) {
+                    outputBlocks.push(fileResults.join(effectiveFlags.long || effectiveFlags.oneColumn ? '\n' : '  '));
+                }
+
+                for (let i = 0; i < dirArgs.length; i++) {
+                    const path = dirArgs[i];
+                    if (outputBlocks.length > 0 || errorOutputs.length > 0) {
+                        outputBlocks.push("");
+                    }
+                    if (pathsToList.length > 1) {
+                        outputBlocks.push(`${path}:`);
+                    }
+                    const listResult = await listSinglePathContents(path, effectiveFlags, currentUser);
+                    if (listResult.success && listResult.output) {
+                        outputBlocks.push(listResult.output);
+                    } else if (!listResult.success) {
+                        errorOutputs.push(listResult.error);
+                        overallSuccess = false;
+                    }
+                }
+
+                const finalOutput = [...errorOutputs, ...outputBlocks].join('\n');
+                return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: finalOutput };
             }
         },
     };
