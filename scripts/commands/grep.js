@@ -1,3 +1,4 @@
+// scripts/commands/grep.js
 const grepCommandDefinition = {
     commandName: "grep",
     flagDefinitions: [
@@ -5,11 +6,11 @@ const grepCommandDefinition = {
         { name: "invertMatch", short: "-v", long: "--invert-match" },
         { name: "lineNumber", short: "-n", long: "--line-number" },
         { name: "count", short: "-c", long: "--count" },
-        {name: "recursive", short: "-R", long: "--recursive", aliases: ["-r"]},
+        { name: "recursive", short: "-R", long: "--recursive", aliases: ["-r"] },
         { name: "extendedRegex", short: "-E", long: "--extended-regexp" }
     ],
     coreLogic: async (context) => {
-        const {args, flags, currentUser, options} = context;
+        const { args, flags, currentUser, options } = context;
 
         if (args.length === 0) {
             return { success: false, error: "grep: missing pattern" };
@@ -77,7 +78,9 @@ const grepCommandDefinition = {
                 const childPath = FileSystemManager.getAbsolutePath(childName, directoryPath);
                 const childNode = dirNode.children[childName];
                 if (childNode.type === 'directory') {
-                    await searchDirectory(childPath);
+                    if (FileSystemManager.hasPermission(childNode, currentUser, "read")) {
+                        await searchDirectory(childPath);
+                    }
                 } else if (childNode.type === 'file') {
                     if (FileSystemManager.hasPermission(childNode, currentUser, "read")) {
                         processContent(childNode.content || "", childPath, true);
@@ -86,31 +89,33 @@ const grepCommandDefinition = {
             }
         }
 
-
         if (filePaths.length > 0) {
             for (const pathArg of filePaths) {
-                const pathInfo = FileSystemManager.validatePath("grep", pathArg);
-                if (pathInfo.error) {
-                    outputLines.push(pathInfo.error);
+                const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+                const node = FileSystemManager.getNodeByPath(resolvedPath);
+
+                if (!node) {
+                    outputLines.push(`grep: ${pathArg}: No such file or directory`);
                     continue;
                 }
-                if (!FileSystemManager.hasPermission(pathInfo.node, currentUser, "read")) {
+
+                if (!FileSystemManager.hasPermission(node, currentUser, "read")) {
                     outputLines.push(`grep: ${pathArg}: Permission denied`);
                     continue;
                 }
 
-                if (pathInfo.node.type === 'directory' && flags.recursive) {
-                    await searchDirectory(pathInfo.resolvedPath);
-                } else if (pathInfo.node.type === 'directory' && !flags.recursive) {
+                if (node.type === 'directory' && flags.recursive) {
+                    await searchDirectory(resolvedPath);
+                } else if (node.type === 'directory' && !flags.recursive) {
                     outputLines.push(`grep: ${pathArg}: is a directory`);
                 } else {
-                    processContent(pathInfo.node.content, pathArg, filePaths.length > 1);
+                    processContent(node.content || "", pathArg, filePaths.length > 1);
                 }
             }
         } else if (options.stdinContent !== null) {
             processContent(options.stdinContent, '(standard input)', false);
         } else {
-            return {success: false, error: "grep: missing operand"};
+            return { success: false, error: "grep: missing operand" };
         }
 
         return {
@@ -147,7 +152,7 @@ OPTIONS
 EXAMPLES
        grep "error" /data/logs/system.log
               Finds all lines containing "error" in the system log.
-              
+
        ls | grep ".txt"
               Lists only the files in the current directory that contain ".txt".
 

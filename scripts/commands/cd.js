@@ -1,3 +1,4 @@
+// scripts/commands/cd.js
 (() => {
     "use strict";
 
@@ -7,34 +8,41 @@
             exact: 1,
             error: "incorrect number of arguments",
         },
-        pathValidation: [
-            {
-                argIndex: 0,
-                options: {
-                    expectedType: Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE,
-                },
-            },
-        ],
-        permissionChecks: [
-            {
-                pathArgIndex: 0,
-                permissions: ["execute"],
-            },
-        ],
-
         coreLogic: async (context) => {
-            const {options} = context;
-            const pathInfo = context.validatedPaths[0];
+            const { args, currentUser, options } = context;
+            const pathArg = args[0];
 
-            if (FileSystemManager.getCurrentPath() === pathInfo.resolvedPath) {
+            // 1. Resolve Path
+            const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+
+            // 2. Retrieve Node (checks execute permissions during traversal)
+            const node = FileSystemManager.getNodeByPath(resolvedPath);
+
+            // 3. Validate Existence
+            if (!node) {
+                return { success: false, error: `cd: ${pathArg}: No such file or directory` };
+            }
+
+            // 4. Validate Type
+            if (node.type !== 'directory') {
+                return { success: false, error: `cd: ${pathArg}: Not a directory` };
+            }
+
+            // 5. Final Permission Check (already done by getNodeByPath, but good for clarity)
+            if (!FileSystemManager.hasPermission(node, currentUser, "execute")) {
+                return { success: false, error: `cd: ${pathArg}: Permission denied` };
+            }
+
+            // 6. Execute Logic
+            if (FileSystemManager.getCurrentPath() === resolvedPath) {
                 return {
                     success: true,
-                    output: `${Config.MESSAGES.ALREADY_IN_DIRECTORY_PREFIX}${pathInfo.resolvedPath}${Config.MESSAGES.ALREADY_IN_DIRECTORY_SUFFIX} ${Config.MESSAGES.NO_ACTION_TAKEN}`,
+                    output: `${Config.MESSAGES.ALREADY_IN_DIRECTORY_PREFIX}${resolvedPath}${Config.MESSAGES.ALREADY_IN_DIRECTORY_SUFFIX} ${Config.MESSAGES.NO_ACTION_TAKEN}`,
                     messageType: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
                 };
             }
 
-            FileSystemManager.setCurrentPath(pathInfo.resolvedPath);
+            FileSystemManager.setCurrentPath(resolvedPath);
 
             if (options.isInteractive) {
                 TerminalUI.updatePrompt();
@@ -48,7 +56,6 @@
     };
 
     const cdDescription = "Changes the current working directory.";
-
     const cdHelpText = `Usage: cd <directory>
 
 Change the current working directory.

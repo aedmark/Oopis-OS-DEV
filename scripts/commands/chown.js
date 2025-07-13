@@ -1,3 +1,4 @@
+// scripts/commands/chown.js
 (() => {
     "use strict";
 
@@ -8,19 +9,10 @@
             exact: 2,
             error: "Usage: chown <new_owner> <path>",
         },
-        pathValidation: [
-            {
-                argIndex: 1,
-            },
-        ],
-        permissionChecks: [],
-
         coreLogic: async (context) => {
-            const { args, currentUser, validatedPaths } = context;
+            const { args, currentUser } = context;
             const newOwnerArg = args[0];
             const pathArg = args[1];
-            const pathInfo = validatedPaths[1];
-            const node = pathInfo.node;
             const nowISO = new Date().toISOString();
 
             if (!await UserManager.userExists(newOwnerArg) && newOwnerArg !== Config.USER.DEFAULT_NAME) {
@@ -28,6 +20,13 @@
                     success: false,
                     error: `chown: user '${newOwnerArg}' does not exist.`,
                 };
+            }
+
+            const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+            const node = FileSystemManager.getNodeByPath(resolvedPath);
+
+            if (!node) {
+                return { success: false, error: `chown: cannot access '${pathArg}': No such file or directory` };
             }
 
             if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
@@ -40,7 +39,7 @@
             node.owner = newOwnerArg;
             node.mtime = nowISO;
             FileSystemManager._updateNodeAndParentMtime(
-                pathInfo.resolvedPath,
+                resolvedPath,
                 nowISO
             );
 
@@ -59,7 +58,6 @@
     };
 
     const chownDescription = "Changes the user ownership of a file or directory.";
-
     const chownHelpText = `Usage: chown <owner> <path>
 
 Change the user ownership of a file or directory.

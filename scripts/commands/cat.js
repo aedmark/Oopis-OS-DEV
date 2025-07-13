@@ -1,37 +1,73 @@
+// scripts/commands/cat.js
 (() => {
     "use strict";
 
     const catCommandDefinition = {
         commandName: "cat",
-        isInputStream: true, // It correctly handles input streams
+        isInputStream: true,
         flagDefinitions: [
             { name: "numberLines", short: "-n", long: "--number" }
         ],
         coreLogic: async (context) => {
-            const {flags, inputItems, inputError} = context;
+            const { flags, args, currentUser, options } = context;
 
-            if (inputError) {
-                return {success: false, error: "cat: Could not read one or more sources."};
+            // Handle piped input first
+            if (options.stdinContent !== null && options.stdinContent !== undefined) {
+                const lines = options.stdinContent.split('\n');
+                if (flags.numberLines) {
+                    const numberedOutput = lines.map((line, i) => `     ${String(i + 1).padStart(5)}  ${line}`).join('\n');
+                    return { success: true, output: numberedOutput };
+                }
+                return { success: true, output: options.stdinContent };
             }
 
-            // The inputItems array contains the content from all sources (stdin or files).
-            const input = inputItems.map(item => item.content).join('');
-
-            if (input === null || input === undefined) {
-                return {success: true, output: ""}; // Handle no input gracefully.
+            if (args.length === 0) {
+                return { success: false, error: "cat: missing file operand" };
             }
 
-            if (!flags.numberLines) {
-                return {success: true, output: input};
+            let allContent = [];
+            let hadError = false;
+
+            for (const pathArg of args) {
+                const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+                const node = FileSystemManager.getNodeByPath(resolvedPath);
+
+                if (!node) {
+                    allContent.push(`cat: ${pathArg}: No such file or directory`);
+                    hadError = true;
+                    continue;
+                }
+
+                if (node.type !== 'file') {
+                    allContent.push(`cat: ${pathArg}: Is not a file`);
+                    hadError = true;
+                    continue;
+                }
+
+                if (!FileSystemManager.hasPermission(node, currentUser, 'read')) {
+                    allContent.push(`cat: ${pathArg}: Permission denied`);
+                    hadError = true;
+                    continue;
+                }
+
+                allContent.push(node.content || "");
             }
 
-            let lineCounter = 1;
-            // Correctly handle splitting and potential trailing newlines
-            const lines = input.split('\n');
-            const processedLines = (lines.length > 0 && lines[lines.length - 1] === '') ? lines.slice(0, -1) : lines;
-            const numberedOutput = processedLines.map(line => `     ${String(lineCounter++).padStart(5)}  ${line}`).join('\n');
+            const combinedContent = allContent.join('\n');
 
-            return {success: true, output: numberedOutput};
+            if (hadError) {
+                return { success: false, error: combinedContent };
+            }
+
+            if (flags.numberLines) {
+                let lineCounter = 1;
+                const lines = combinedContent.split('\n');
+                const processedLines = (lines.length > 0 && lines[lines.length - 1] === '') ? lines.slice(0, -1) : lines;
+                const numberedOutput = processedLines.map(line => `     ${String(lineCounter++).padStart(5)}  ${line}`).join('\n');
+                return { success: true, output: numberedOutput };
+            }
+
+            return { success: true, output: combinedContent };
         },
     };
 
@@ -58,7 +94,7 @@ EXAMPLES
        cat file1.txt file2.txt > newfile.txt
               Concatenates file1.txt and file2.txt and writes the
               result to newfile.txt.
-              
+
        ls -l | cat
               Displays the output of the 'ls -l' command, demonstrating
               how cat handles piped input.`;
