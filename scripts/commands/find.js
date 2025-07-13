@@ -1,3 +1,4 @@
+// scripts/commands/find.js
 (() => {
     "use strict";
 
@@ -21,44 +22,23 @@
                 "-name": (node, path, pattern) => {
                     const regex = Utils.globToRegex(pattern);
                     if (!regex) {
-                        OutputManager.appendToOutput(
-                            `find: invalid pattern for -name: ${pattern}`,
-                            {
-                                typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                            }
-                        );
+                        OutputManager.appendToOutput(`find: invalid pattern for -name: ${pattern}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                         overallSuccess = false;
                         return false;
                     }
-                    return regex.test(
-                        path.substring(
-                            path.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR) + 1
-                        )
-                    );
+                    return regex.test(path.substring(path.lastIndexOf('/') + 1));
                 },
                 "-type": (node, path, typeChar) => {
-                    if (typeChar === "f")
-                        return node.type === Config.FILESYSTEM.DEFAULT_FILE_TYPE;
-                    if (typeChar === "d")
-                        return node.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE;
-                    OutputManager.appendToOutput(
-                        `find: unknown type '${typeChar}' for -type`,
-                        {
-                            typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                        }
-                    );
+                    if (typeChar === "f") return node.type === 'file';
+                    if (typeChar === "d") return node.type === 'directory';
+                    OutputManager.appendToOutput(`find: unknown type '${typeChar}' for -type`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                     overallSuccess = false;
                     return false;
                 },
                 "-user": (node, path, username) => node.owner === username,
                 "-perm": (node, path, modeStr) => {
                     if (!/^[0-7]{3,4}$/.test(modeStr)) {
-                        OutputManager.appendToOutput(
-                            `find: invalid mode '${modeStr}' for -perm`,
-                            {
-                                typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                            }
-                        );
+                        OutputManager.appendToOutput(`find: invalid mode '${modeStr}' for -perm`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                         overallSuccess = false;
                         return false;
                     }
@@ -84,10 +64,7 @@
                     if (!node.mtime) return false;
                     const targetDate = TimestampParser.parseDateString(dateStr);
                     if (!targetDate) {
-                        OutputManager.appendToOutput(
-                            `find: invalid date string for -newermt: ${dateStr}`,
-                            { typeClass: Config.CSS_CLASSES.ERROR_MSG }
-                        );
+                        OutputManager.appendToOutput(`find: invalid date string for -newermt: ${dateStr}`,{ typeClass: Config.CSS_CLASSES.ERROR_MSG });
                         overallSuccess = false;
                         return false;
                     }
@@ -97,10 +74,7 @@
                     if (!node.mtime) return false;
                     const targetDate = TimestampParser.parseDateString(dateStr);
                     if (!targetDate) {
-                        OutputManager.appendToOutput(
-                            `find: invalid date string for -oldermt: ${dateStr}`,
-                            { typeClass: Config.CSS_CLASSES.ERROR_MSG }
-                        );
+                        OutputManager.appendToOutput(`find: invalid date string for -oldermt: ${dateStr}`,{ typeClass: Config.CSS_CLASSES.ERROR_MSG });
                         overallSuccess = false;
                         return false;
                     }
@@ -114,42 +88,19 @@
                     return true;
                 },
                 "-exec": async (node, path, commandParts) => {
-                    const cmdStr = commandParts
-                        .map((part) => (part === "{}" ? path : part))
-                        .join(" ");
-                    const result = await CommandExecutor.processSingleCommand(
-                        cmdStr,
-                        { isInteractive: false }
-                    );
+                    const cmdStr = commandParts.map((part) => (part === "{}" ? `"${path}"` : part)).join(" ");
+                    const result = await CommandExecutor.processSingleCommand(cmdStr, { isInteractive: false });
                     if (!result.success) {
-                        await OutputManager.appendToOutput(
-                            `find: -exec: command '${cmdStr}' failed: ${result.error}`,
-                            {
-                                typeClass: Config.CSS_CLASSES.WARNING_MSG,
-                            }
-                        );
+                        await OutputManager.appendToOutput(`find: -exec: command '${cmdStr}' failed: ${result.error}`, { typeClass: Config.CSS_CLASSES.WARNING_MSG });
                         filesProcessedSuccessfully = false;
                         return false;
                     }
                     return true;
                 },
                 "-delete": async (node, path) => {
-                    const result = await FileSystemManager.deleteNodeRecursive(path, {
-                        force: true,
-                        currentUser,
-                    });
+                    const result = await FileSystemManager.deleteNodeRecursive(path, { force: true, currentUser });
                     if (!result.success) {
-                        await OutputManager.appendToOutput(
-                            `find: -delete: ${
-                                result.messages.join(";") ||
-                                `
-								failed to delete '${path}'
-								`
-                            }`,
-                            {
-                                typeClass: Config.CSS_CLASSES.WARNING_MSG,
-                            }
-                        );
+                        await OutputManager.appendToOutput(`find: -delete: ${result.messages.join(";") || `failed to delete '${path}'`}`, { typeClass: Config.CSS_CLASSES.WARNING_MSG });
                         filesProcessedSuccessfully = false;
                         return false;
                     }
@@ -172,22 +123,14 @@
                 }
                 if (token === "-or" || token === "-o") {
                     if (currentTermGroup.length > 0)
-                        parsedExpression.push({
-                            type: "AND_GROUP",
-                            terms: currentTermGroup,
-                        });
+                        parsedExpression.push({ type: "AND_GROUP", terms: currentTermGroup });
                     currentTermGroup = [];
-                    parsedExpression.push({
-                        type: "OR",
-                    });
+                    parsedExpression.push({ type: "OR" });
                     i++;
                     continue;
                 }
 
-                let term = {
-                    name: token,
-                    negated: nextTermNegated,
-                };
+                let term = { name: token, negated: nextTermNegated };
                 nextTermNegated = false;
 
                 if (predicates[token]) {
@@ -196,10 +139,7 @@
                     if (i + 1 < expressionArgs.length) {
                         term.arg = expressionArgs[++i];
                     } else {
-                        return {
-                            success: false,
-                            error: `find: missing argument to \`${token}\``,
-                        };
+                        return { success: false, error: `find: missing argument to \`${token}\`` };
                     }
                 } else if (actions[token]) {
                     term.type = "ACTION";
@@ -211,41 +151,21 @@
                         while (i < expressionArgs.length && expressionArgs[i] !== ";")
                             term.commandParts.push(expressionArgs[i++]);
                         if (i >= expressionArgs.length || expressionArgs[i] !== ";")
-                            return {
-                                success: false,
-                                error: "find: missing terminating ';' for -exec",
-                            };
+                            return { success: false, error: "find: missing terminating ';' for -exec" };
                     }
                 } else {
-                    return {
-                        success: false,
-                        error: `find: unknown predicate '${token}'`,
-                    };
+                    return { success: false, error: `find: unknown predicate '${token}'` };
                 }
                 currentTermGroup.push(term);
                 i++;
             }
             if (currentTermGroup.length > 0)
-                parsedExpression.push({
-                    type: "AND_GROUP",
-                    terms: currentTermGroup,
-                });
+                parsedExpression.push({ type: "AND_GROUP", terms: currentTermGroup });
 
             if (!hasExplicitAction) {
-                if (
-                    parsedExpression.length === 0 ||
-                    parsedExpression[parsedExpression.length - 1].type === "OR"
-                )
-                    parsedExpression.push({
-                        type: "AND_GROUP",
-                        terms: [],
-                    });
-                parsedExpression[parsedExpression.length - 1].terms.push({
-                    type: "ACTION",
-                    name: "-print",
-                    perform: actions["-print"],
-                    negated: false,
-                });
+                if (parsedExpression.length === 0 || parsedExpression[parsedExpression.length - 1].type === "OR")
+                    parsedExpression.push({ type: "AND_GROUP", terms: [] });
+                parsedExpression[parsedExpression.length - 1].terms.push({ type: "ACTION", name: "-print", perform: actions["-print"], negated: false });
             }
 
             async function evaluateExpressionForNode(node, path) {
@@ -255,9 +175,7 @@
                 for (const groupOrOperator of parsedExpression) {
                     if (groupOrOperator.type === "AND_GROUP") {
                         currentAndGroupResult = true;
-                        for (const term of groupOrOperator.terms.filter(
-                            (t) => t.type === "TEST"
-                        )) {
+                        for (const term of groupOrOperator.terms.filter((t) => t.type === "TEST")) {
                             const result = await term.eval(node, path, term.arg);
                             const effectiveResult = term.negated ? !result : result;
                             if (!effectiveResult) {
@@ -270,7 +188,6 @@
                         currentAndGroupResult = true;
                     }
                 }
-
                 overallResult = overallResult || currentAndGroupResult;
                 return overallResult;
             }
@@ -278,22 +195,12 @@
             async function recurseFind(currentResolvedPath, isDepthFirst) {
                 const node = FileSystemManager.getNodeByPath(currentResolvedPath);
                 if (!node) {
-                    await OutputManager.appendToOutput(
-                        `find: ‘${currentResolvedPath}’: No such file or directory`,
-                        {
-                            typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                        }
-                    );
+                    await OutputManager.appendToOutput(`find: ‘${currentResolvedPath}’: No such file or directory`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                     filesProcessedSuccessfully = false;
                     return;
                 }
                 if (!FileSystemManager.hasPermission(node, currentUser, "read")) {
-                    await OutputManager.appendToOutput(
-                        `find: ‘${currentResolvedPath}’: Permission denied`,
-                        {
-                            typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                        }
-                    );
+                    await OutputManager.appendToOutput(`find: ‘${currentResolvedPath}’: Permission denied`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                     filesProcessedSuccessfully = false;
                     return;
                 }
@@ -302,14 +209,8 @@
                     if (await evaluateExpressionForNode(node, currentResolvedPath)) {
                         for (const groupOrOperator of parsedExpression) {
                             if (groupOrOperator.type === "AND_GROUP") {
-                                for (const term of groupOrOperator.terms.filter(
-                                    (t) => t.type === "ACTION"
-                                ))
-                                    await term.perform(
-                                        node,
-                                        currentResolvedPath,
-                                        term.commandParts
-                                    );
+                                for (const term of groupOrOperator.terms.filter((t) => t.type === "ACTION"))
+                                    await term.perform(node, currentResolvedPath, term.commandParts);
                             }
                         }
                     }
@@ -317,34 +218,24 @@
 
                 if (!isDepthFirst) await processNode();
 
-                if (node.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
+                if (node.type === 'directory') {
                     for (const childName of Object.keys(node.children || {})) {
-                        await recurseFind(
-                            FileSystemManager.getAbsolutePath(childName, currentResolvedPath),
-                            isDepthFirst
-                        );
+                        await recurseFind(FileSystemManager.getAbsolutePath(childName, currentResolvedPath), isDepthFirst);
                     }
                 }
 
                 if (isDepthFirst) await processNode();
             }
 
-            const startPathValidation = FileSystemManager.validatePath(
-                "find",
-                startPathArg
-            );
-            if (startPathValidation.error)
-                return {
-                    success: false,
-                    error: startPathValidation.error,
-                };
+            const startPathResolved = FileSystemManager.getAbsolutePath(startPathArg);
+            const startNode = FileSystemManager.getNodeByPath(startPathResolved);
 
-            const impliesDepth = parsedExpression.some(
-                (g) =>
-                    g.type === "AND_GROUP" && g.terms.some((t) => t.name === "-delete")
-            );
+            if (!startNode) {
+                return { success: false, error: `find: '${startPathArg}': No such file or directory` };
+            }
 
-            await recurseFind(startPathValidation.resolvedPath, impliesDepth);
+            const impliesDepth = parsedExpression.some((g) => g.type === "AND_GROUP" && g.terms.some((t) => t.name === "-delete"));
+            await recurseFind(startPathResolved, impliesDepth);
 
             if (anyChangeMadeDuringFind) await FileSystemManager.save();
 

@@ -4,27 +4,29 @@
 
     const runCommandDefinition = {
         commandName: "run",
+        completionType: "paths", // This line is added.
         argValidation: {
             min: 1,
         },
+        pathValidation: [
+            {
+                argIndex: 0,
+                options: {
+                    expectedType: Config.FILESYSTEM.DEFAULT_FILE_TYPE,
+                },
+            },
+        ],
+        permissionChecks: [
+            {
+                pathArgIndex: 0,
+                permissions: ["read", "execute"],
+            },
+        ],
         coreLogic: async (context) => {
-            const {args, options, signal, currentUser} = context;
+            const {args, options, signal} = context;
             const scriptPathArg = args[0];
             const scriptArgs = args.slice(1);
-
-            const resolvedPath = FileSystemManager.getAbsolutePath(scriptPathArg);
-            const scriptNode = FileSystemManager.getNodeByPath(resolvedPath);
-
-            if (!scriptNode) {
-                return { success: false, error: `run: ${scriptPathArg}: No such file or directory` };
-            }
-            if (scriptNode.type !== 'file') {
-                return { success: false, error: `run: ${scriptPathArg}: Is not a file` };
-            }
-            if (!FileSystemManager.hasPermission(scriptNode, currentUser, 'read') || !FileSystemManager.hasPermission(scriptNode, currentUser, 'execute')) {
-                return { success: false, error: `run: ${scriptPathArg}: Permission denied` };
-            }
-
+            const scriptNode = context.validatedPaths[0].node;
             const fileExtension = Utils.getFileExtension(scriptPathArg);
             const MAX_SCRIPT_STEPS = Config.FILESYSTEM.MAX_SCRIPT_STEPS;
             const MAX_RECURSION_DEPTH = 100;
@@ -59,6 +61,7 @@
             }
 
             let overallScriptSuccess = true;
+            let finalResult = {};
 
             try {
                 if (scriptingContext.recursionDepth > MAX_RECURSION_DEPTH) {
@@ -132,10 +135,11 @@
                 }
             }
 
-            return {
+            finalResult = {
                 success: overallScriptSuccess,
                 error: overallScriptSuccess ? null : `Script '${scriptPathArg}' failed.`
             };
+            return finalResult;
         }
     };
 

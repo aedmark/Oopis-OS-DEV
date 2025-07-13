@@ -1,5 +1,4 @@
 // scripts/commands/visudo.js
-
 (() => {
     "use strict";
 
