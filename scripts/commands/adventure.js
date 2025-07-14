@@ -1,3 +1,4 @@
+// scripts/commands/adventure.js
 (() => {
     "use strict";
 
@@ -10,7 +11,7 @@
             "itemId": "page",
             "targetId": "terminal"
         },
-        "winMessage": "You touch the manual page to the terminal's screen. The text on the page dissolves into light, flowing into the terminal. The room shimmers, and the placeholder textures resolve into solid, finished surfaces. The low hum ceases, replaced by a soft, pleasant ambiance.\n\nThe Architect smiles. 'Excellent work. Test complete.'",
+        "winMessage": "You touch the manual page to the terminal's screen. The text on the page dissolves into light, flowing into the terminal. The room shimmers, and the placeholder textures resolve into solid, finished surfaces. The low hum ceases, replaced by a soft, pleasant ambiance.\\n\\nThe Architect smiles. 'Excellent work. Test complete.'",
         "rooms": {
             "test_chamber": {
                 "name": "Test Chamber",
@@ -45,7 +46,7 @@
             "page": {
                 "id": "page", "name": "manual page", "noun": "page", "adjectives": ["manual", "lost", "torn"],
                 "description": "A single page torn from a technical manual. It is covered in complex-looking code.", "location": "chest", "canTake": true,
-                "readDescription": "== COMPILATION SCRIPT v1.1 ==\nTo compile the target environment, apply this page directly to the primary terminal interface. Note: Ensure target system is adequately powered before initiating script.",
+                "readDescription": "== COMPILATION SCRIPT v1.1 ==\\nTo compile the target environment, apply this page directly to the primary terminal interface. Note: Ensure target system is adequately powered before initiating script.",
                 "points": 25
             },
             "terminal": {
@@ -132,118 +133,122 @@
             error: "Usage: adventure [--create] [path_to_adventure.json]",
         },
         coreLogic: async (context) => {
-            const {args, currentUser, options, flags} = context;
+            const {args, options, flags} = context;
 
-            if (flags.create) {
-                const filename = args[0];
-                if (!filename) {
-                    return {success: false, error: "Usage: adventure --create <filename.json>"};
+            try {
+                if (flags.create) {
+                    const filename = args[0];
+                    if (!filename) {
+                        return {success: false, error: "Usage: adventure --create <filename.json>"};
+                    }
+                    if (!filename.endsWith('.json')) {
+                        return {success: false, error: "Filename must end with .json"};
+                    }
+
+                    let initialData = {};
+                    const pathInfo = FileSystemManager.validatePath(filename, {allowMissing: true});
+
+                    if (pathInfo.node) {
+                        try {
+                            initialData = JSON.parse(pathInfo.node.content || '{}');
+                        } catch (e) {
+                            return {
+                                success: false,
+                                error: `Could not parse existing file '${filename}'. It may be corrupt.`
+                            };
+                        }
+                    } else {
+                        initialData = {
+                            title: "New Adventure",
+                            startingRoomId: "start",
+                            winCondition: {type: "playerHasItem", itemId: "macguffin"},
+                            winMessage: "You found the MacGuffin! You win!",
+                            rooms: {
+                                start: {name: "The Starting Room", description: "A blank canvas for your adventure."}
+                            },
+                            items: {
+                                macguffin: {
+                                    id: "macguffin",
+                                    name: "a shiny MacGuffin",
+                                    noun: "macguffin",
+                                    description: "It's very shiny.",
+                                    location: "start",
+                                    canTake: true
+                                }
+                            },
+                            npcs: {},
+                            daemons: {}
+                        };
+                    }
+
+                    if (typeof Adventure_create === 'undefined' || !Adventure_create.enter) {
+                        return {
+                            success: false,
+                            error: "AdventureCreator module not found. Catastrophic blueprint failure."
+                        };
+                    }
+
+                    Adventure_create.enter(filename, initialData, context);
+                    return {success: true, output: ""};
                 }
-                if (!filename.endsWith('.json')) {
-                    return {success: false, error: "Filename must end with .json"};
+
+                if (typeof TextAdventureModal === "undefined" || typeof TextAdventureEngine === "undefined") {
+                    return {success: false, error: "Adventure module is not properly loaded."};
+                }
+                if (TextAdventureModal.isActive()) {
+                    return {success: false, error: "An adventure is already in progress."};
                 }
 
-                let initialData = {};
-                const pathInfo = FileSystemManager.validatePath("adventure_create", filename, {allowMissing: true});
+                let adventureToLoad;
 
-                if (pathInfo.node) {
+                if (args.length > 0) {
+                    const pathValidation = FileSystemManager.validatePath(args[0], {
+                        expectedType: 'file',
+                        permissions: ['read']
+                    });
+
+                    if (pathValidation.error) {
+                        return {success: false, error: `adventure: ${pathValidation.error}`};
+                    }
+
                     try {
-                        initialData = JSON.parse(pathInfo.node.content || '{}');
+                        adventureToLoad = JSON.parse(pathValidation.node.content);
+                        if (!adventureToLoad.rooms || !adventureToLoad.startingRoomId) {
+                            return {success: false, error: `adventure: Invalid adventure file format in '${args[0]}'.`};
+                        }
+                        if (!adventureToLoad.title) adventureToLoad.title = args[0];
                     } catch (e) {
                         return {
                             success: false,
-                            error: `Could not parse existing file '${filename}'. It may be corrupt.`
+                            error: `adventure: Error parsing adventure file '${args[0]}': ${e.message}`
                         };
                     }
                 } else {
-                    initialData = {
-                        title: "New Adventure",
-                        startingRoomId: "start",
-                        winCondition: {type: "playerHasItem", itemId: "macguffin"},
-                        winMessage: "You found the MacGuffin! You win!",
-                        rooms: {
-                            start: {name: "The Starting Room", description: "A blank canvas for your adventure."}
-                        },
-                        items: {
-                            macguffin: {
-                                id: "macguffin",
-                                name: "a shiny MacGuffin",
-                                noun: "macguffin",
-                                description: "It's very shiny.",
-                                location: "start",
-                                canTake: true
-                            }
-                        },
-                        npcs: {},
-                        daemons: {}
-                    };
+                    adventureToLoad = defaultAdventureData;
                 }
 
-                if (typeof Adventure_create === 'undefined' || !Adventure_create.enter) {
-                    return {
-                        success: false,
-                        error: "AdventureCreator module not found. Catastrophic blueprint failure."
-                    };
-                }
+                const scriptingContext = options.scriptingContext || null;
+                await TextAdventureEngine.startAdventure(adventureToLoad, {scriptingContext: scriptingContext});
 
-                Adventure_create.enter(filename, initialData, context);
-                return {success: true, output: ""};
-            }
-
-            if (typeof TextAdventureModal === "undefined" || typeof TextAdventureEngine === "undefined") {
-                return {success: false, error: "Adventure module is not properly loaded."};
-            }
-            if (TextAdventureModal.isActive()) {
-                return {success: false, error: "An adventure is already in progress."};
-            }
-
-            let adventureToLoad;
-
-            if (args.length > 0) {
-                const pathValidation = FileSystemManager.validatePath(args[0], {
-                    expectedType: 'file',
-                    permissions: ['read']
-                });
-
-                if (pathValidation.error) {
-                    return {success: false, error: `adventure: ${pathValidation.error}`};
-                }
-
-                try {
-                    adventureToLoad = JSON.parse(pathValidation.node.content);
-                    if (!adventureToLoad.rooms || !adventureToLoad.startingRoomId) {
-                        return {success: false, error: `adventure: Invalid adventure file format in '${args[0]}'.`};
+                if (scriptingContext && scriptingContext.isScripting) {
+                    while (scriptingContext.currentLineIndex < scriptingContext.lines.length - 1 && TextAdventureModal.isActive()) {
+                        let nextCommand = await TextAdventureModal.requestInput("");
+                        if (nextCommand === null) break;
+                        await TextAdventureEngine.processCommand(nextCommand);
                     }
-                    if (!adventureToLoad.title) adventureToLoad.title = args[0];
-                } catch (e) {
-                    return {
-                        success: false,
-                        error: `adventure: Error parsing adventure file '${args[0]}': ${e.message}`
-                    };
+                    if (TextAdventureModal.isActive()) {
+                        TextAdventureModal.hide();
+                    }
                 }
-            } else {
-                adventureToLoad = defaultAdventureData;
+
+                return {success: true, output: ""};
+            } catch (e) {
+                return { success: false, error: `adventure: An unexpected error occurred: ${e.message}` };
             }
-
-            const scriptingContext = options.scriptingContext || null;
-            await TextAdventureEngine.startAdventure(adventureToLoad, {scriptingContext: scriptingContext});
-
-            if (scriptingContext && scriptingContext.isScripting) {
-                while (scriptContext.currentLineIndex < scriptContext.lines.length - 1 && TextAdventureModal.isActive()) {
-                    let nextCommand = await TextAdventureModal.requestInput("");
-                    if (nextCommand === null) break;
-                    await TextAdventureEngine.processCommand(nextCommand);
-                }
-                if (TextAdventureModal.isActive()) {
-                    TextAdventureModal.hide();
-                }
-            }
-
-            return {success: true, output: ""};
         }
     }
 
-            const adventureDescription = "Starts an interactive text adventure game or creation tool.";
+    const adventureDescription = "Starts an interactive text adventure game or creation tool.";
     const adventureHelpText = `Usage: adventure [--create] [path_to_game.json]
 
 Launches the OopisOS interactive text adventure engine.

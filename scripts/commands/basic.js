@@ -4,50 +4,56 @@
 
     const basicCommandDefinition = {
         commandName: "basic",
-        completionType: "paths",
+        completionType: "paths", // Preserved for tab completion
         argValidation: {
             max: 1,
             error: "Usage: basic [filename.bas]"
         },
         coreLogic: async (context) => {
-            const { args, options, currentUser } = context;
+            const { args, options } = context;
 
-            if (!options.isInteractive) {
-                return { success: false, error: "basic: Cannot be run in a non-interactive mode." };
-            }
-
-            if (typeof BasicManager === 'undefined' || typeof BasicUI === 'undefined' || typeof Basic_interp === 'undefined') {
-                return { success: false, error: "basic: The BASIC application modules are not loaded." };
-            }
-
-            let fileContent = null;
-            let filePath = null;
-
-            if (args.length > 0) {
-                const pathArg = args[0];
-                const validationResult = FileSystemManager.validatePath(pathArg, {
-                    expectedType: 'file',
-                    permissions: ['read']
-                });
-
-                if (validationResult.error) {
-                    // We allow missing files, so we only fail if there's an error OTHER than not found.
-                    if (!validationResult.node && validationResult.error.includes("No such file or directory")) {
-                        filePath = FileSystemManager.getAbsolutePath(pathArg);
-                        fileContent = "";
-                    } else {
-                        return { success: false, error: `basic: ${validationResult.error}` };
-                    }
-                } else {
-                    filePath = validationResult.resolvedPath;
-                    fileContent = validationResult.node.content;
+            try {
+                if (!options.isInteractive) {
+                    return { success: false, error: "basic: Cannot be run in a non-interactive mode." };
                 }
+
+                if (typeof BasicManager === 'undefined' || typeof BasicUI === 'undefined' || typeof Basic_interp === 'undefined') {
+                    return { success: false, error: "basic: The BASIC application modules are not loaded." };
+                }
+
+                let fileContent = null;
+                let filePath = null;
+
+                if (args.length > 0) {
+                    const pathArg = args[0];
+                    const pathValidation = FileSystemManager.validatePath(pathArg, {
+                        allowMissing: true,
+                        expectedType: 'file'
+                    });
+
+                    if (pathValidation.error && !pathValidation.node && !pathValidation.error.includes("No such file or directory")) {
+                        return { success: false, error: `basic: ${pathValidation.error}` };
+                    }
+
+                    if(pathValidation.node) {
+                        if (!FileSystemManager.hasPermission(pathValidation.node, context.currentUser, 'read')) {
+                            return { success: false, error: `basic: cannot read file '${pathArg}': Permission denied`};
+                        }
+                        filePath = pathValidation.resolvedPath;
+                        fileContent = pathValidation.node.content;
+                    } else {
+                        // File doesn't exist, which is fine. We'll create it on save.
+                        filePath = pathValidation.resolvedPath;
+                        fileContent = "";
+                    }
+                }
+
+                BasicManager.enter(context, { content: fileContent, path: filePath });
+
+                return { success: true, output: "" };
+            } catch (e) {
+                return { success: false, error: `basic: An unexpected error occurred: ${e.message}` };
             }
-
-
-            BasicManager.enter(context, { content: fileContent, path: filePath });
-
-            return { success: true, output: "" };
         }
     };
 

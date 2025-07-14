@@ -4,30 +4,30 @@
 
     const exportCommandDefinition = {
         commandName: "export",
-        completionType: "paths",
+        completionType: "paths", // Preserved for tab completion
         argValidation: {
             exact: 1,
             error: "expects exactly one file path.",
         },
         coreLogic: async (context) => {
-            const { args, currentUser } = context;
+            const { args } = context;
             const pathArg = args[0];
 
-            const pathValidation = FileSystemManager.validatePath(pathArg, {
-                expectedType: 'file',
-                permissions: ['read']
-            });
-
-            if (pathValidation.error) {
-                return { success: false, error: `export: ${pathValidation.error}` };
-            }
-
-            const fileNode = pathValidation.node;
-            const fileName = pathValidation.resolvedPath.substring(
-                pathValidation.resolvedPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR) + 1
-            );
-
             try {
+                const pathValidation = FileSystemManager.validatePath(pathArg, {
+                    expectedType: 'file',
+                    permissions: ['read']
+                });
+
+                if (pathValidation.error) {
+                    return { success: false, error: `export: ${pathValidation.error.replace(pathArg + ':', '').trim()}` };
+                }
+
+                const fileNode = pathValidation.node;
+                const fileName = pathValidation.resolvedPath.substring(
+                    pathValidation.resolvedPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR) + 1
+                );
+
                 const blob = new Blob([fileNode.content || ""], {
                     type: "text/plain;charset=utf-8",
                 });
@@ -47,19 +47,17 @@
                 return {
                     success: true,
                     output: `${Config.MESSAGES.EXPORTING_PREFIX}${fileName}${Config.MESSAGES.EXPORTING_SUFFIX}`,
-                    messageType: Config.CSS_CLASSES.SUCCESS_MSG,
                 };
             } catch (e) {
                 return {
                     success: false,
-                    error: `export: Failed to download '${fileName}': ${e.message}`,
+                    error: `export: Failed to download file: ${e.message}`,
                 };
             }
         },
     };
 
     const exportDescription = "Downloads a file from OopisOS to your local machine.";
-
     const exportHelpText = `Usage: export <file_path>
 
 Download a file from OopisOS to your local machine.
