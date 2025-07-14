@@ -4,52 +4,59 @@
 
     const paintCommandDefinition = {
         commandName: "paint",
-        completionType: "paths",
+        completionType: "paths", // Preserved for tab completion
         argValidation: {
             max: 1,
             error: "Usage: paint [filename.oopic]"
         },
-        // REMOVED: pathValidation property is gone.
         coreLogic: async (context) => {
             const { args, options, currentUser } = context;
 
-            if (!options.isInteractive) {
-                return { success: false, error: "paint: Can only be run in interactive mode." };
-            }
+            try {
+                if (!options.isInteractive) {
+                    return { success: false, error: "paint: Can only be run in interactive mode." };
+                }
 
-            if (typeof PaintManager === 'undefined' || typeof PaintUI === 'undefined') {
+                if (typeof PaintManager === 'undefined' || typeof PaintUI === 'undefined') {
+                    return {
+                        success: false,
+                        error: "paint: The Paint application module is not loaded."
+                    };
+                }
+
+                const pathArg = args.length > 0 ? args[0] : `untitled-${new Date().getTime()}.oopic`;
+                let fileContent = "";
+                let filePath = FileSystemManager.getAbsolutePath(pathArg);
+
+                if (Utils.getFileExtension(filePath) !== 'oopic') {
+                    return { success: false, error: `paint: can only edit .oopic files.` };
+                }
+
+                const pathValidation = FileSystemManager.validatePath(filePath, {
+                    allowMissing: true,
+                    expectedType: 'file'
+                });
+
+                if (pathValidation.error && !(pathValidation.node === null && pathValidation.error.includes("No such file or directory"))) {
+                    return { success: false, error: `paint: ${pathValidation.error}` };
+                }
+
+                if(pathValidation.node) {
+                    if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
+                        return { success: false, error: `paint: '${filePath}': Permission denied` };
+                    }
+                    fileContent = pathValidation.node.content || "";
+                }
+
+                PaintManager.enter(filePath, fileContent);
+
                 return {
-                    success: false,
-                    error: "paint: The Paint application module is not loaded."
+                    success: true,
+                    output: ""
                 };
+            } catch (e) {
+                return { success: false, error: `paint: An unexpected error occurred: ${e.message}` };
             }
-
-            const pathArg = args.length > 0 ? args[0] : `untitled-${new Date().getTime()}.oopic`;
-            let fileContent = "";
-            let filePath = FileSystemManager.getAbsolutePath(pathArg);
-
-            if (Utils.getFileExtension(filePath) !== 'oopic') {
-                return { success: false, error: `paint: can only edit .oopic files.` };
-            }
-
-            const node = FileSystemManager.getNodeByPath(filePath);
-
-            if (node) {
-                if(node.type !== 'file') {
-                    return { success: false, error: `paint: '${pathArg}' is not a file.` };
-                }
-                if (!FileSystemManager.hasPermission(node, currentUser, "read")) {
-                    return { success: false, error: `paint: '${filePath}': Permission denied` };
-                }
-                fileContent = node.content || "";
-            }
-
-            PaintManager.enter(filePath, fileContent);
-
-            return {
-                success: true,
-                output: ""
-            };
         }
     };
 

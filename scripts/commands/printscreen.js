@@ -4,78 +4,61 @@
 
     const printscreenCommandDefinition = {
         commandName: "printscreen",
-        completionType: "paths",
+        completionType: "paths", // Preserved for tab completion
         argValidation: {
             exact: 1,
             error: "Usage: printscreen <filepath>",
         },
-        // REMOVED: pathValidation property is gone.
         coreLogic: async (context) => {
             const { args, currentUser } = context;
             const filePathArg = args[0];
             const nowISO = new Date().toISOString();
 
-            // --- NEW: Explicit validation sequence ---
-            const resolvedPath = FileSystemManager.getAbsolutePath(filePathArg);
+            try {
+                const pathValidation = FileSystemManager.validatePath(filePathArg, {
+                    allowMissing: true,
+                    expectedType: 'file',
+                    disallowRoot: true
+                });
 
-            if (resolvedPath === Config.FILESYSTEM.ROOT_PATH) {
-                return {
-                    success: false,
-                    error: `printscreen: Cannot save directly to root ('${Config.FILESYSTEM.ROOT_PATH}'). Please specify a filename.`,
-                };
-            }
+                if (pathValidation.error && !pathValidation.optionsUsed.allowMissing) {
+                    return { success: false, error: `printscreen: ${pathValidation.error}` };
+                }
 
-            if (resolvedPath.endsWith(Config.FILESYSTEM.PATH_SEPARATOR)) {
-                return {
-                    success: false,
-                    error: `printscreen: Target path '${filePathArg}' must be a file, not a directory path (ending with '${Config.FILESYSTEM.PATH_SEPARATOR}').`,
-                };
-            }
+                if (pathValidation.node && pathValidation.node.type === 'directory') {
+                    return { success: false, error: `printscreen: cannot overwrite directory '${filePathArg}' with a file.` };
+                }
 
-            const existingNode = FileSystemManager.getNodeByPath(resolvedPath);
+                if (pathValidation.node && !FileSystemManager.hasPermission(pathValidation.node, currentUser, "write")) {
+                    return { success: false, error: `printscreen: '${filePathArg}': Permission denied` };
+                }
 
-            if (existingNode) {
-                if (existingNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
+                const outputContent = DOM.outputDiv ? DOM.outputDiv.innerText : "";
+
+                const saveResult = await FileSystemManager.createOrUpdateFile(
+                    pathValidation.resolvedPath,
+                    outputContent,
+                    { currentUser, primaryGroup: UserManager.getPrimaryGroupForUser(currentUser) }
+                );
+
+                if (!saveResult.success) {
+                    return { success: false, error: `printscreen: ${saveResult.error}`};
+                }
+
+                if (!(await FileSystemManager.save(currentUser))) {
                     return {
                         success: false,
-                        error: `printscreen: Cannot overwrite directory '${filePathArg}'.`,
+                        error: "printscreen: Failed to save file system changes.",
                     };
                 }
-                if (!FileSystemManager.hasPermission(existingNode, currentUser, "write")) {
-                    return {
-                        success: false,
-                        error: `printscreen: '${filePathArg}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}`,
-                    };
-                }
-            }
-            // --- End of new validation sequence ---
 
-            const outputContent = DOM.outputDiv ? DOM.outputDiv.innerText : "";
-
-            const saveResult = await FileSystemManager.createOrUpdateFile(
-                resolvedPath,
-                outputContent,
-                { currentUser, primaryGroup: UserManager.getPrimaryGroupForUser(currentUser), existingNode }
-            );
-
-            if (!saveResult.success) {
-                return { success: false, error: `printscreen: ${saveResult.error}`};
-            }
-
-            FileSystemManager._updateNodeAndParentMtime(resolvedPath, nowISO);
-
-            if (!(await FileSystemManager.save(currentUser))) {
                 return {
-                    success: false,
-                    error: "printscreen: Failed to save file system changes.",
+                    success: true,
+                    output: `Terminal output saved to '${pathValidation.resolvedPath}'`,
                 };
+            } catch (e) {
+                return { success: false, error: `printscreen: An unexpected error occurred: ${e.message}` };
             }
-
-            return {
-                success: true,
-                output: `Terminal output saved to '${resolvedPath}'`,
-                messageType: Config.CSS_CLASSES.SUCCESS_MSG,
-            };
         },
     };
 

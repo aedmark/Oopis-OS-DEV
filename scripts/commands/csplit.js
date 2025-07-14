@@ -4,7 +4,7 @@
 
     const csplitCommandDefinition = {
         commandName: "csplit",
-        completionType: "paths",
+        completionType: "paths", // Preserved for tab completion
         flagDefinitions: [
             { name: "prefix", short: "-f", long: "--prefix", takesValue: true },
             { name: "keepFiles", short: "-k", long: "--keep-files" },
@@ -15,110 +15,111 @@
         argValidation: {
             min: 2,
         },
-        // REMOVED: pathValidation and permissionChecks are gone.
         coreLogic: async (context) => {
             const { args, flags, currentUser } = context;
 
-            // --- NEW: Explicit validation sequence ---
-            const fileValidation = FileSystemManager.validatePath(args[0], {
-                expectedType: 'file',
-                permissions: ['read']
-            });
+            try {
+                const fileValidation = FileSystemManager.validatePath(args[0], {
+                    expectedType: 'file',
+                    permissions: ['read']
+                });
 
-            if (fileValidation.error) {
-                return { success: false, error: `csplit: ${fileValidation.error}` };
-            }
-            const fileNode = fileValidation.node;
-            // --- End of new validation sequence ---
+                if (fileValidation.error) {
+                    return { success: false, error: `csplit: ${fileValidation.error}` };
+                }
+                const fileNode = fileValidation.node;
 
-            const content = fileNode.content || "";
-            const lines = content.split('\n');
+                const content = fileNode.content || "";
+                const lines = content.split('\\n');
 
-            const patterns = args.slice(1);
-            const prefix = flags.prefix || 'xx';
-            const numDigits = flags.digits ? parseInt(flags.digits, 10) : 2;
+                const patterns = args.slice(1);
+                const prefix = flags.prefix || 'xx';
+                const numDigits = flags.digits ? parseInt(flags.digits, 10) : 2;
 
-            if (isNaN(numDigits) || numDigits < 1) {
-                return { success: false, error: `csplit: invalid number of digits: '${flags.digits}'` };
-            }
+                if (isNaN(numDigits) || numDigits < 1) {
+                    return { success: false, error: `csplit: invalid number of digits: '${flags.digits}'` };
+                }
 
-            const segments = [];
-            let lastSplitLine = 0;
+                const segments = [];
+                let lastSplitLine = 0;
 
-            for (const pattern of patterns) {
-                let splitLine = -1;
+                for (const pattern of patterns) {
+                    let splitLine = -1;
 
-                if (pattern.startsWith('/')) {
-                    try {
-                        const regexStr = pattern.slice(1, pattern.lastIndexOf('/'));
-                        const regex = new RegExp(regexStr);
-                        for (let j = lastSplitLine; j < lines.length; j++) {
-                            if (regex.test(lines[j])) {
-                                splitLine = j;
-                                break;
+                    if (pattern.startsWith('/')) {
+                        try {
+                            const regexStr = pattern.slice(1, pattern.lastIndexOf('/'));
+                            const regex = new RegExp(regexStr);
+                            for (let j = lastSplitLine; j < lines.length; j++) {
+                                if (regex.test(lines[j])) {
+                                    splitLine = j;
+                                    break;
+                                }
                             }
+                        } catch (e) {
+                            return { success: false, error: `csplit: invalid regular expression: '${pattern}'` };
                         }
-                    } catch (e) {
-                        return { success: false, error: `csplit: invalid regular expression: '${pattern}'` };
-                    }
-                } else {
-                    const lineNum = parseInt(pattern, 10);
-                    if (isNaN(lineNum) || lineNum <= 0 || lineNum > lines.length) {
-                        return { success: false, error: `csplit: '${pattern}': line number out of range` };
-                    }
-                    splitLine = lineNum - 1;
-                }
-
-                if (splitLine === -1 || splitLine < lastSplitLine) {
-                    return { success: false, error: `csplit: '${pattern}': pattern not found or out of order` };
-                }
-
-                segments.push(lines.slice(lastSplitLine, splitLine));
-                lastSplitLine = splitLine;
-            }
-
-            segments.push(lines.slice(lastSplitLine));
-
-            const createdFileNames = [];
-            let anyChangeMade = false;
-
-            for (let i = 0; i < segments.length; i++) {
-                const segmentContent = segments[i].join('\n');
-
-                if (!segmentContent && flags.elideEmpty) {
-                    continue;
-                }
-
-                const fileName = `${prefix}${String(i).padStart(numDigits, '0')}`;
-                const saveResult = await FileSystemManager.createOrUpdateFile(
-                    FileSystemManager.getAbsolutePath(fileName),
-                    segmentContent,
-                    { currentUser, primaryGroup: UserManager.getPrimaryGroupForUser(currentUser) }
-                );
-
-                if (!saveResult.success) {
-                    if (!flags.keepFiles) {
-                        for (const f of createdFileNames) {
-                            await CommandExecutor.processSingleCommand(`rm -f ${f}`, { isInteractive: false });
+                    } else {
+                        const lineNum = parseInt(pattern, 10);
+                        if (isNaN(lineNum) || lineNum <= 0 || lineNum > lines.length) {
+                            return { success: false, error: `csplit: '${pattern}': line number out of range` };
                         }
-                        await FileSystemManager.save();
+                        splitLine = lineNum - 1;
                     }
-                    return { success: false, error: `csplit: failed to write to ${fileName}: ${saveResult.error}` };
+
+                    if (splitLine === -1 || splitLine < lastSplitLine) {
+                        return { success: false, error: `csplit: '${pattern}': pattern not found or out of order` };
+                    }
+
+                    segments.push(lines.slice(lastSplitLine, splitLine));
+                    lastSplitLine = splitLine;
                 }
 
-                createdFileNames.push(fileName);
-                anyChangeMade = true;
+                segments.push(lines.slice(lastSplitLine));
 
-                if (!flags.quiet) {
-                    await OutputManager.appendToOutput(String(segmentContent.length));
+                const createdFileNames = [];
+                let anyChangeMade = false;
+
+                for (let i = 0; i < segments.length; i++) {
+                    const segmentContent = segments[i].join('\\n');
+
+                    if (!segmentContent && flags.elideEmpty) {
+                        continue;
+                    }
+
+                    const fileName = `${prefix}${String(i).padStart(numDigits, '0')}`;
+                    const saveResult = await FileSystemManager.createOrUpdateFile(
+                        FileSystemManager.getAbsolutePath(fileName),
+                        segmentContent,
+                        { currentUser, primaryGroup: UserManager.getPrimaryGroupForUser(currentUser) }
+                    );
+
+                    if (!saveResult.success) {
+                        if (!flags.keepFiles) {
+                            for (const f of createdFileNames) {
+                                await CommandExecutor.processSingleCommand(`rm -f ${f}`, { isInteractive: false });
+                            }
+                            await FileSystemManager.save();
+                        }
+                        return { success: false, error: `csplit: failed to write to ${fileName}: ${saveResult.error}` };
+                    }
+
+                    createdFileNames.push(fileName);
+                    anyChangeMade = true;
+
+                    if (!flags.quiet) {
+                        await OutputManager.appendToOutput(String(segmentContent.length));
+                    }
                 }
-            }
 
-            if (anyChangeMade) {
-                await FileSystemManager.save();
-            }
+                if (anyChangeMade) {
+                    await FileSystemManager.save();
+                }
 
-            return { success: true, output: "" };
+                return { success: true, output: "" };
+            } catch (e) {
+                return { success: false, error: `csplit: An unexpected error occurred: ${e.message}` };
+            }
         }
     };
 

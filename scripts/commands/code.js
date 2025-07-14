@@ -4,52 +4,54 @@
 
     const codeCommandDefinition = {
         commandName: "code",
-        completionType: "paths", // Explicitly declare for tab completion
+        completionType: "paths", // Preserved for tab completion
         argValidation: {
             max: 1,
             error: "Usage: code [filepath]"
         },
-        // REMOVED: pathValidation property is gone.
         coreLogic: async (context) => {
-            const {args, options, currentUser} = context;
+            const { args, options, currentUser } = context;
 
-            if (!options.isInteractive) {
-                return {success: false, error: "code: Can only be run in interactive mode."};
-            }
-
-            if (typeof CodeManager === 'undefined' || typeof CodeUI === 'undefined') {
-                return {success: false, error: "code: The code editor application modules are not loaded."};
-            }
-
-            const pathArg = args.length > 0 ? args[0] : null;
-            let fileNode = null;
-            let resolvedPath = null;
-            let fileContent = "";
-
-            if (pathArg) {
-                // --- NEW: Explicit validation sequence ---
-                const pathValidation = FileSystemManager.validatePath(pathArg, {
-                    allowMissing: true,
-                    expectedType: 'file'
-                });
-
-                if (pathValidation.error && !pathValidation.node && !pathValidation.error.includes("No such file or directory")) {
-                    return {success: false, error: `code: ${pathValidation.error}`};
+            try {
+                if (!options.isInteractive) {
+                    return { success: false, error: "code: Can only be run in interactive mode." };
                 }
 
-                if (pathValidation.node) {
-                    if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
-                        return {success: false, error: `code: cannot read file '${pathArg}': Permission denied`};
+                if (typeof CodeManager === 'undefined' || typeof CodeUI === 'undefined') {
+                    return { success: false, error: "code: The code editor application modules are not loaded." };
+                }
+
+                const pathArg = args.length > 0 ? args[0] : null;
+                let fileNode = null;
+                let resolvedPath = null;
+                let fileContent = "";
+
+                if (pathArg) {
+                    const pathValidation = FileSystemManager.validatePath(pathArg, {
+                        allowMissing: true,
+                        expectedType: 'file'
+                    });
+
+                    if (pathValidation.error && !(pathValidation.node === null && pathValidation.error.includes("No such file or directory"))) {
+                        return { success: false, error: `code: ${pathValidation.error}` };
                     }
-                    fileNode = pathValidation.node;
-                    fileContent = fileNode.content || "";
+
+                    if (pathValidation.node) {
+                        if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
+                            return { success: false, error: `code: cannot read file '${pathArg}': Permission denied` };
+                        }
+                        fileNode = pathValidation.node;
+                        fileContent = fileNode.content || "";
+                    }
+                    resolvedPath = pathValidation.resolvedPath;
                 }
-                resolvedPath = pathValidation.resolvedPath;
+
+                CodeManager.enter(resolvedPath, fileContent);
+
+                return { success: true, output: "" };
+            } catch (e) {
+                return { success: false, error: `code: An unexpected error occurred: ${e.message}` };
             }
-
-            CodeManager.enter(resolvedPath, fileContent);
-
-            return {success: true, output: ""};
         }
     };
 

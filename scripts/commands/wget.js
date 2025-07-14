@@ -4,6 +4,7 @@
 
     const wgetCommandDefinition = {
         commandName: "wget",
+        completionType: "paths", // Preserved for tab completion
         flagDefinitions: [{
             name: "outputFile",
             short: "-O",
@@ -22,36 +23,34 @@
             const url = args[0];
             let outputFileName = flags.outputFile;
 
-            if (!outputFileName) {
-                try {
-                    const urlObj = new URL(url);
-                    const segments = urlObj.pathname.split('/');
-                    outputFileName = segments.pop() || "index.html";
-                } catch (e) {
-                    return {
-                        success: false,
-                        error: `wget: Invalid URL '${url}'`
-                    };
-                }
-            }
-
-            // --- NEW: Explicit validation sequence ---
-            const pathValidation = FileSystemManager.validatePath(outputFileName, {
-                allowMissing: true,
-                disallowRoot: true
-            });
-
-            if (pathValidation.error) {
-                return { success: false, error: `wget: ${pathValidation.error}` };
-            }
-            if(pathValidation.node && pathValidation.node.type === 'directory') {
-                return { success: false, error: `wget: '${outputFileName}' is a directory` };
-            }
-            // --- End of new validation sequence ---
-
-            await OutputManager.appendToOutput(`--OopisOS WGET--\nResolving ${url}...`);
-
             try {
+                if (!outputFileName) {
+                    try {
+                        const urlObj = new URL(url);
+                        const segments = urlObj.pathname.split('/');
+                        outputFileName = segments.pop() || "index.html";
+                    } catch (e) {
+                        return {
+                            success: false,
+                            error: `wget: Invalid URL '${url}'`
+                        };
+                    }
+                }
+
+                const pathValidation = FileSystemManager.validatePath(outputFileName, {
+                    allowMissing: true,
+                    disallowRoot: true
+                });
+
+                if (pathValidation.error) {
+                    return { success: false, error: `wget: ${pathValidation.error}` };
+                }
+                if(pathValidation.node && pathValidation.node.type === 'directory') {
+                    return { success: false, error: `wget: '${outputFileName}' is a directory` };
+                }
+
+                await OutputManager.appendToOutput(`--OopisOS WGET--\\nResolving ${url}...`);
+
                 const response = await fetch(url);
                 await OutputManager.appendToOutput(`Connecting to ${new URL(url).hostname}... connected.`);
                 await OutputManager.appendToOutput(`HTTP request sent, awaiting response... ${response.status} ${response.statusText}`);
@@ -98,7 +97,6 @@
                 return {
                     success: true,
                     output: `‘${outputFileName}’ saved [${content.length} bytes]`,
-                    messageType: Config.CSS_CLASSES.SUCCESS_MSG
                 };
 
             } catch (e) {

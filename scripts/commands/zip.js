@@ -27,65 +27,66 @@
 
     const zipCommandDefinition = {
         commandName: "zip",
-        completionType: "paths",
+        completionType: "paths", // Preserved for tab completion.
         argValidation: {
             exact: 2,
             error: "Usage: zip <archive.zip> <path_to_zip>"
         },
-        // REMOVED: pathValidation is gone.
         coreLogic: async (context) => {
             const { args, currentUser } = context;
             let archivePath = args[0];
             const sourcePath = args[1];
 
-            if (!archivePath.endsWith('.zip')) {
-                archivePath += '.zip';
+            try {
+                if (!archivePath.endsWith('.zip')) {
+                    archivePath += '.zip';
+                }
+
+                const sourceValidation = FileSystemManager.validatePath(sourcePath, {
+                    permissions: ['read']
+                });
+                if (sourceValidation.error) {
+                    return { success: false, error: `zip: ${sourceValidation.error}` };
+                }
+
+                const archiveValidation = FileSystemManager.validatePath(archivePath, {
+                    allowMissing: true,
+                    expectedType: 'file'
+                });
+                if (archiveValidation.error && !archiveValidation.node && !archiveValidation.error.includes("No such file or directory")) {
+                    return { success: false, error: `zip: ${archiveValidation.error}` };
+                }
+                if (archiveValidation.node && archiveValidation.node.type === 'directory') {
+                    return { success: false, error: `zip: cannot overwrite directory '${archivePath}' with a file` };
+                }
+
+                await OutputManager.appendToOutput(`Zipping '${sourcePath}'...`);
+
+                const sourceName = sourceValidation.resolvedPath.split('/').pop() || sourceValidation.resolvedPath;
+                const archiveObject = {
+                    [sourceName]: await _archiveNode(sourceValidation.node)
+                };
+                const archiveContent = JSON.stringify(archiveObject, null, 2);
+
+                const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
+                const saveResult = await FileSystemManager.createOrUpdateFile(
+                    archiveValidation.resolvedPath,
+                    archiveContent,
+                    { currentUser, primaryGroup }
+                );
+
+                if (!saveResult.success) {
+                    return { success: false, error: `zip: ${saveResult.error}` };
+                }
+
+                if (!(await FileSystemManager.save())) {
+                    return { success: false, error: "zip: Failed to save file system changes." };
+                }
+
+                return { success: true, output: `Successfully zipped '${sourcePath}' to '${archivePath}'.` };
+            } catch (e) {
+                return { success: false, error: `zip: An unexpected error occurred: ${e.message}` };
             }
-
-            // --- NEW: Explicit validation sequence ---
-            const sourceValidation = FileSystemManager.validatePath(sourcePath, {
-                permissions: ['read']
-            });
-            if (sourceValidation.error) {
-                return { success: false, error: `zip: ${sourceValidation.error}` };
-            }
-
-            const archiveValidation = FileSystemManager.validatePath(archivePath, {
-                allowMissing: true,
-                expectedType: 'file'
-            });
-            if (archiveValidation.error && !archiveValidation.node && !archiveValidation.error.includes("No such file or directory")) {
-                return { success: false, error: `zip: ${archiveValidation.error}` };
-            }
-            if (archiveValidation.node && archiveValidation.node.type === 'directory') {
-                return { success: false, error: `zip: cannot overwrite directory '${archivePath}' with a file` };
-            }
-            // --- End of new validation sequence ---
-
-            await OutputManager.appendToOutput(`Zipping '${sourcePath}'...`);
-
-            const sourceName = sourceValidation.resolvedPath.split('/').pop() || sourceValidation.resolvedPath;
-            const archiveObject = {
-                [sourceName]: await _archiveNode(sourceValidation.node)
-            };
-            const archiveContent = JSON.stringify(archiveObject, null, 2);
-
-            const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
-            const saveResult = await FileSystemManager.createOrUpdateFile(
-                archiveValidation.resolvedPath,
-                archiveContent,
-                { currentUser, primaryGroup }
-            );
-
-            if (!saveResult.success) {
-                return { success: false, error: `zip: ${saveResult.error}` };
-            }
-
-            if (!(await FileSystemManager.save())) {
-                return { success: false, error: "zip: Failed to save file system changes." };
-            }
-
-            return { success: true, output: `Successfully zipped '${sourcePath}' to '${archivePath}'.` };
         }
     };
 
