@@ -456,11 +456,26 @@ const CommandExecutor = (() => {
     return lastResult;
   }
 
-  async function _preprocessCommandString(rawCommandText) {
+  // This function is now enhanced to handle script arguments.
+  async function _preprocessCommandString(rawCommandText, scriptingContext = null) {
     let expandedCommand = rawCommandText.trim();
     if (!expandedCommand) {
       return "";
     }
+
+    // --- NEW: Handle script arguments ($1, $2, $@, $#) ---
+    if (scriptingContext && scriptingContext.args) {
+      const scriptArgs = scriptingContext.args;
+      // Replace $@ first to avoid issues with numbered arguments
+      expandedCommand = expandedCommand.replace(/\$@/g, scriptArgs.join(' '));
+      expandedCommand = expandedCommand.replace(/\$#/g, scriptArgs.length);
+      // Replace numbered arguments like $1, $2, etc.
+      scriptArgs.forEach((arg, i) => {
+        const regex = new RegExp(`\\$${i + 1}`, 'g');
+        expandedCommand = expandedCommand.replace(regex, arg);
+      });
+    }
+    // --- End of New Logic ---
 
     expandedCommand = expandedCommand.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g, (match, var1, var2) => {
       const varName = var1 || var2;
@@ -473,7 +488,6 @@ const CommandExecutor = (() => {
     }
     const commandAfterAliases = aliasResult.newCommand;
 
-    // Expand glob patterns
     const args = commandAfterAliases.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
     const expandedArgs = [];
     if (args.length > 0) {
@@ -487,7 +501,7 @@ const CommandExecutor = (() => {
       const globPattern = isQuoted ? originalArg.slice(1, -1) : originalArg;
       const hasGlobChar = globPattern.includes('*') || globPattern.includes('?');
 
-      if (hasGlobChar && !isQuoted) { // Only expand unquoted globs
+      if (hasGlobChar && !isQuoted) {
         const lastSlashIndex = globPattern.lastIndexOf('/');
         let pathPrefix = '.';
         let patternPart = globPattern;
@@ -530,6 +544,7 @@ const CommandExecutor = (() => {
     return commandToParse;
   }
 
+
   async function _finalizeInteractiveModeUI(originalCommandText) {
     TerminalUI.clearInput();
     TerminalUI.updatePrompt();
@@ -565,7 +580,8 @@ const CommandExecutor = (() => {
 
     let commandToParse;
     try {
-      commandToParse = await _preprocessCommandString(rawCommandText);
+      // Pass scripting context to preprocessing for argument expansion
+      commandToParse = await _preprocessCommandString(rawCommandText, scriptingContext);
     } catch (e) {
       await OutputManager.appendToOutput(e.message, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
       if (isInteractive) await _finalizeInteractiveModeUI(rawCommandText);
@@ -573,7 +589,7 @@ const CommandExecutor = (() => {
     }
 
     const cmdToEcho = rawCommandText.trim();
-    if (isInteractive) {
+    if (isInteractive && !scriptingContext) { // Only echo for direct user commands
       DOM.inputLineContainerDiv.classList.add(Config.CSS_CLASSES.HIDDEN);
       const prompt = DOM.promptContainer.textContent;
       await OutputManager.appendToOutput(`${prompt}${cmdToEcho}`);
@@ -657,6 +673,7 @@ const CommandExecutor = (() => {
     return overallResult;
   }
 
+
   function getCommands() {
     return commands;
   }
@@ -670,4 +687,4 @@ const CommandExecutor = (() => {
     _ensureCommandLoaded,
     precacheCommonCommands
   };
-})();``
+})();

@@ -6,7 +6,9 @@ echo ""
 
 # --- Phase 1: Test User & Workspace Setup ---
 echo "--- Phase 1: Creating dedicated test user and workspace ---"
-login root mcgoopis
+login root
+mcgoopis
+mcgoopis
 delay 400
 useradd diagUser
 testpass
