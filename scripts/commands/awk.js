@@ -4,79 +4,81 @@
     const awkCommandDefinition = {
         commandName: "awk",
         completionType: "paths",
+        isInputStream: true,
         flagDefinitions: [
             { name: "fieldSeparator", short: "-F", takesValue: true }
         ],
+        firstFileArgIndex: 1,
         coreLogic: async (context) => {
-            const {flags, args, options, currentUser } = context;
+            const { flags, args, inputItems, inputError } = context;
 
-            if (args.length === 0) {
-                return { success: false, error: "awk: missing program" };
-            }
-
-            const programString = args[0];
-            const program = _parseProgram(programString);
-            if (program.error) {
-                return { success: false, error: `awk: program error: ${program.error}` };
-            }
-
-            let inputText;
-            if (args.length > 1) {
-                const pathValidation = FileSystemManager.validatePath(args[1], { expectedType: 'file', permissions: ['read'] });
-                if (pathValidation.error) {
-                    return { success: false, error: `awk: ${pathValidation.error}` };
+            try {
+                if (args.length === 0) {
+                    return { success: false, error: "awk: missing program" };
                 }
-                inputText = pathValidation.node.content || "";
-            } else if (options.stdinContent !== null && options.stdinContent !== undefined) {
-                inputText = options.stdinContent;
-            } else {
-                return { success: false, error: "awk: No input provided. Please specify a file or pipe data." };
-            }
 
-            const separator = flags.fieldSeparator ? new RegExp(flags.fieldSeparator) : /\s+/;
-            let outputLines = [];
-            let nr = 0;
-
-            if (program.begin) {
-                const beginResult = _executeAction(program.begin, [], { NR: 0, NF: 0 });
-                if (beginResult !== null) {
-                    outputLines.push(beginResult);
+                if (inputError) {
+                    return { success: false, error: "awk: One or more input files could not be read." };
                 }
-            }
 
-            const lines = inputText.split('\n');
-            for (const line of lines) {
-                if (line === '' && lines.at(-1) === '') continue;
-                nr++;
-                const trimmedLine = line.trim();
-                let fields = trimmedLine === '' ? [] : trimmedLine.split(separator);
-                if (!Array.isArray(fields)) fields = [];
-                const allFields = [line, ...fields];
-                const vars = {NR: nr, NF: fields.length};
+                const programString = args[0];
+                const program = _parseProgram(programString);
+                if (program.error) {
+                    return { success: false, error: `awk: program error: ${program.error}` };
+                }
 
-                for (const rule of program.rules) {
-                    if (rule.pattern.test(line)) {
-                        const actionResult = _executeAction(rule.action, allFields, vars);
-                        if (actionResult !== null) outputLines.push(actionResult);
+                if (!inputItems || inputItems.length === 0) {
+                    return { success: true, output: "" };
+                }
+
+                const inputText = inputItems.map(item => item.content).join('\\n');
+                const separator = flags.fieldSeparator ? new RegExp(flags.fieldSeparator) : /\\s+/;
+                let outputLines = [];
+                let nr = 0;
+
+                if (program.begin) {
+                    const beginResult = _executeAction(program.begin, [], { NR: 0, NF: 0 });
+                    if (beginResult !== null) {
+                        outputLines.push(beginResult);
                     }
                 }
-            }
 
-            if (program.end) {
-                const endResult = _executeAction(program.end, [], { NR: nr, NF: 0 });
-                if (endResult !== null) {
-                    outputLines.push(endResult);
+                const lines = inputText.split('\\n');
+                for (const line of lines) {
+                    if (line === '' && lines.at(-1) === '') continue;
+                    nr++;
+                    const trimmedLine = line.trim();
+                    let fields = trimmedLine === '' ? [] : trimmedLine.split(separator);
+                    if (!Array.isArray(fields)) fields = [];
+                    const allFields = [line, ...fields];
+                    const vars = { NR: nr, NF: fields.length };
+
+                    for (const rule of program.rules) {
+                        if (rule.pattern.test(line)) {
+                            const actionResult = _executeAction(rule.action, allFields, vars);
+                            if (actionResult !== null) outputLines.push(actionResult);
+                        }
+                    }
                 }
-            }
 
-            return { success: true, output: outputLines.join('\n') };
+                if (program.end) {
+                    const endResult = _executeAction(program.end, [], { NR: nr, NF: 0 });
+                    if (endResult !== null) {
+                        outputLines.push(endResult);
+                    }
+                }
+
+                return { success: true, output: outputLines.join('\\n') };
+            } catch (e) {
+                return { success: false, error: `awk: An unexpected error occurred: ${e.message}` };
+            }
         }
     };
 
-    // The helper functions _parseProgram and _executeAction remain unchanged.
     function _parseProgram(programString) {
         const program = {begin: null, end: null, rules: [], error: null,};
-        const ruleRegex = /(BEGIN)\s*{([^}]*)}|(END)\s*{([^}]*)}|(\/[^/]*\/)\s*{([^}]*)}/g;
+        // CORRECTED REGEX: Removed unnecessary escaping from the final capture group.
+        const ruleRegex = /(BEGIN)\\s*{([^}]*)}|(END)\\s*{([^}]*)}|(\/[^/]*\/)\\s*{([^}]*)}/g;
         let match;
         while ((match = ruleRegex.exec(programString)) !== null) {
             if (match[1]) {
@@ -110,7 +112,7 @@
             if (argsStr === "") {
                 return fields[0];
             }
-            argsStr = argsStr.replace(/\$([0-9]+)/g, (match, n) => {
+            argsStr = argsStr.replace(/\\$([0-9]+)/g, (match, n) => {
                 const index = parseInt(n, 10);
                 return fields[index] || "";
             });

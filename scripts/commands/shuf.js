@@ -12,72 +12,75 @@
 
     const shufCommandDefinition = {
         commandName: "shuf",
-        completionType: "paths",
+        completionType: "paths", // Preserved for tab completion
+        isInputStream: true, // Uses the new unified input stream
         flagDefinitions: [
             { name: "count", short: "-n", long: "--head-count", takesValue: true },
             { name: "inputRange", short: "-i", long: "--input-range", takesValue: true },
             { name: "echo", short: "-e", long: "--echo" },
         ],
+        // The first file arg could be at index 0 if -e is not present
+        firstFileArgIndex: 0,
         coreLogic: async (context) => {
-            const { args, flags, options, currentUser } = context;
+            const { args, flags, inputItems, inputError } = context;
 
-            let lines = [];
-            let outputCount = null;
+            try {
+                let lines = [];
+                let outputCount = null;
 
-            if (flags.inputRange) {
-                const rangeParts = flags.inputRange.split('-');
-                if (rangeParts.length !== 2) {
-                    return { success: false, error: "shuf: invalid input range format for -i. Expected LO-HI." };
+                if (flags.inputRange) {
+                    const rangeParts = flags.inputRange.split('-');
+                    if (rangeParts.length !== 2) {
+                        return { success: false, error: "shuf: invalid input range format for -i. Expected LO-HI." };
+                    }
+                    const lo = parseInt(rangeParts[0], 10);
+                    const hi = parseInt(rangeParts[1], 10);
+
+                    if (isNaN(lo) || isNaN(hi) || lo > hi) {
+                        return { success: false, error: "shuf: invalid numeric range for -i." };
+                    }
+                    for (let i = lo; i <= hi; i++) {
+                        lines.push(String(i));
+                    }
+                } else if (flags.echo) {
+                    lines = args;
+                } else {
+                    if (inputError) {
+                        return { success: false, error: "shuf: No readable input provided or permission denied."};
+                    }
+                    if (inputItems && inputItems.length > 0) {
+                        lines = inputItems.map(item => item.content).join('\\n').split('\\n');
+                    } else if (args.length === 0) { // No piped input and no file args
+                        return { success: true, output: "" };
+                    }
                 }
-                const lo = parseInt(rangeParts[0], 10);
-                const hi = parseInt(rangeParts[1], 10);
 
-                if (isNaN(lo) || isNaN(hi) || lo > hi) {
-                    return { success: false, error: "shuf: invalid numeric range for -i." };
+                if (flags.count) {
+                    const countResult = Utils.parseNumericArg(flags.count, { allowFloat: false, allowNegative: false });
+                    if (countResult.error) {
+                        return { success: false, error: `shuf: invalid count for -n: ${countResult.error}` };
+                    }
+                    outputCount = countResult.value;
                 }
-                for (let i = lo; i <= hi; i++) {
-                    lines.push(String(i));
-                }
-            } else if (flags.echo) {
-                lines = args;
-            } else if (options.stdinContent !== null) {
-                lines = options.stdinContent.split('\n');
-            } else if (args.length > 0) {
-                const pathArg = args[0];
 
-                // --- NEW: Explicit validation sequence ---
-                const pathValidation = FileSystemManager.validatePath(pathArg, {
-                    expectedType: 'file',
-                    permissions: ['read']
-                });
-                if (pathValidation.error) {
-                    return { success: false, error: `shuf: ${pathValidation.error}` };
+                // Remove trailing empty line if it exists from file read
+                if (lines.length > 0 && lines[lines.length - 1] === '') {
+                    lines.pop();
                 }
-                // --- End of new validation sequence ---
 
-                lines = (pathValidation.node.content || '').split('\n');
-            } else {
-                return { success: false, error: "shuf: no input source specified. Use a file, a pipe, or the -i or -e options." };
+                const shuffledLines = fisherYatesShuffle(lines);
+
+                let finalOutput;
+                if (outputCount !== null) {
+                    finalOutput = shuffledLines.slice(0, outputCount);
+                } else {
+                    finalOutput = shuffledLines;
+                }
+
+                return { success: true, output: finalOutput.join('\\n') };
+            } catch (e) {
+                return { success: false, error: `shuf: An unexpected error occurred: ${e.message}` };
             }
-
-            if (flags.count) {
-                const countResult = Utils.parseNumericArg(flags.count, { allowFloat: false, allowNegative: false });
-                if (countResult.error) {
-                    return { success: false, error: `shuf: invalid count for -n: ${countResult.error}` };
-                }
-                outputCount = countResult.value;
-            }
-
-            const shuffledLines = fisherYatesShuffle(lines);
-
-            let finalOutput;
-            if (outputCount !== null) {
-                finalOutput = shuffledLines.slice(0, outputCount);
-            } else {
-                finalOutput = shuffledLines;
-            }
-
-            return { success: true, output: finalOutput.join('\n') };
         },
     };
 
