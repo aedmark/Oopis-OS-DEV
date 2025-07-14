@@ -30,8 +30,19 @@
                 const lines = scriptContent.split('\n');
                 let overallSuccess = true;
 
+                // Define the full context ONCE before the loop.
+                const scriptingContext = {
+                    sourceFile: scriptPathArg,
+                    isScripting: true,
+                    lines: lines,
+                    currentLineIndex: -1
+                };
+
                 // Loop through each line of the script.
                 for (let i = 0; i < lines.length; i++) {
+                    // Update the context's index at the start of each iteration.
+                    scriptingContext.currentLineIndex = i;
+
                     if (signal?.aborted) {
                         await OutputManager.appendToOutput("Script execution aborted by user.", { typeClass: "text-warning" });
                         overallSuccess = false;
@@ -40,12 +51,11 @@
 
                     let line = lines[i].trim();
 
-                    // Skip comments and empty lines, which is correct behavior.
                     if (line.startsWith('#') || line === '') {
                         continue;
                     }
 
-                    // Substitute script arguments ($1, $@, etc.) for the current line.
+                    // Argument substitution remains the same.
                     line = line.replace(/\$@/g, scriptArgs.join(' '));
                     line = line.replace(/\$#/g, scriptArgs.length);
                     scriptArgs.forEach((arg, j) => {
@@ -53,13 +63,15 @@
                         line = line.replace(regex, arg);
                     });
 
-                    // Execute just the single, processed line of the script.
+                    // Execute the command with the FULL scripting context.
                     const result = await CommandExecutor.processSingleCommand(line, {
                         isInteractive: false,
-                        scriptingContext: { sourceFile: scriptPathArg } // Pass context for potential nested runs.
+                        scriptingContext: scriptingContext
                     });
 
-                    // If any command fails, stop the script.
+                    // IMPORTANT: Resynchronize the loop counter in case the command consumed lines.
+                    i = scriptingContext.currentLineIndex;
+
                     if (!result.success) {
                         await OutputManager.appendToOutput(`Script '${scriptPathArg}' error on line ${i + 1}: ${line}\nError: ${result.error || 'Command failed.'}`, { typeClass: 'text-error' });
                         overallSuccess = false;
