@@ -1,3 +1,4 @@
+// scripts/commands/gemini.js
 (() => {
     "use strict";
 
@@ -39,94 +40,92 @@ RULES:
             { name: "model", short: "-m", long: "--model", takesValue: true },
             { name: "forceToolUse", short: "-f", long: "--force", description: "Force the Gemini tool-use logic (planner/synthesizer) for any provider." }
         ],
-        // No arg validation if chat flag is present
         coreLogic: async (context) => {
             const {args, options, flags} = context;
-            
-            if (flags.chat) {
-                if (!options.isInteractive) {
-                    return { success: false, error: "gemini: Chat mode can only be run in interactive mode." };
+
+            try {
+                if (flags.chat) {
+                    if (!options.isInteractive) {
+                        return { success: false, error: "gemini: Chat mode can only be run in interactive mode." };
+                    }
+                    if (typeof GeminiChatManager === 'undefined') {
+                        return { success: false, error: "gemini: The GeminiChatManager module is not loaded." };
+                    }
+                    await GeminiChatManager.enter(flags.provider, flags.model);
+                    return { success: true, output: "" };
                 }
-                if (typeof GeminiChatManager === 'undefined') {
-                    return { success: false, error: "gemini: The GeminiChatManager module is not loaded." };
+
+                if (args.length === 0) {
+                    return { success: false, error: 'Insufficient arguments. Usage: gemini [-p provider] [-m model] "<prompt>"'};
                 }
-                // Pass provider and model flags to the chat manager
-                GeminiChatManager.enter(flags.provider, flags.model);
-                return { success: true, output: "" };
-            }
-            
-            if (args.length === 0) {
-                return { success: false, error: 'Insufficient arguments. Usage: gemini [-p provider] [-m model] "<prompt>"'};
-            }
 
-            let provider = flags.provider || 'gemini';
-            const originalProvider = provider;
-            const model = flags.model || null;
-            let apiKey = null;
-            let isNewKeyProvided = false;
+                let provider = flags.provider || 'gemini';
+                const originalProvider = provider;
+                const model = flags.model || null;
+                let apiKey = null;
+                let isNewKeyProvided = false;
 
-            const userPrompt = args.join(" ");
+                const userPrompt = args.join(" ");
 
-            const requiresGeminiApiKey = provider === 'gemini';
+                const requiresGeminiApiKey = provider === 'gemini';
 
-            if (requiresGeminiApiKey) {
-                const apiKeyResult = await new Promise(resolve => {
-                    let key = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
-                    if (key) resolve({ success: true, key, fromStorage: true });
-                    else ModalInputManager.requestInput(
-                        "Please enter your Gemini API key:",
-                        (providedKey) => {
-                            if (!providedKey || providedKey.trim() === "") {
+                if (requiresGeminiApiKey) {
+                    const apiKeyResult = await new Promise(resolve => {
+                        let key = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+                        if (key) resolve({ success: true, key, fromStorage: true });
+                        else ModalInputManager.requestInput(
+                            "Please enter your Gemini API key:",
+                            (providedKey) => {
+                                if (!providedKey || providedKey.trim() === "") {
+                                    resolve({
+                                        success: false,
+                                        error: "API key entry cancelled or empty."
+                                    });
+                                    return;
+                                }
+                                StorageManager.saveItem(Config.STORAGE_KEYS.GEMINI_API_KEY, providedKey, "Gemini API Key");
+                                OutputManager.appendToOutput("API Key saved. Launching Chidi...", {
+                                    typeClass: Config.CSS_CLASSES.SUCCESS_MSG
+                                });
+                                resolve({
+                                    success: true,
+                                    key: providedKey
+                                });
+                            },
+                            () => {
                                 resolve({
                                     success: false,
-                                    error: "API key entry cancelled or empty."
+                                    error: "API key entry cancelled."
                                 });
-                                return;
-                            }
-                            StorageManager.saveItem(Config.STORAGE_KEYS.GEMINI_API_KEY, providedKey, "Gemini API Key");
-                            OutputManager.appendToOutput("API Key saved. Launching Chidi...", {
-                                typeClass: Config.CSS_CLASSES.SUCCESS_MSG
-                            });
-                            resolve({
-                                success: true,
-                                key: providedKey
-                            });
-                        },
-                        () => {
-                            resolve({
-                                success: false,
-                                error: "API key entry cancelled."
-                            });
-                        },
-                        false,
-                        options
-                    );
-                });
+                            },
+                            false,
+                            options
+                        );
+                    });
 
-                if (!apiKeyResult.success) return { success: false, error: `gemini: ${apiKeyResult.error}` };
-                apiKey = apiKeyResult.key;
-                isNewKeyProvided = !apiKeyResult.fromStorage;
-            }
+                    if (!apiKeyResult.success) return { success: false, error: `gemini: ${apiKeyResult.error}` };
+                    apiKey = apiKeyResult.key;
+                    isNewKeyProvided = !apiKeyResult.fromStorage;
+                }
 
-            if (flags.new) {
-                conversationHistory = [];
-                if (options.isInteractive) await OutputManager.appendToOutput("Starting a new conversation.", {typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG});
-            }
+                if (flags.new) {
+                    conversationHistory = [];
+                    if (options.isInteractive) await OutputManager.appendToOutput("Starting a new conversation.", {typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG});
+                }
 
-            if (options.isInteractive) await OutputManager.appendToOutput("AI is thinking...", {typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG});
+                if (options.isInteractive) await OutputManager.appendToOutput("AI is thinking...", {typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG});
 
-            const isGeminiProvider = provider === 'gemini';
-            const shouldUseToolUseLogic = isGeminiProvider || flags.forceToolUse;
+                const isGeminiProvider = provider === 'gemini';
+                const shouldUseToolUseLogic = isGeminiProvider || flags.forceToolUse;
 
-            if (shouldUseToolUseLogic) {
+                if (shouldUseToolUseLogic) {
 
-                // NEW: Build a richer, persistent context
-                const pwdResult = await CommandExecutor.processSingleCommand("pwd", { suppressOutput: true });
-                const lsResult = await CommandExecutor.processSingleCommand("ls -la", { suppressOutput: true });
-                const historyResult = await CommandExecutor.processSingleCommand("history", { suppressOutput: true });
-                const setResult = await CommandExecutor.processSingleCommand("set", { suppressOutput: true });
+                    const pwdResult = await CommandExecutor.processSingleCommand("pwd", { suppressOutput: true });
+                    const lsResult = await CommandExecutor.processSingleCommand("ls -la", { suppressOutput: true });
+                    const historyResult = await CommandExecutor.processSingleCommand("history", { suppressOutput: true });
+                    const setResult = await CommandExecutor.processSingleCommand("set", { suppressOutput: true });
 
-                const localContext = `
+                    const localContext = `
 ## OopisOS Session Context ##
 Current Directory:
 ${pwdResult.output || '(unknown)'}
@@ -140,141 +139,142 @@ ${historyResult.output || '(none)'}
 Environment Variables:
 ${setResult.output || '(none)'}
 `;
-                const plannerPrompt = `User Prompt: "${userPrompt}"\n\n${localContext}`;
+                    const plannerPrompt = `User Prompt: "${userPrompt}"\\n\\n${localContext}`;
 
-                const plannerConversation = [...conversationHistory, { role: "user", parts: [{ text: plannerPrompt }] }];
+                    const plannerConversation = [...conversationHistory, { role: "user", parts: [{ text: plannerPrompt }] }];
 
-                let plannerResult = await Utils.callLlmApi(provider, model, plannerConversation, apiKey, PLANNER_SYSTEM_PROMPT);
+                    let plannerResult = await Utils.callLlmApi(provider, model, plannerConversation, apiKey, PLANNER_SYSTEM_PROMPT);
 
-                if (!plannerResult.success && plannerResult.error === 'LOCAL_PROVIDER_UNAVAILABLE') {
-                    if (options.isInteractive) {
-                        await OutputManager.appendToOutput(`gemini: Could not connect to '${originalProvider}' for planning. Falling back to Google Gemini for tool orchestration.`, {typeClass: Config.CSS_CLASSES.WARNING_MSG});
-                    }
-                    provider = 'gemini';
-                    const fallbackApiKeyResult = await new Promise(resolve => {
-                        let key = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
-                        if (key) resolve({ success: true, key: key, fromStorage: true });
-                        else resolve({ success: false, error: "Google Gemini API key not found for fallback." });
-                    });
-                    if (!fallbackApiKeyResult.success) return { success: false, error: `gemini: ${fallbackApiKeyResult.error}` };
-                    apiKey = fallbackApiKeyResult.key;
-                    isNewKeyProvided = !fallbackApiKeyResult.fromStorage;
-
-                    plannerResult = await Utils.callLlmApi(provider, model, plannerConversation, apiKey, PLANNER_SYSTEM_PROMPT);
-                }
-
-                if (!plannerResult.success) {
-                    if (plannerResult.error === "INVALID_API_KEY") {
-                        StorageManager.removeItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+                    if (!plannerResult.success && plannerResult.error === 'LOCAL_PROVIDER_UNAVAILABLE') {
                         if (options.isInteractive) {
-                            await OutputManager.appendToOutput("Gemini API key was invalid and has been removed.", {typeClass: Config.CSS_CLASSES.WARNING_MSG});
+                            await OutputManager.appendToOutput(`gemini: Could not connect to '${originalProvider}' for planning. Falling back to Google Gemini for tool orchestration.`, {typeClass: Config.CSS_CLASSES.WARNING_MSG});
                         }
-                        return { success: false, error: "gemini: Your API key is invalid. Please run the command again." };
-                    }
-                    return { success: false, error: `gemini: Planner stage failed. ${plannerResult.error}` };
-                }
-
-                if (isNewKeyProvided && requiresGeminiApiKey) {
-                    StorageManager.saveItem(Config.STORAGE_KEYS.GEMINI_API_KEY, apiKey);
-                    if (options.isInteractive) {
-                        await OutputManager.appendToOutput("Gemini API key saved successfully.", {typeClass: Config.CSS_CLASSES.SUCCESS_MSG});
-                    }
-                }
-
-
-                const planText = plannerResult.answer?.trim();
-                if (!planText) return { success: false, error: "gemini: AI failed to generate a valid plan or response." };
-
-                const firstWordOfPlan = planText.split(/\s+/)[0];
-                if (!COMMAND_WHITELIST.includes(firstWordOfPlan)) {
-                    conversationHistory.push({ role: "user", parts: [{ text: userPrompt }] });
-                    conversationHistory.push({ role: "model", parts: [{ text: planText }] });
-                    return { success: true, output: planText };
-                }
-
-                let executedCommandsOutput = "";
-                const commandsToExecute = planText.split('\n').map(line => line.replace(/^\d+\.\s*/, '').trim()).filter(Boolean);
-                if (flags.verbose && options.isInteractive) {
-                    await OutputManager.appendToOutput(`AI's Plan:\n${commandsToExecute.map(c => `- ${c}`).join('\n')}`, {typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG});
-                }
-
-                if (!flags.confirm && options.isInteractive) {
-                    const confirmed = await new Promise(resolve => {
-                        ModalManager.request({
-                            context: 'terminal',
-                            messageLines: ["The AI has proposed the following plan:", ...commandsToExecute.map(c => `  - ${c}`), "Execute this plan?"],
-                            onConfirm: () => resolve(true),
-                            onCancel: () => resolve(false)
+                        provider = 'gemini';
+                        const fallbackApiKeyResult = await new Promise(resolve => {
+                            let key = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+                            if (key) resolve({ success: true, key: key, fromStorage: true });
+                            else resolve({ success: false, error: "Google Gemini API key not found for fallback." });
                         });
-                    });
+                        if (!fallbackApiKeyResult.success) return { success: false, error: `gemini: ${fallbackApiKeyResult.error}` };
+                        apiKey = fallbackApiKeyResult.key;
+                        isNewKeyProvided = !fallbackApiKeyResult.fromStorage;
 
-                    if (!confirmed) {
-                        await OutputManager.appendToOutput("Execution cancelled by user.", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
-                        return { success: true, output: "" };
-                    }
-                }
-
-                for (const commandStr of commandsToExecute) {
-                    const commandName = commandStr.split(' ')[0];
-                    if (!COMMAND_WHITELIST.includes(commandName)) {
-                        await OutputManager.appendToOutput(`Execution HALTED: AI attempted to run a non-whitelisted command: '${commandName}'.`, {typeClass: Config.CSS_CLASSES.ERROR_MSG});
-                        return { success: false, error: `Attempted to run restricted command: ${commandName}` };
+                        plannerResult = await Utils.callLlmApi(provider, model, plannerConversation, apiKey, PLANNER_SYSTEM_PROMPT);
                     }
 
-                    if (flags.verbose && options.isInteractive) {
-                        await OutputManager.appendToOutput(`> ${commandStr}`, {typeClass: Config.CSS_CLASSES.EDITOR_MSG});
-                    }
-                    const execResult = await CommandExecutor.processSingleCommand(commandStr, {suppressOutput: !flags.verbose});
-                    const output = execResult.success ? execResult.output : `Error: ${execResult.error}`;
-                    executedCommandsOutput += `--- Output of '${commandStr}' ---\n${output}\n\n`;
-                }
-
-                const synthesizerPrompt = `Original user question: "${userPrompt}"\n\nContext from file system:\n${executedCommandsOutput || "No commands were run."}`;
-                const synthesizerResult = await Utils.callLlmApi(provider, model, [{ role: "user", parts: [{ text: synthesizerPrompt }] }], apiKey, SYNTHESIZER_SYSTEM_PROMPT);
-
-                if (!synthesizerResult.success) {
-                    return { success: false, error: `gemini: Synthesizer stage failed. ${synthesizerResult.error}` };
-                }
-
-                const finalAnswer = synthesizerResult.answer;
-                if (!finalAnswer) {
-                    return { success: false, error: "gemini: AI failed to synthesize a final answer." };
-                }
-
-                conversationHistory.push({ role: "user", parts: [{ text: userPrompt }] });
-                conversationHistory.push({ role: "model", parts: [{ text: finalAnswer }] });
-
-                return { success: true, output: finalAnswer };
-
-            } else {
-                const directConversation = [...conversationHistory, { role: "user", parts: [{ text: userPrompt }] }];
-                const directResult = await Utils.callLlmApi(provider, model, directConversation, apiKey, null);
-                if (!directResult.success) {
-                    if (directResult.error === 'LOCAL_PROVIDER_UNAVAILABLE') {
-                        if (options.isInteractive) {
-                            await OutputManager.appendToOutput(`gemini: Could not connect to '${originalProvider}'. Falling back to default 'gemini' provider.`, {typeClass: Config.CSS_CLASSES.WARNING_MSG});
+                    if (!plannerResult.success) {
+                        if (plannerResult.error === "INVALID_API_KEY") {
+                            StorageManager.removeItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+                            if (options.isInteractive) {
+                                await OutputManager.appendToOutput("Gemini API key was invalid and has been removed.", {typeClass: Config.CSS_CLASSES.WARNING_MSG});
+                            }
+                            return { success: false, error: "gemini: Your API key is invalid. Please run the command again." };
                         }
-                        const fallbackCommand = `gemini ${flags.new ? '-n ' : ''}${flags.verbose ? '-v ' : ''}"${userPrompt}"`;
-                        return await CommandExecutor.processSingleCommand(fallbackCommand, options);
+                        return { success: false, error: `gemini: Planner stage failed. ${plannerResult.error}` };
                     }
-                    return { success: false, error: `gemini: Local LLM interaction failed. ${directResult.error}` };
+
+                    if (isNewKeyProvided && requiresGeminiApiKey) {
+                        StorageManager.saveItem(Config.STORAGE_KEYS.GEMINI_API_KEY, apiKey);
+                        if (options.isInteractive) {
+                            await OutputManager.appendToOutput("Gemini API key saved successfully.", {typeClass: Config.CSS_CLASSES.SUCCESS_MSG});
+                        }
+                    }
+
+                    const planText = plannerResult.answer?.trim();
+                    if (!planText) return { success: false, error: "gemini: AI failed to generate a valid plan or response." };
+
+                    const firstWordOfPlan = planText.split(/\\s+/)[0];
+                    if (!COMMAND_WHITELIST.includes(firstWordOfPlan)) {
+                        conversationHistory.push({ role: "user", parts: [{ text: userPrompt }] });
+                        conversationHistory.push({ role: "model", parts: [{ text: planText }] });
+                        return { success: true, output: planText };
+                    }
+
+                    let executedCommandsOutput = "";
+                    const commandsToExecute = planText.split('\\n').map(line => line.replace(/^\\d+\\.\\s*/, '').trim()).filter(Boolean);
+                    if (flags.verbose && options.isInteractive) {
+                        await OutputManager.appendToOutput(`AI's Plan:\\n${commandsToExecute.map(c => `- ${c}`).join('\\n')}`, {typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG});
+                    }
+
+                    if (!flags.confirm && options.isInteractive) {
+                        const confirmed = await new Promise(resolve => {
+                            ModalManager.request({
+                                context: 'terminal',
+                                messageLines: ["The AI has proposed the following plan:", ...commandsToExecute.map(c => `  - ${c}`), "Execute this plan?"],
+                                onConfirm: () => resolve(true),
+                                onCancel: () => resolve(false)
+                            });
+                        });
+
+                        if (!confirmed) {
+                            await OutputManager.appendToOutput("Execution cancelled by user.", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+                            return { success: true, output: "" };
+                        }
+                    }
+
+                    for (const commandStr of commandsToExecute) {
+                        const commandName = commandStr.split(' ')[0];
+                        if (!COMMAND_WHITELIST.includes(commandName)) {
+                            await OutputManager.appendToOutput(`Execution HALTED: AI attempted to run a non-whitelisted command: '${commandName}'.`, {typeClass: Config.CSS_CLASSES.ERROR_MSG});
+                            return { success: false, error: `Attempted to run restricted command: ${commandName}` };
+                        }
+
+                        if (flags.verbose && options.isInteractive) {
+                            await OutputManager.appendToOutput(`> ${commandStr}`, {typeClass: Config.CSS_CLASSES.EDITOR_MSG});
+                        }
+                        const execResult = await CommandExecutor.processSingleCommand(commandStr, {suppressOutput: !flags.verbose});
+                        const output = execResult.success ? execResult.output : `Error: ${execResult.error}`;
+                        executedCommandsOutput += `--- Output of '${commandStr}' ---\\n${output}\\n\\n`;
+                    }
+
+                    const synthesizerPrompt = `Original user question: "${userPrompt}"\\n\\nContext from file system:\\n${executedCommandsOutput || "No commands were run."}`;
+                    const synthesizerResult = await Utils.callLlmApi(provider, model, [{ role: "user", parts: [{ text: synthesizerPrompt }] }], apiKey, SYNTHESIZER_SYSTEM_PROMPT);
+
+                    if (!synthesizerResult.success) {
+                        return { success: false, error: `gemini: Synthesizer stage failed. ${synthesizerResult.error}` };
+                    }
+
+                    const finalAnswer = synthesizerResult.answer;
+                    if (!finalAnswer) {
+                        return { success: false, error: "gemini: AI failed to synthesize a final answer." };
+                    }
+
+                    conversationHistory.push({ role: "user", parts: [{ text: userPrompt }] });
+                    conversationHistory.push({ role: "model", parts: [{ text: finalAnswer }] });
+
+                    return { success: true, output: finalAnswer };
+
+                } else {
+                    const directConversation = [...conversationHistory, { role: "user", parts: [{ text: userPrompt }] }];
+                    const directResult = await Utils.callLlmApi(provider, model, directConversation, apiKey, null);
+                    if (!directResult.success) {
+                        if (directResult.error === 'LOCAL_PROVIDER_UNAVAILABLE') {
+                            if (options.isInteractive) {
+                                await OutputManager.appendToOutput(`gemini: Could not connect to '${originalProvider}'. Falling back to default 'gemini' provider.`, {typeClass: Config.CSS_CLASSES.WARNING_MSG});
+                            }
+                            const fallbackCommand = `gemini ${flags.new ? '-n ' : ''}${flags.verbose ? '-v ' : ''}"${userPrompt}"`;
+                            return await CommandExecutor.processSingleCommand(fallbackCommand, options);
+                        }
+                        return { success: false, error: `gemini: Local LLM interaction failed. ${directResult.error}` };
+                    }
+
+                    const finalAnswer = directResult.answer;
+                    if (!finalAnswer) {
+                        return { success: false, error: "gemini: Local LLM failed to generate a response." };
+                    }
+
+                    conversationHistory.push({ role: "user", parts: [{ text: userPrompt }] });
+                    conversationHistory.push({ role: "model", parts: [{ text: finalAnswer }] });
+
+                    return { success: true, output: finalAnswer };
                 }
-
-                const finalAnswer = directResult.answer;
-                if (!finalAnswer) {
-                    return { success: false, error: "gemini: Local LLM failed to generate a response." };
-                }
-
-                conversationHistory.push({ role: "user", parts: [{ text: userPrompt }] });
-                conversationHistory.push({ role: "model", parts: [{ text: finalAnswer }] });
-
-                return { success: true, output: finalAnswer };
+            } catch (e) {
+                return { success: false, error: `gemini: An unexpected error occurred: ${e.message}` };
             }
         },
     };
 
     const geminiDescription = "Engages in a context-aware conversation with a configured AI model.";
-
     const geminiHelpText = `Usage: gemini [-c | --chat] [-n|--new] [-v|--verbose] [-p provider] [-m model] [-f|--force] "<prompt>"
 
 Engage in a context-aware conversation with an AI model.
