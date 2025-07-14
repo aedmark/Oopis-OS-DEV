@@ -86,25 +86,35 @@ class Lexer {
         }
         continue;
       }
+
+      // *** CORRECTED WORD TOKENIZATION LOGIC ***
       let value = "";
       const startPos = this.position;
       while (this.position < this.input.length) {
-        char = this.input[this.position];
-        if (char === '\\') {
-          this.position++;
+        let innerChar = this.input[this.position];
+
+        if (innerChar === '\\') {
+          // Handle escaped characters
+          this.position++; // Move past the backslash
           if (this.position < this.input.length) {
-            value += this.input[this.position];
+            value += this.input[this.position]; // Add the escaped character literally
             this.position++;
           } else {
-            value += '\\';
+            value += '\\'; // Dangling backslash at the end
           }
-        } else if (/\s/.test(char) || specialChars.includes(char)) {
-          break;
-        } else {
-          value += char;
-          this.position++;
+          continue; // Continue the loop to process the next character
         }
+
+        // Check for terminators for an unquoted word
+        if (/\s/.test(innerChar) || specialChars.includes(innerChar)) {
+          break; // End of the word
+        }
+
+        // Regular character
+        value += innerChar;
+        this.position++;
       }
+
       if (value) {
         this.tokens.push(new Token(TokenType.WORD, value, startPos));
       } else if (this.position < this.input.length && !specialChars.includes(this.input[this.position]) && !/\s/.test(this.input[this.position])) {
@@ -124,7 +134,6 @@ class Lexer {
       if (char === '\\') {
         this.position++; // Consume the backslash
         if (this.position < this.input.length) {
-          // Corrected logic: Always append the next character literally.
           value += this.input[this.position];
           this.position++;
         } else {

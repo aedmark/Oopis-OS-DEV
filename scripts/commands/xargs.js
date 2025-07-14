@@ -37,7 +37,7 @@
                 }
 
                 const baseCommandArgs = args;
-                const lines = inputText.trim().split('\\n');
+                const lines = inputText.trim().split('\\n').filter(Boolean); // Filter out empty lines
                 let lastResult = {
                     success: true,
                     output: ""
@@ -46,30 +46,29 @@
 
                 const replaceStr = flags.replaceStr;
 
-                const escapeRegex = (str) => {
-                    if (!str) return null;
-                    return str.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-                };
-
-                const replaceRegex = replaceStr ? new RegExp(escapeRegex(replaceStr), 'g') : null;
-
                 for (const line of lines) {
-                    if (line.trim() === "") continue;
+                    const rawLine = line.trim();
+                    if (rawLine === "") continue;
 
-                    const rawLine = line;
                     let commandToExecute;
 
-                    if (replaceRegex) {
+                    if (replaceStr) {
+                        // Correctly handle replacement within each argument part
                         const commandParts = baseCommandArgs.map(part => {
-                            const newPart = part.replace(replaceRegex, rawLine);
-                            return newPart.includes(" ") && !newPart.startsWith('"') ? `"${newPart}"` : newPart;
+                            // Perform a literal string replacement
+                            const newPart = part.split(replaceStr).join(rawLine);
+                            // If the resulting part has spaces and is not already quoted, quote it.
+                            if (newPart.includes(' ') && !(newPart.startsWith('"') && newPart.endsWith('"'))) {
+                                return `"${newPart}"`;
+                            }
+                            return newPart;
                         });
                         commandToExecute = commandParts.join(" ");
                     } else {
+                        // Default behavior: append the line as a new, quoted argument if it contains spaces.
                         const finalArg = rawLine.includes(" ") ? `"${rawLine}"` : rawLine;
                         commandToExecute = [...baseCommandArgs, finalArg].join(" ");
                     }
-
 
                     lastResult = await CommandExecutor.processSingleCommand(
                         commandToExecute, {
