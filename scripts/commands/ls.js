@@ -84,22 +84,43 @@
 
     function formatToColumns(names) {
         if (names.length === 0) return "";
-        const terminalWidth = DOM.terminalDiv?.clientWidth || 80 * 8;
-        const charWidth = Utils.getCharacterDimensions().width || 8;
+
+        // Ensure DOM elements and utility functions are available.
+        const terminalDiv = document.getElementById("terminal");
+        const getCharDimensions = (typeof Utils !== 'undefined' && Utils.getCharacterDimensions)
+            ? Utils.getCharacterDimensions
+            : () => ({ width: 8, height: 16 }); // Fallback
+
+        const terminalWidth = terminalDiv?.clientWidth || 80 * getCharDimensions().width;
+        const charWidth = getCharDimensions().width || 8;
         const displayableCols = Math.floor(terminalWidth / charWidth);
+
         const longestName = names.reduce((max, name) => Math.max(max, name.length), 0);
         const colWidth = longestName + 2; // Add padding
-        const numColumns = Math.max(1, Math.floor(displayableCols / colWidth));
-        const numRows = Math.ceil(names.length / numColumns);
-        const grid = Array(numRows).fill(null).map(() => Array(numColumns).fill(""));
 
-        for (let i = 0; i < names.length; i++) {
-            const row = i % numRows;
-            const col = Math.floor(i / numRows);
-            grid[row][col] = names[i];
+        // If even the longest name doesn't fit, default to a single column.
+        if (colWidth > displayableCols) {
+            return names.join('\\n');
         }
 
-        return grid.map(row => row.map((item, colIndex) => (colIndex === row.length - 1) ? item : item.padEnd(colWidth)).join("")).join("\n");
+        const numColumns = Math.max(1, Math.floor(displayableCols / colWidth));
+        const numRows = Math.ceil(names.length / numColumns);
+
+        const output = [];
+        for (let i = 0; i < numRows; i++) {
+            let row = '';
+            for (let j = 0; j < numColumns; j++) {
+                const index = j * numRows + i;
+                if (index < names.length) {
+                    const item = names[index];
+                    // Use padEnd to ensure consistent column width.
+                    row += item.padEnd(colWidth);
+                }
+            }
+            output.push(row);
+        }
+
+        return output.join('\\n');
     }
 
     async function listSinglePathContents(targetPathArg, effectiveFlags, currentUser) {
