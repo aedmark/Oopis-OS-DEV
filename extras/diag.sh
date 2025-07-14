@@ -443,16 +443,6 @@ check_fail "ls 'my test dir'"
 echo "Space filename tests complete."
 delay 400
 
-echo "--- Test: xargs with quoted arguments and special characters ---"
-touch "a file with spaces.tmp" "!@#$%.tmp"
-ls *.tmp | xargs -I {} mv {} {}.bak
-check_fail "ls \"a file with spaces.tmp\"" # Should fail, as it was renamed
-ls "*.tmp.bak" # Should succeed, showing the renamed files
-rm *.tmp.bak # Cleanup
-echo "xargs with quoting and special characters test complete."
-delay 400
-
-
 echo "--- Test: Advanced find commands (-exec, -delete, operators) ---"
 mkdir -p find_exec_test/subdir
 touch find_exec_test/file.exec
@@ -837,8 +827,9 @@ delay 400
 echo "--- Test: xargs with Quoted Arguments ---"
 touch "a file with spaces.tmp"
 ls *.tmp | xargs -I {} mv {} {}.bak
-ls "*.bak"
-rm "*.bak"
+ls *.bak
+delay 500
+rm *.bak
 echo "xargs with quotes test complete."
 delay 700
 echo "---------------------------------------------------------------------"

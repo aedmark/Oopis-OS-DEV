@@ -12,6 +12,9 @@
             const { args, options, signal } = context;
             const scriptPathArg = args[0];
 
+            // 1. Create a new, isolated environment for the script
+            EnvironmentManager.push();
+
             try {
                 // --- RECURSION DEPTH CHECK ---
                 const currentDepth = (options.scriptingContext?.depth || 0) + 1;
@@ -63,9 +66,9 @@
 
                     line = line.replace(/\$@/g, scriptArgs.join(' '));
                     line = line.replace(/\$#/g, scriptArgs.length);
-                    scriptArgs.forEach((arg, j) => {
-                        const regex = new RegExp(`\\$${j + 1}`, 'g');
-                        line = line.replace(regex, arg);
+                    scriptArgs.forEach((j, k) => {
+                        const regex = new RegExp(`\\$${k + 1}`, 'g');
+                        line = line.replace(regex, j);
                     });
 
                     const result = await CommandExecutor.processSingleCommand(line, {
@@ -86,6 +89,9 @@
 
             } catch (e) {
                 return { success: false, error: `run: An unexpected error occurred: ${e.message}` };
+            } finally {
+                // 2. Clean up the script's environment, restoring the parent's
+                EnvironmentManager.pop();
             }
         }
     };
