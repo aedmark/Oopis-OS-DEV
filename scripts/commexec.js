@@ -460,20 +460,15 @@ const CommandExecutor = (() => {
   async function _preprocessCommandString(rawCommandText, scriptingContext = null) {
     let commandToProcess = rawCommandText.trim();
 
-    // --- NEW: Strip inline comments ---
-    // Find the first '#' that is preceded by a space.
     const commentIndex = commandToProcess.search(/(?<= )#/);
     if (commentIndex > -1) {
-      // If a comment is found, truncate the string to just before it.
       commandToProcess = commandToProcess.substring(0, commentIndex).trim();
     }
-    // --- End of new logic ---
 
     if (!commandToProcess) {
       return "";
     }
 
-    // --- The rest of the function remains the same ---
     if (scriptingContext && scriptingContext.args) {
       const scriptArgs = scriptingContext.args;
       commandToProcess = commandToProcess.replace(/\$@/g, scriptArgs.join(' '));
@@ -494,9 +489,62 @@ const CommandExecutor = (() => {
       throw new Error(aliasResult.error);
     }
     const commandAfterAliases = aliasResult.newCommand;
-    return commandAfterAliases;
-  }
 
+    const args = commandAfterAliases.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
+    const expandedArgs = [];
+    if (args.length > 0) {
+      expandedArgs.push(args[0]);
+    }
+    let hasExpansionOccurred = false;
+
+    for (let i = 1; i < args.length; i++) {
+      const originalArg = args[i];
+      const isQuoted = (originalArg.startsWith('"') && originalArg.endsWith('"')) || (originalArg.startsWith("'") && originalArg.endsWith("'"));
+      const globPattern = isQuoted ? originalArg.slice(1, -1) : originalArg;
+      const hasGlobChar = globPattern.includes('*') || globPattern.includes('?');
+
+      if (hasGlobChar && !isQuoted) {
+        const lastSlashIndex = globPattern.lastIndexOf('/');
+        let pathPrefix = '.';
+        let patternPart = globPattern;
+
+        if (lastSlashIndex > -1) {
+          pathPrefix = globPattern.substring(0, lastSlashIndex + 1);
+          patternPart = globPattern.substring(lastSlashIndex + 1);
+        }
+
+        const searchDir = (pathPrefix === '/') ? '/' : FileSystemManager.getAbsolutePath(pathPrefix, FileSystemManager.getCurrentPath());
+        const dirNode = FileSystemManager.getNodeByPath(searchDir);
+
+        if (dirNode && dirNode.type === 'directory') {
+          const regex = Utils.globToRegex(patternPart);
+          if (regex) {
+            const matches = Object.keys(dirNode.children)
+                .filter(name => regex.test(name))
+                .map(name => name.includes(' ') ? `"${name}"` : name);
+
+            if (matches.length > 0) {
+              expandedArgs.push(...matches);
+              hasExpansionOccurred = true;
+            } else {
+              // If no files match, push the original glob pattern.
+              // This mimics the shell behavior that causes ls to show an error,
+              // which is what your test script expects.
+              expandedArgs.push(originalArg);
+            }
+          } else {
+            expandedArgs.push(originalArg);
+          }
+        } else {
+          expandedArgs.push(originalArg);
+        }
+      } else {
+        expandedArgs.push(originalArg);
+      }
+    }
+    const finalCommandToParse = hasExpansionOccurred ? expandedArgs.join(' ') : commandAfterAliases;
+    return finalCommandToParse;
+  }
 
   async function _finalizeInteractiveModeUI(originalCommandText) {
     TerminalUI.clearInput();
