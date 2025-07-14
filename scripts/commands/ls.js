@@ -69,7 +69,7 @@
             grid[row][col] = names[i];
         }
 
-        return grid.map(row => row.map((item, colIndex) => (colIndex === row.length - 1) ? item : item.padEnd(colWidth)).join("")).join("\n");
+        return grid.map(row => row.map((item, colIndex) => (colIndex === row.length - 1) ? item : item.padEnd(colWidth)).join("")).join("\\n");
     }
 
     async function listSinglePathContents(targetPathArg, effectiveFlags, currentUser) {
@@ -108,9 +108,7 @@
         if (singleItemResultOutput !== null) {
             currentPathOutputLines.push(singleItemResultOutput);
         } else if (itemDetailsList.length === 0 && targetNode.type === 'directory') {
-            if (!effectiveFlags.long) {
-                currentPathOutputLines.push(Config.MESSAGES.DIRECTORY_EMPTY);
-            }
+            // No output for empty directory in non-long format
         } else if (effectiveFlags.long) {
             if (itemDetailsList.length > 0) currentPathOutputLines.push(`total ${itemDetailsList.length}`);
             itemDetailsList.forEach(item => { currentPathOutputLines.push(formatLongListItem(item, effectiveFlags)); });
@@ -126,11 +124,12 @@
             });
             currentPathOutputLines.push(formatToColumns(namesToFormat));
         }
-        return { success: true, output: currentPathOutputLines.join("\n"), items: itemDetailsList, isDir: targetNode.type === 'directory' };
+        return { success: true, output: currentPathOutputLines.join("\\n"), items: itemDetailsList, isDir: targetNode.type === 'directory' };
     }
 
     const lsCommandDefinition = {
         commandName: "ls",
+        completionType: "paths", // Preserved for tab completion
         flagDefinitions: [
             { name: "long", short: "-l", long: "--long" },
             { name: "all", short: "-a", long: "--all" },
@@ -147,111 +146,114 @@
         coreLogic: async (context) => {
             const {args, flags, currentUser, options} = context;
 
-            const effectiveFlags = { ...flags };
-            if (options && !options.isInteractive && !effectiveFlags.long && !effectiveFlags.oneColumn) {
-                effectiveFlags.oneColumn = true;
-            }
+            try {
+                const effectiveFlags = { ...flags };
+                if (options && !options.isInteractive && !effectiveFlags.long && !effectiveFlags.oneColumn) {
+                    effectiveFlags.oneColumn = true;
+                }
 
-            const pathsToList = args.length > 0 ? args : ["."];
+                const pathsToList = args.length > 0 ? args : ["."];
 
-            if (effectiveFlags.recursive) {
-                let outputBlocks = [];
-                let overallSuccess = true;
+                if (effectiveFlags.recursive) {
+                    let outputBlocks = [];
+                    let overallSuccess = true;
 
-                async function displayRecursive(currentPath, displayFlags, depth = 0) {
-                    let blockOutputs = [];
-                    let encounteredErrorInThisBranch = false;
-                    if (depth > 0 || pathsToList.length > 1) {
-                        blockOutputs.push("");
-                        blockOutputs.push(`${currentPath}:`);
-                    }
-                    const listResult = await listSinglePathContents(currentPath, displayFlags, currentUser);
-                    if (!listResult.success) {
-                        blockOutputs.push(listResult.error);
-                        encounteredErrorInThisBranch = true;
+                    async function displayRecursive(currentPath, displayFlags, depth = 0) {
+                        let blockOutputs = [];
+                        let encounteredErrorInThisBranch = false;
+                        if (depth > 0 || pathsToList.length > 1) {
+                            blockOutputs.push("");
+                            blockOutputs.push(`${currentPath}:`);
+                        }
+                        const listResult = await listSinglePathContents(currentPath, displayFlags, currentUser);
+                        if (!listResult.success) {
+                            blockOutputs.push(listResult.error);
+                            encounteredErrorInThisBranch = true;
+                            return { outputs: blockOutputs, encounteredError: encounteredErrorInThisBranch };
+                        }
+                        if (listResult.output) {
+                            blockOutputs.push(listResult.output);
+                        }
+                        if (listResult.items && listResult.isDir) {
+                            const subdirectories = listResult.items.filter(item => item.type === 'directory' && item.name !== "." && item.name !== "..");
+                            for (const dirItem of subdirectories) {
+                                const subDirResult = await displayRecursive(dirItem.path, displayFlags, depth + 1);
+                                blockOutputs.push(...subDirResult.outputs);
+                                if (subDirResult.encounteredError) encounteredErrorInThisBranch = true;
+                            }
+                        }
                         return { outputs: blockOutputs, encounteredError: encounteredErrorInThisBranch };
                     }
-                    if (listResult.output) {
-                        blockOutputs.push(listResult.output);
-                    }
-                    if (listResult.items && listResult.isDir) {
-                        const subdirectories = listResult.items.filter(item => item.type === 'directory' && item.name !== "." && item.name !== "..");
-                        for (const dirItem of subdirectories) {
-                            const subDirResult = await displayRecursive(dirItem.path, displayFlags, depth + 1);
-                            blockOutputs.push(...subDirResult.outputs);
-                            if (subDirResult.encounteredError) encounteredErrorInThisBranch = true;
+
+                    for (const path of pathsToList) {
+                        const recursiveResult = await displayRecursive(path, effectiveFlags);
+                        outputBlocks.push(...recursiveResult.outputs);
+                        if (recursiveResult.encounteredError) {
+                            overallSuccess = false;
                         }
                     }
-                    return { outputs: blockOutputs, encounteredError: encounteredErrorInThisBranch };
-                }
 
-                for (const path of pathsToList) {
-                    const recursiveResult = await displayRecursive(path, effectiveFlags);
-                    outputBlocks.push(...recursiveResult.outputs);
-                    if (recursiveResult.encounteredError) {
-                        overallSuccess = false;
+                    if (outputBlocks.length > 0 && outputBlocks[0] === "") {
+                        outputBlocks.shift();
                     }
-                }
 
-                if (outputBlocks.length > 0 && outputBlocks[0] === "") {
-                    outputBlocks.shift();
-                }
+                    return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: outputBlocks.join("\\n") };
 
-                return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: outputBlocks.join("\n") };
+                } else {
+                    let outputBlocks = [];
+                    let overallSuccess = true;
+                    const fileArgs = [];
+                    const dirArgs = [];
+                    const errorOutputs = [];
 
-            } else {
-                let outputBlocks = [];
-                let overallSuccess = true;
-                const fileArgs = [];
-                const dirArgs = [];
-                const errorOutputs = [];
-
-                for (const path of pathsToList) {
-                    const resolvedPath = FileSystemManager.getAbsolutePath(path);
-                    const node = FileSystemManager.getNodeByPath(resolvedPath);
-                    if (!node) {
-                        errorOutputs.push(`ls: cannot access '${path}': No such file or directory`);
-                        overallSuccess = false;
-                    } else if (node.type === 'directory' || effectiveFlags.dirsOnly) {
-                        dirArgs.push(path);
-                    } else {
-                        fileArgs.push(path);
+                    for (const path of pathsToList) {
+                        const pathValidation = FileSystemManager.validatePath(path);
+                        if (pathValidation.error) {
+                            errorOutputs.push(`ls: cannot access '${path}': ${pathValidation.error}`);
+                            overallSuccess = false;
+                        } else if (pathValidation.node.type === 'directory' || effectiveFlags.dirsOnly) {
+                            dirArgs.push(path);
+                        } else {
+                            fileArgs.push(path);
+                        }
                     }
-                }
 
-                const fileResults = [];
-                for (const path of fileArgs) {
-                    const listResult = await listSinglePathContents(path, effectiveFlags, currentUser);
-                    if (listResult.success && listResult.output) {
-                        fileResults.push(listResult.output);
-                    } else if (!listResult.success) {
-                        errorOutputs.push(listResult.error);
-                        overallSuccess = false;
+                    const fileResults = [];
+                    for (const path of fileArgs) {
+                        const listResult = await listSinglePathContents(path, effectiveFlags, currentUser);
+                        if (listResult.success && listResult.output) {
+                            fileResults.push(listResult.output);
+                        } else if (!listResult.success) {
+                            errorOutputs.push(listResult.error);
+                            overallSuccess = false;
+                        }
                     }
-                }
-                if (fileResults.length > 0) {
-                    outputBlocks.push(fileResults.join(effectiveFlags.long || effectiveFlags.oneColumn ? '\n' : '  '));
-                }
+                    if (fileResults.length > 0) {
+                        outputBlocks.push(fileResults.join(effectiveFlags.long || effectiveFlags.oneColumn ? '\\n' : '  '));
+                    }
 
-                for (let i = 0; i < dirArgs.length; i++) {
-                    const path = dirArgs[i];
-                    if (outputBlocks.length > 0 || errorOutputs.length > 0) {
-                        outputBlocks.push("");
+                    for (let i = 0; i < dirArgs.length; i++) {
+                        const path = dirArgs[i];
+                        if (outputBlocks.length > 0 || errorOutputs.length > 0) {
+                            outputBlocks.push("");
+                        }
+                        if (pathsToList.length > 1) {
+                            outputBlocks.push(`${path}:`);
+                        }
+                        const listResult = await listSinglePathContents(path, effectiveFlags, currentUser);
+                        if (listResult.success && listResult.output) {
+                            outputBlocks.push(listResult.output);
+                        } else if (!listResult.success) {
+                            errorOutputs.push(listResult.error);
+                            overallSuccess = false;
+                        }
                     }
-                    if (pathsToList.length > 1) {
-                        outputBlocks.push(`${path}:`);
-                    }
-                    const listResult = await listSinglePathContents(path, effectiveFlags, currentUser);
-                    if (listResult.success && listResult.output) {
-                        outputBlocks.push(listResult.output);
-                    } else if (!listResult.success) {
-                        errorOutputs.push(listResult.error);
-                        overallSuccess = false;
-                    }
-                }
 
-                const finalOutput = [...errorOutputs, ...outputBlocks].join('\n');
-                return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: finalOutput };
+                    const finalOutput = [...errorOutputs, ...outputBlocks].join('\\n');
+                    return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: finalOutput };
+                }
+            } catch (e) {
+                return { success: false, error: `ls: An unexpected error occurred: ${e.message}` };
             }
         },
     };

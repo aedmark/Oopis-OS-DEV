@@ -4,6 +4,7 @@
 
     const chmodCommandDefinition = {
         commandName: "chmod",
+        completionType: "paths", // Preserved for tab completion
         argValidation: {
             exact: 2,
             error: "Usage: chmod <mode> <path>",
@@ -14,46 +15,45 @@
             const pathArg = args[1];
             const nowISO = new Date().toISOString();
 
-            if (!/^[0-7]{3,4}$/.test(modeArg)) {
+            try {
+                if (!/^[0-7]{3,4}$/.test(modeArg)) {
+                    return {
+                        success: false,
+                        error: `chmod: invalid mode: ‘${modeArg}’ (must be 3 or 4 octal digits)`,
+                    };
+                }
+
+                const pathValidation = FileSystemManager.validatePath(pathArg);
+
+                if (pathValidation.error) {
+                    return { success: false, error: `chmod: cannot access '${pathArg}': No such file or directory` };
+                }
+                const node = pathValidation.node;
+
+                if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
+                    return {
+                        success: false,
+                        error: `chmod: changing permissions of '${pathArg}': Operation not permitted`,
+                    };
+                }
+
+                const newMode = parseInt(modeArg, 8);
+                node.mode = newMode;
+                node.mtime = nowISO;
+
+                if (!(await FileSystemManager.save())) {
+                    return {
+                        success: false,
+                        error: "chmod: Failed to save file system changes.",
+                    };
+                }
                 return {
-                    success: false,
-                    error: `chmod: invalid mode: ‘${modeArg}’ (must be 3 or 4 octal digits)`,
+                    success: true,
+                    output: "", // No output on success
                 };
+            } catch (e) {
+                return { success: false, error: `chmod: An unexpected error occurred: ${e.message}` };
             }
-
-            const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
-            const node = FileSystemManager.getNodeByPath(resolvedPath);
-
-            if (!node) {
-                return { success: false, error: `chmod: cannot access '${pathArg}': No such file or directory` };
-            }
-
-            if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
-                return {
-                    success: false,
-                    error: `chmod: changing permissions of '${pathArg}': Operation not permitted`,
-                };
-            }
-
-            const newMode = parseInt(modeArg, 8);
-            node.mode = newMode;
-            node.mtime = nowISO;
-            FileSystemManager._updateNodeAndParentMtime(
-                resolvedPath,
-                nowISO
-            );
-
-            if (!(await FileSystemManager.save())) {
-                return {
-                    success: false,
-                    error: "chmod: Failed to save file system changes.",
-                };
-            }
-            return {
-                success: true,
-                output: `Permissions of '${pathArg}' changed to ${modeArg}`,
-                messageType: Config.CSS_CLASSES.SUCCESS_MSG,
-            };
         },
     };
 

@@ -4,6 +4,7 @@
 
     const cdCommandDefinition = {
         commandName: "cd",
+        completionType: "paths", // Preserved for tab completion
         argValidation: {
             exact: 1,
             error: "incorrect number of arguments",
@@ -12,46 +13,36 @@
             const { args, currentUser, options } = context;
             const pathArg = args[0];
 
-            // 1. Resolve Path
-            const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+            try {
+                const pathValidation = FileSystemManager.validatePath(pathArg, {
+                    expectedType: 'directory',
+                    permissions: ['execute']
+                });
 
-            // 2. Retrieve Node (checks execute permissions during traversal)
-            const node = FileSystemManager.getNodeByPath(resolvedPath);
+                if (pathValidation.error) {
+                    return { success: false, error: `cd: ${pathValidation.error.replace(pathArg + ':', '').trim()}` };
+                }
 
-            // 3. Validate Existence
-            if (!node) {
-                return { success: false, error: `cd: ${pathArg}: No such file or directory` };
-            }
+                if (FileSystemManager.getCurrentPath() === pathValidation.resolvedPath) {
+                    return {
+                        success: true,
+                        output: "", // No output on success
+                    };
+                }
 
-            // 4. Validate Type
-            if (node.type !== 'directory') {
-                return { success: false, error: `cd: ${pathArg}: Not a directory` };
-            }
+                FileSystemManager.setCurrentPath(pathValidation.resolvedPath);
 
-            // 5. Final Permission Check (already done by getNodeByPath, but good for clarity)
-            if (!FileSystemManager.hasPermission(node, currentUser, "execute")) {
-                return { success: false, error: `cd: ${pathArg}: Permission denied` };
-            }
+                if (options.isInteractive) {
+                    TerminalUI.updatePrompt();
+                }
 
-            // 6. Execute Logic
-            if (FileSystemManager.getCurrentPath() === resolvedPath) {
                 return {
                     success: true,
-                    output: `${Config.MESSAGES.ALREADY_IN_DIRECTORY_PREFIX}${resolvedPath}${Config.MESSAGES.ALREADY_IN_DIRECTORY_SUFFIX} ${Config.MESSAGES.NO_ACTION_TAKEN}`,
-                    messageType: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
+                    output: "",
                 };
+            } catch (e) {
+                return { success: false, error: `cd: An unexpected error occurred: ${e.message}` };
             }
-
-            FileSystemManager.setCurrentPath(resolvedPath);
-
-            if (options.isInteractive) {
-                TerminalUI.updatePrompt();
-            }
-
-            return {
-                success: true,
-                output: "",
-            };
         },
     };
 

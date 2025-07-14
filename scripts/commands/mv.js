@@ -4,6 +4,7 @@
 
     const mvCommandDefinition = {
         commandName: "mv",
+        completionType: "paths", // Preserved for tab completion
         flagDefinitions: [
             { name: "force", short: "-f", long: "--force" },
             { name: "interactive", short: "-i", long: "--interactive" },
@@ -17,107 +18,109 @@
             const nowISO = new Date().toISOString();
             let changesMade = false;
 
-            const destPathArg = args.pop();
-            const sourcePathArgs = args;
+            try {
+                const destPathArg = args.pop();
+                const sourcePathArgs = args;
 
-            const destAbsPath = FileSystemManager.getAbsolutePath(destPathArg);
-            let destNode = FileSystemManager.getNodeByPath(destAbsPath);
+                const destAbsPath = FileSystemManager.getAbsolutePath(destPathArg);
+                let destNode = FileSystemManager.getNodeByPath(destAbsPath);
 
-            const isDestADirectory = destNode && destNode.type === 'directory';
+                const isDestADirectory = destNode && destNode.type === 'directory';
 
-            if (sourcePathArgs.length > 1 && !isDestADirectory) {
-                return { success: false, error: `mv: target '${destPathArg}' is not a directory` };
-            }
-
-            for (const sourcePathArg of sourcePathArgs) {
-                const sourceAbsPath = FileSystemManager.getAbsolutePath(sourcePathArg);
-                const sourceNode = FileSystemManager.getNodeByPath(sourceAbsPath);
-
-                if (sourceAbsPath === '/') {
-                    return { success: false, error: "mv: cannot move root directory" };
+                if (sourcePathArgs.length > 1 && !isDestADirectory) {
+                    return { success: false, error: `mv: target '${destPathArg}' is not a directory` };
                 }
 
-                if (!sourceNode) {
-                    return { success: false, error: `mv: cannot stat '${sourcePathArg}': No such file or directory` };
-                }
+                for (const sourcePathArg of sourcePathArgs) {
+                    const sourceAbsPath = FileSystemManager.getAbsolutePath(sourcePathArg);
+                    const sourceNode = FileSystemManager.getNodeByPath(sourceAbsPath);
 
-                const sourceName = sourceAbsPath.substring(sourceAbsPath.lastIndexOf('/') + 1);
-                const sourceParentPath = sourceAbsPath.substring(0, sourceAbsPath.lastIndexOf('/')) || '/';
-                const sourceParentNode = FileSystemManager.getNodeByPath(sourceParentPath);
+                    if (sourceAbsPath === '/') {
+                        return { success: false, error: "mv: cannot move root directory" };
+                    }
 
-                if (!sourceParentNode || !FileSystemManager.hasPermission(sourceParentNode, currentUser, "write")) {
-                    return { success: false, error: `mv: cannot move '${sourcePathArg}': Permission denied in source directory` };
-                }
+                    if (!sourceNode) {
+                        return { success: false, error: `mv: cannot stat '${sourcePathArg}': No such file or directory` };
+                    }
 
-                let finalDestPath;
-                let finalDestName;
-                let targetContainerNode;
+                    const sourceName = sourceAbsPath.substring(sourceAbsPath.lastIndexOf('/') + 1);
+                    const sourceParentPath = sourceAbsPath.substring(0, sourceAbsPath.lastIndexOf('/')) || '/';
+                    const sourceParentNode = FileSystemManager.getNodeByPath(sourceParentPath);
 
-                if (isDestADirectory) {
-                    finalDestName = sourceName;
-                    targetContainerNode = destNode;
-                    finalDestPath = FileSystemManager.getAbsolutePath(finalDestName, destAbsPath);
-                } else {
-                    finalDestName = destAbsPath.substring(destAbsPath.lastIndexOf('/') + 1);
-                    const destParentPath = destAbsPath.substring(0, destAbsPath.lastIndexOf('/')) || '/';
-                    targetContainerNode = FileSystemManager.getNodeByPath(destParentPath);
-                    finalDestPath = destAbsPath;
-                }
+                    if (!sourceParentNode || !FileSystemManager.hasPermission(sourceParentNode, currentUser, "write")) {
+                        return { success: false, error: `mv: cannot move '${sourcePathArg}': Permission denied in source directory` };
+                    }
 
-                if (!targetContainerNode || targetContainerNode.type !== 'directory') {
-                    return { success: false, error: `mv: destination '${destPathArg}' is not a valid directory.` };
-                }
+                    let finalDestPath;
+                    let finalDestName;
+                    let targetContainerNode;
 
-                if (!FileSystemManager.hasPermission(targetContainerNode, currentUser, "write")) {
-                    return { success: false, error: `mv: cannot write to '${destPathArg}': Permission denied` };
-                }
+                    if (isDestADirectory) {
+                        finalDestName = sourceName;
+                        targetContainerNode = destNode;
+                        finalDestPath = FileSystemManager.getAbsolutePath(finalDestName, destAbsPath);
+                    } else {
+                        finalDestName = destAbsPath.substring(destAbsPath.lastIndexOf('/') + 1);
+                        const destParentPath = destAbsPath.substring(0, destAbsPath.lastIndexOf('/')) || '/';
+                        targetContainerNode = FileSystemManager.getNodeByPath(destParentPath);
+                        finalDestPath = destAbsPath;
+                    }
 
-                if (sourceAbsPath === finalDestPath) {
-                    continue;
-                }
+                    if (!targetContainerNode || targetContainerNode.type !== 'directory') {
+                        return { success: false, error: `mv: destination '${destPathArg}' is not a valid directory.` };
+                    }
 
-                if (sourceNode.type === 'directory' && finalDestPath.startsWith(sourceAbsPath + '/')) {
-                    return { success: false, error: `mv: cannot move '${sourcePathArg}' to a subdirectory of itself, '${finalDestPath}'` };
-                }
+                    if (!FileSystemManager.hasPermission(targetContainerNode, currentUser, "write")) {
+                        return { success: false, error: `mv: cannot write to '${destPathArg}': Permission denied` };
+                    }
 
-                const existingNodeAtDest = targetContainerNode.children[finalDestName];
-                if (existingNodeAtDest) {
-                    const isPromptRequired = flags.interactive || (options.isInteractive && !flags.force);
-                    if (isPromptRequired) {
-                        const confirmed = await new Promise((resolve) => {
-                            ModalManager.request({
-                                context: "terminal",
-                                messageLines: [`Overwrite '${finalDestPath}'?`],
-                                onConfirm: () => resolve(true),
-                                onCancel: () => resolve(false),
-                                options,
+                    if (sourceAbsPath === finalDestPath) {
+                        continue;
+                    }
+
+                    if (sourceNode.type === 'directory' && finalDestPath.startsWith(sourceAbsPath + '/')) {
+                        return { success: false, error: `mv: cannot move '${sourcePathArg}' to a subdirectory of itself, '${finalDestPath}'` };
+                    }
+
+                    const existingNodeAtDest = targetContainerNode.children[finalDestName];
+                    if (existingNodeAtDest) {
+                        const isPromptRequired = flags.interactive || (options.isInteractive && !flags.force);
+                        if (isPromptRequired) {
+                            const confirmed = await new Promise((resolve) => {
+                                ModalManager.request({
+                                    context: "terminal",
+                                    messageLines: [`Overwrite '${finalDestPath}'?`],
+                                    onConfirm: () => resolve(true),
+                                    onCancel: () => resolve(false),
+                                    options,
+                                });
                             });
-                        });
-                        if(!confirmed) {
-                            continue;
+                            if(!confirmed) {
+                                continue;
+                            }
                         }
                     }
+
+                    const movedNode = Utils.deepCopyNode(sourceNode);
+                    movedNode.mtime = nowISO;
+                    targetContainerNode.children[finalDestName] = movedNode;
+                    targetContainerNode.mtime = nowISO;
+                    delete sourceParentNode.children[sourceName];
+                    sourceParentNode.mtime = nowISO;
+                    changesMade = true;
                 }
 
-                const movedNode = Utils.deepCopyNode(sourceNode);
-                movedNode.mtime = nowISO;
-                targetContainerNode.children[finalDestName] = movedNode;
-                targetContainerNode.mtime = nowISO;
-                delete sourceParentNode.children[sourceName];
-                sourceParentNode.mtime = nowISO;
-                changesMade = true;
-            }
+                if (changesMade && !(await FileSystemManager.save())) {
+                    return { success: false, error: "mv: Failed to save file system changes." };
+                }
 
-            if (changesMade && !(await FileSystemManager.save())) {
-                return { success: false, error: "mv: Failed to save file system changes." };
+                return {
+                    success: true,
+                    output: ""
+                };
+            } catch (e) {
+                return { success: false, error: `mv: An unexpected error occurred: ${e.message}` };
             }
-
-            const finalDest = destPathArg.endsWith('/') ? `${destPathArg}${sourcePathArgs.at(-1)}` : destPathArg;
-            return {
-                success: true,
-                output: `${Config.MESSAGES.MOVED_PREFIX}${sourcePathArgs.join(" ")}${Config.MESSAGES.MOVED_TO}${finalDest}${Config.MESSAGES.MOVED_SUFFIX}`,
-                messageType: Config.CSS_CLASSES.SUCCESS_MSG
-            };
         }
     };
 

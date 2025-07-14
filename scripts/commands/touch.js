@@ -4,6 +4,7 @@
 
     const touchCommandDefinition = {
         commandName: "touch",
+        completionType: "paths", // Preserved for tab completion
         flagDefinitions: [
             { name: "noCreate", short: "-c", long: "--no-create" },
             { name: "dateString", short: "-d", long: "--date", takesValue: true },
@@ -13,92 +14,93 @@
         coreLogic: async (context) => {
             const { args, flags, currentUser } = context;
 
-            const timestampResult = TimestampParser.resolveTimestampFromCommandFlags(
-                flags,
-                "touch"
-            );
-            if (timestampResult.error)
-                return { success: false, error: timestampResult.error };
+            try {
+                const timestampResult = TimestampParser.resolveTimestampFromCommandFlags(
+                    flags,
+                    "touch"
+                );
+                if (timestampResult.error)
+                    return { success: false, error: timestampResult.error };
 
-            const timestampToUse = timestampResult.timestampISO;
-            let allSuccess = true;
-            const messages = [];
-            let changesMade = false;
+                const timestampToUse = timestampResult.timestampISO;
+                let allSuccess = true;
+                const messages = [];
+                let changesMade = false;
 
-            const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
+                const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
 
-            for (const pathArg of args) {
-                const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
-                if (resolvedPath === '/') {
-                    messages.push(`touch: cannot touch root directory`);
+                for (const pathArg of args) {
+                    const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+                    if (resolvedPath === '/') {
+                        messages.push(`touch: cannot touch root directory`);
+                        allSuccess = false;
+                        continue;
+                    }
+
+                    const node = FileSystemManager.getNodeByPath(resolvedPath);
+
+                    if (node) {
+                        if (!FileSystemManager.hasPermission(node, currentUser, "write")) {
+                            messages.push(`touch: cannot update timestamp of '${pathArg}': Permission denied`);
+                            allSuccess = false;
+                            continue;
+                        }
+                        node.mtime = timestampToUse;
+                        changesMade = true;
+                    } else {
+                        if (flags.noCreate) continue;
+
+                        if (pathArg.trim().endsWith(Config.FILESYSTEM.PATH_SEPARATOR)) {
+                            messages.push(`touch: cannot touch '${pathArg}': No such file or directory`);
+                            allSuccess = false;
+                            continue;
+                        }
+
+                        const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
+                        const parentNode = FileSystemManager.getNodeByPath(parentPath);
+
+                        if (!parentNode || parentNode.type !== 'directory') {
+                            messages.push(`touch: cannot create '${pathArg}': Parent directory not found or is not a directory.`);
+                            allSuccess = false;
+                            continue;
+                        }
+
+                        if (!FileSystemManager.hasPermission(parentNode, currentUser, "write")) {
+                            messages.push(`touch: cannot create '${pathArg}': Permission denied in parent directory.`);
+                            allSuccess = false;
+                            continue;
+                        }
+
+                        if (!primaryGroup) {
+                            messages.push(`touch: could not determine primary group for user '${currentUser}'`);
+                            allSuccess = false;
+                            continue;
+                        }
+
+                        const fileName = resolvedPath.substring(resolvedPath.lastIndexOf('/') + 1);
+                        const newFileNode = FileSystemManager._createNewFileNode(fileName, "", currentUser, primaryGroup);
+                        newFileNode.mtime = timestampToUse;
+                        parentNode.children[fileName] = newFileNode;
+                        parentNode.mtime = new Date().toISOString();
+                        changesMade = true;
+                    }
+                }
+
+                if (changesMade && !(await FileSystemManager.save())) {
+                    messages.push("touch: CRITICAL - Failed to save file system changes.");
                     allSuccess = false;
-                    continue;
                 }
 
-                const node = FileSystemManager.getNodeByPath(resolvedPath);
+                if (!allSuccess)
+                    return {
+                        success: false,
+                        error: messages.join("\\n") || "touch: Not all operations were successful.",
+                    };
 
-                if (node) {
-                    if (!FileSystemManager.hasPermission(node, currentUser, "write")) {
-                        messages.push(`touch: cannot update timestamp of '${pathArg}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}`);
-                        allSuccess = false;
-                        continue;
-                    }
-                    node.mtime = timestampToUse;
-                    messages.push(`${Config.MESSAGES.TIMESTAMP_UPDATED_PREFIX}'${pathArg}'${Config.MESSAGES.TIMESTAMP_UPDATED_SUFFIX}`);
-                    changesMade = true;
-                } else {
-                    if (flags.noCreate) continue;
-
-                    if (pathArg.trim().endsWith(Config.FILESYSTEM.PATH_SEPARATOR)) {
-                        messages.push(`touch: cannot touch '${pathArg}': No such file or directory`);
-                        allSuccess = false;
-                        continue;
-                    }
-
-                    const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
-                    const parentNode = FileSystemManager.getNodeByPath(parentPath);
-
-                    if (!parentNode || parentNode.type !== 'directory') {
-                        messages.push(`touch: cannot create '${pathArg}': Parent directory not found or is not a directory.`);
-                        allSuccess = false;
-                        continue;
-                    }
-
-                    if (!FileSystemManager.hasPermission(parentNode, currentUser, "write")) {
-                        messages.push(`touch: cannot create '${pathArg}': Permission denied in parent directory.`);
-                        allSuccess = false;
-                        continue;
-                    }
-
-                    if (!primaryGroup) {
-                        messages.push(`touch: could not determine primary group for user '${currentUser}'`);
-                        allSuccess = false;
-                        continue;
-                    }
-
-                    const fileName = resolvedPath.substring(resolvedPath.lastIndexOf('/') + 1);
-                    const newFileNode = FileSystemManager._createNewFileNode(fileName, "", currentUser, primaryGroup);
-                    newFileNode.mtime = timestampToUse;
-                    parentNode.children[fileName] = newFileNode;
-                    parentNode.mtime = new Date().toISOString();
-                    messages.push(`'${pathArg}'${Config.MESSAGES.FILE_CREATED_SUFFIX}`);
-                    changesMade = true;
-                }
+                return { success: true, output: "" };
+            } catch (e) {
+                return { success: false, error: `touch: An unexpected error occurred: ${e.message}` };
             }
-
-            if (changesMade && !(await FileSystemManager.save())) {
-                messages.push("touch: CRITICAL - Failed to save file system changes.");
-                allSuccess = false;
-            }
-
-            const outputMessage = messages.join("\n");
-            if (!allSuccess)
-                return {
-                    success: false,
-                    error: outputMessage || "touch: Not all operations were successful.",
-                };
-
-            return { success: true, output: outputMessage, messageType: Config.CSS_CLASSES.SUCCESS_MSG };
         },
     };
 

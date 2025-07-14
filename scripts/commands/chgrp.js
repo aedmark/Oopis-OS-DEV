@@ -4,42 +4,47 @@
 
     const chgrpCommandDefinition = {
         commandName: "chgrp",
+        completionType: "groups", // Preserved for tab completion
         argValidation: { exact: 2, error: "Usage: chgrp <groupname> <path>" },
         coreLogic: async (context) => {
             const { args, currentUser } = context;
             const groupName = args[0];
             const pathArg = args[1];
 
-            const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
-            const node = FileSystemManager.getNodeByPath(resolvedPath);
+            try {
+                const pathValidation = FileSystemManager.validatePath(pathArg);
 
-            if (!node) {
-                return { success: false, error: `chgrp: cannot access '${pathArg}': No such file or directory` };
-            }
+                if (pathValidation.error) {
+                    return { success: false, error: `chgrp: cannot access '${pathArg}': ${pathValidation.error}` };
+                }
+                const node = pathValidation.node;
 
-            if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
-                return {
-                    success: false,
-                    error: `chgrp: changing group of '${pathArg}': Operation not permitted`,
-                };
-            }
-            if (!GroupManager.groupExists(groupName)) {
-                return {
-                    success: false,
-                    error: `chgrp: invalid group: '${groupName}'`,
-                };
-            }
+                if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
+                    return {
+                        success: false,
+                        error: `chgrp: changing group of '${pathArg}': Operation not permitted`,
+                    };
+                }
+                if (!GroupManager.groupExists(groupName)) {
+                    return {
+                        success: false,
+                        error: `chgrp: invalid group: '${groupName}'`,
+                    };
+                }
 
-            node.group = groupName;
-            node.mtime = new Date().toISOString();
-            if (!(await FileSystemManager.save())) {
-                return {
-                    success: false,
-                    error: "chgrp: Failed to save file system changes.",
-                };
-            }
+                node.group = groupName;
+                node.mtime = new Date().toISOString();
+                if (!(await FileSystemManager.save())) {
+                    return {
+                        success: false,
+                        error: "chgrp: Failed to save file system changes.",
+                    };
+                }
 
-            return { success: true, output: "" };
+                return { success: true, output: "" };
+            } catch (e) {
+                return { success: false, error: `chgrp: An unexpected error occurred: ${e.message}` };
+            }
         },
     };
 

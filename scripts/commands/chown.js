@@ -4,7 +4,7 @@
 
     const chownCommandDefinition = {
         commandName: "chown",
-        completionType: "users",
+        completionType: "users", // Preserved for tab completion
         argValidation: {
             exact: 2,
             error: "Usage: chown <new_owner> <path>",
@@ -15,45 +15,43 @@
             const pathArg = args[1];
             const nowISO = new Date().toISOString();
 
-            if (!await UserManager.userExists(newOwnerArg) && newOwnerArg !== Config.USER.DEFAULT_NAME) {
+            try {
+                if (!await UserManager.userExists(newOwnerArg) && newOwnerArg !== Config.USER.DEFAULT_NAME) {
+                    return {
+                        success: false,
+                        error: `chown: user '${newOwnerArg}' does not exist.`,
+                    };
+                }
+
+                const pathValidation = FileSystemManager.validatePath(pathArg);
+                if (pathValidation.error) {
+                    return { success: false, error: `chown: cannot access '${pathArg}': ${pathValidation.error}` };
+                }
+                const node = pathValidation.node;
+
+                if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
+                    return {
+                        success: false,
+                        error: `chown: changing ownership of '${pathArg}': Operation not permitted`,
+                    };
+                }
+
+                node.owner = newOwnerArg;
+                node.mtime = nowISO;
+
+                if (!(await FileSystemManager.save(currentUser))) {
+                    return {
+                        success: false,
+                        error: "chown: Failed to save file system changes.",
+                    };
+                }
                 return {
-                    success: false,
-                    error: `chown: user '${newOwnerArg}' does not exist.`,
+                    success: true,
+                    output: "", // No output on success
                 };
+            } catch (e) {
+                return { success: false, error: `chown: An unexpected error occurred: ${e.message}` };
             }
-
-            const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
-            const node = FileSystemManager.getNodeByPath(resolvedPath);
-
-            if (!node) {
-                return { success: false, error: `chown: cannot access '${pathArg}': No such file or directory` };
-            }
-
-            if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
-                return {
-                    success: false,
-                    error: `chown: changing ownership of '${pathArg}': Operation not permitted`,
-                };
-            }
-
-            node.owner = newOwnerArg;
-            node.mtime = nowISO;
-            FileSystemManager._updateNodeAndParentMtime(
-                resolvedPath,
-                nowISO
-            );
-
-            if (!(await FileSystemManager.save(currentUser))) {
-                return {
-                    success: false,
-                    error: "chown: Failed to save file system changes.",
-                };
-            }
-            return {
-                success: true,
-                output: `Owner of '${pathArg}' changed to ${newOwnerArg}`,
-                messageType: Config.CSS_CLASSES.SUCCESS_MSG,
-            };
         },
     };
 
