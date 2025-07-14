@@ -447,6 +447,10 @@ const CommandExecutor = (() => {
         }
       } else {
         if (lastResult.output && !suppressOutput) {
+          // Fix for incorrect newline characters
+          if (typeof lastResult.output === 'string') {
+            lastResult.output = lastResult.output.replace(/\\n/g, '\n');
+          }
           await OutputManager.appendToOutput(lastResult.output, {
             typeClass: lastResult.messageType || null,
           });

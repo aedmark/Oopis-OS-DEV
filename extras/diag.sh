@@ -849,7 +849,6 @@ rm -r -f /home/sudouser
 rm -r -f /home/testuser
 rm -r -f /home/testuser2
 login Guest
-echo "Final user list:"
 listusers
 delay 700
 echo "---------------------------------------------------------------------"
