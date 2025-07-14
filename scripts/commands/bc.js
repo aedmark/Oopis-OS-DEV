@@ -5,8 +5,10 @@
     const _safeEvaluate = (expression) => {
         // This is a simplified and safer evaluator. It does not support variables or complex functions.
         // It uses a proper shunting-yard implementation to handle order of operations.
-        const cleanExpression = expression.replace(/\\s+/g, '');
-        // CORRECTED REGEX: Removed unnecessary escaping.
+
+        // CORRECTED: This now properly removes all whitespace from the expression.
+        const cleanExpression = expression.replace(/\s+/g, '');
+
         const tokens = cleanExpression.match(/(\d+\.?\d*|\+|\-|\*|\/|%|\(|\))/g);
 
         if (!tokens || tokens.join('') !== cleanExpression) {

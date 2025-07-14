@@ -30,7 +30,8 @@
                 const fileNode = fileValidation.node;
 
                 const content = fileNode.content || "";
-                const lines = content.split('\\n');
+                // CORRECTED: Split by the actual newline character.
+                const lines = content.split('\n');
 
                 const patterns = args.slice(1);
                 const prefix = flags.prefix || 'xx';
@@ -81,7 +82,7 @@
                 let anyChangeMade = false;
 
                 for (let i = 0; i < segments.length; i++) {
-                    const segmentContent = segments[i].join('\\n');
+                    const segmentContent = segments[i].join('\n');
 
                     if (!segmentContent && flags.elideEmpty) {
                         continue;

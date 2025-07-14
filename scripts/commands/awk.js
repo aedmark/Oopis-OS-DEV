@@ -32,7 +32,7 @@
                 }
 
                 const inputText = inputItems.map(item => item.content).join('\\n');
-                const separator = flags.fieldSeparator ? new RegExp(flags.fieldSeparator) : /\\s+/;
+                const separator = flags.fieldSeparator ? new RegExp(flags.fieldSeparator) : /\s+/;
                 let outputLines = [];
                 let nr = 0;
 
@@ -77,8 +77,7 @@
 
     function _parseProgram(programString) {
         const program = {begin: null, end: null, rules: [], error: null,};
-        // CORRECTED REGEX: Removed unnecessary escaping from the final capture group.
-        const ruleRegex = /(BEGIN)\\s*{([^}]*)}|(END)\\s*{([^}]*)}|(\/[^/]*\/)\\s*{([^}]*)}/g;
+        const ruleRegex = /(BEGIN)\s*{([^}]*)}|(END)\s*{([^}]*)}|(\/[^/]*\/)\s*{([^}]*)}/g;
         let match;
         while ((match = ruleRegex.exec(programString)) !== null) {
             if (match[1]) {
@@ -112,14 +111,19 @@
             if (argsStr === "") {
                 return fields[0];
             }
-            argsStr = argsStr.replace(/\\$([0-9]+)/g, (match, n) => {
+
+            // CORRECTED: This regex now correctly finds $1, $2, etc. without requiring a backslash.
+            argsStr = argsStr.replace(/\$([0-9]+)/g, (match, n) => {
                 const index = parseInt(n, 10);
                 return fields[index] || "";
             });
-            argsStr = argsStr.replace(/\$0/g, fields[0]);
+
+            argsStr = argsStr.replace(/\$0/g, fields[0] || "");
             argsStr = argsStr.replace(/NR/g, vars.NR);
             argsStr = argsStr.replace(/NF/g, vars.NF);
-            return argsStr.replace(/,/g, ' ');
+
+            // Replace commas with spaces for multi-argument print
+            return argsStr.replace(/,/g, ' ').replace(/"/g, ''); // Also strip quotes
         }
         return null;
     }
