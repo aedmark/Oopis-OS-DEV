@@ -56,7 +56,7 @@
                         // Correctly handle replacement within each argument part
                         const commandParts = baseCommandArgs.map(part => {
                             // Perform a literal string replacement
-                            const newPart = part.split(replaceStr).join(rawLine);
+                            const newPart = part.replace(new RegExp(replaceStr, 'g'), rawLine);
                             // If the resulting part has spaces and is not already quoted, quote it.
                             if (newPart.includes(' ') && !(newPart.startsWith('"') && newPart.endsWith('"'))) {
                                 return `"${newPart}"`;

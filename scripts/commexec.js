@@ -494,58 +494,7 @@ const CommandExecutor = (() => {
       throw new Error(aliasResult.error);
     }
     const commandAfterAliases = aliasResult.newCommand;
-
-    const args = commandAfterAliases.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
-    const expandedArgs = [];
-    if (args.length > 0) {
-      expandedArgs.push(args[0]);
-    }
-    let hasExpansionOccurred = false;
-
-    for (let i = 1; i < args.length; i++) {
-      const originalArg = args[i];
-      const isQuoted = (originalArg.startsWith('"') && originalArg.endsWith('"')) || (originalArg.startsWith("'") && originalArg.endsWith("'"));
-      const globPattern = isQuoted ? originalArg.slice(1, -1) : originalArg;
-      const hasGlobChar = globPattern.includes('*') || globPattern.includes('?');
-
-      if (hasGlobChar && !isQuoted) {
-        const lastSlashIndex = globPattern.lastIndexOf('/');
-        let pathPrefix = '.';
-        let patternPart = globPattern;
-
-        if (lastSlashIndex > -1) {
-          pathPrefix = globPattern.substring(0, lastSlashIndex + 1);
-          patternPart = globPattern.substring(lastSlashIndex + 1);
-        }
-
-        const searchDir = (pathPrefix === '/') ? '/' : FileSystemManager.getAbsolutePath(pathPrefix, FileSystemManager.getCurrentPath());
-        const dirNode = FileSystemManager.getNodeByPath(searchDir);
-
-        if (dirNode && dirNode.type === 'directory') {
-          const regex = Utils.globToRegex(patternPart);
-          if (regex) {
-            const matches = Object.keys(dirNode.children)
-                .filter(name => regex.test(name))
-                .map(name => name.includes(' ') ? `"${name}"` : name);
-
-            if (matches.length > 0) {
-              expandedArgs.push(...matches);
-              hasExpansionOccurred = true;
-            } else {
-              expandedArgs.push(originalArg);
-            }
-          } else {
-            expandedArgs.push(originalArg);
-          }
-        } else {
-          expandedArgs.push(originalArg);
-        }
-      } else {
-        expandedArgs.push(originalArg);
-      }
-    }
-    const finalCommandToParse = hasExpansionOccurred ? expandedArgs.join(' ') : commandAfterAliases;
-    return finalCommandToParse;
+    return commandAfterAliases;
   }
 
 
