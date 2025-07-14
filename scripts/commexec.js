@@ -526,10 +526,7 @@ const CommandExecutor = (() => {
           if (regex) {
             const matches = Object.keys(dirNode.children)
                 .filter(name => regex.test(name))
-                .map(name => {
-                  const fullPath = FileSystemManager.getAbsolutePath(name, searchDir);
-                  return fullPath.includes(' ') ? `"${fullPath}"` : fullPath;
-                });
+                .map(name => name.includes(' ') ? `"${name}"` : name);
 
             if (matches.length > 0) {
               expandedArgs.push(...matches);

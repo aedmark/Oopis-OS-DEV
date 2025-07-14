@@ -31,13 +31,13 @@
                     return { success: true, output: "" };
                 }
 
-                const inputText = inputItems.map(item => item.content).join('\\n');
+                const inputText = inputItems.map(item => item.content).join('\n');
                 if (inputText.trim() === "") {
                     return { success: true, output: "" };
                 }
 
                 const baseCommandArgs = args;
-                const lines = inputText.trim().split('\\n').filter(Boolean); // Filter out empty lines
+                const lines = inputText.trim().split('\n').filter(Boolean); // Filter out empty lines
                 let lastResult = {
                     success: true,
                     output: ""
@@ -91,7 +91,7 @@
 
                 return {
                     success: lastResult.success,
-                    output: combinedOutput.join('\\n')
+                    output: combinedOutput.join('\n')
                 };
             } catch (e) {
                 return { success: false, error: `xargs: An unexpected error occurred: ${e.message}` };
