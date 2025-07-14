@@ -4,6 +4,7 @@
 
     const rmCommandDefinition = {
         commandName: "rm",
+        completionType: "paths", // Preserved for tab completion
         flagDefinitions: [
             {
                 name: "recursive",
@@ -32,71 +33,71 @@
             let anyChangeMade = false;
             const messages = [];
 
-            for (const pathArg of args) {
-                const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
-                if (resolvedPath === '/') {
-                    messages.push(`rm: cannot remove root directory`);
-                    allSuccess = false;
-                    continue;
-                }
-
-                const node = FileSystemManager.getNodeByPath(resolvedPath);
-
-                if (flags.force && !node) continue;
-
-                if (!node) {
-                    messages.push(`rm: cannot remove '${pathArg}': No such file or directory`);
-                    allSuccess = false;
-                    continue;
-                }
-
-                if (node.type === 'directory' && !flags.recursive) {
-                    messages.push(`rm: cannot remove '${pathArg}': Is a directory (use -r or -R)`);
-                    allSuccess = false;
-                    continue;
-                }
-
-                const isPromptRequired = flags.interactive || (options.isInteractive && !flags.force);
-
-                if (isPromptRequired) {
-                    const promptMsg = node.type === 'directory' ? `Recursively remove directory '${pathArg}'?` : `Remove file '${pathArg}'?`;
-                    const confirmed = await new Promise((resolve) => {
-                        ModalManager.request({
-                            context: "terminal",
-                            messageLines: [promptMsg],
-                            onConfirm: () => resolve(true),
-                            onCancel: () => resolve(false),
-                            options,
-                        });
-                    });
-
-                    if (!confirmed) {
-                        messages.push(`${Config.MESSAGES.REMOVAL_CANCELLED_PREFIX}'${pathArg}'${Config.MESSAGES.REMOVAL_CANCELLED_SUFFIX}`);
+            try {
+                for (const pathArg of args) {
+                    const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+                    if (resolvedPath === '/') {
+                        messages.push(`rm: cannot remove root directory`);
+                        allSuccess = false;
                         continue;
                     }
-                }
 
-                const deleteResult = await FileSystemManager.deleteNodeRecursive(resolvedPath, { force: true, currentUser });
-                if (deleteResult.success) {
-                    if (deleteResult.anyChangeMade) anyChangeMade = true;
-                    if (flags.force) {
-                        messages.push(`${Config.MESSAGES.FORCIBLY_REMOVED_PREFIX}'${pathArg}'${Config.MESSAGES.FORCIBLY_REMOVED_SUFFIX}`);
-                    } else {
-                        messages.push(`'${pathArg}'${Config.MESSAGES.ITEM_REMOVED_SUFFIX}`);
+                    const node = FileSystemManager.getNodeByPath(resolvedPath);
+
+                    if (flags.force && !node) continue;
+
+                    if (!node) {
+                        messages.push(`rm: cannot remove '${pathArg}': No such file or directory`);
+                        allSuccess = false;
+                        continue;
                     }
-                } else {
-                    allSuccess = false;
-                    messages.push(...deleteResult.messages);
-                }
-            }
-            if (anyChangeMade) await FileSystemManager.save();
 
-            const finalOutput = messages.filter((m) => m).join("\n");
-            return {
-                success: allSuccess,
-                output: allSuccess ? finalOutput : null,
-                error: allSuccess ? null : finalOutput || "Unknown error during rm operation.",
-            };
+                    if (node.type === 'directory' && !flags.recursive) {
+                        messages.push(`rm: cannot remove '${pathArg}': Is a directory (use -r or -R)`);
+                        allSuccess = false;
+                        continue;
+                    }
+
+                    const isPromptRequired = flags.interactive || (options.isInteractive && !flags.force);
+
+                    if (isPromptRequired) {
+                        const promptMsg = node.type === 'directory' ? `Recursively remove directory '${pathArg}'?` : `Remove file '${pathArg}'?`;
+                        const confirmed = await new Promise((resolve) => {
+                            ModalManager.request({
+                                context: "terminal",
+                                messageLines: [promptMsg],
+                                onConfirm: () => resolve(true),
+                                onCancel: () => resolve(false),
+                                options,
+                            });
+                        });
+
+                        if (!confirmed) {
+                            messages.push(`${Config.MESSAGES.REMOVAL_CANCELLED_PREFIX}'${pathArg}'${Config.MESSAGES.REMOVAL_CANCELLED_SUFFIX}`);
+                            continue;
+                        }
+                    }
+
+                    const deleteResult = await FileSystemManager.deleteNodeRecursive(resolvedPath, { force: true, currentUser });
+                    if (deleteResult.success) {
+                        if (deleteResult.anyChangeMade) anyChangeMade = true;
+                        messages.push(`removed '${pathArg}'`);
+                    } else {
+                        allSuccess = false;
+                        messages.push(...deleteResult.messages);
+                    }
+                }
+                if (anyChangeMade) await FileSystemManager.save();
+
+                const finalOutput = messages.filter((m) => m).join("\\n");
+                return {
+                    success: allSuccess,
+                    output: allSuccess ? finalOutput : null,
+                    error: allSuccess ? null : finalOutput || "Unknown error during rm operation.",
+                };
+            } catch (e) {
+                return { success: false, error: `rm: An unexpected error occurred: ${e.message}` };
+            }
         },
     };
 
