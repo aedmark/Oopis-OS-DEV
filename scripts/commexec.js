@@ -458,31 +458,38 @@ const CommandExecutor = (() => {
 
   // This function is now enhanced to handle script arguments.
   async function _preprocessCommandString(rawCommandText, scriptingContext = null) {
-    let expandedCommand = rawCommandText.trim();
-    if (!expandedCommand) {
+    let commandToProcess = rawCommandText.trim();
+
+    // --- NEW: Strip inline comments ---
+    // Find the first '#' that is preceded by a space.
+    const commentIndex = commandToProcess.search(/(?<= )#/);
+    if (commentIndex > -1) {
+      // If a comment is found, truncate the string to just before it.
+      commandToProcess = commandToProcess.substring(0, commentIndex).trim();
+    }
+    // --- End of new logic ---
+
+    if (!commandToProcess) {
       return "";
     }
 
-    // --- NEW: Handle script arguments ($1, $2, $@, $#) ---
+    // --- The rest of the function remains the same ---
     if (scriptingContext && scriptingContext.args) {
       const scriptArgs = scriptingContext.args;
-      // Replace $@ first to avoid issues with numbered arguments
-      expandedCommand = expandedCommand.replace(/\$@/g, scriptArgs.join(' '));
-      expandedCommand = expandedCommand.replace(/\$#/g, scriptArgs.length);
-      // Replace numbered arguments like $1, $2, etc.
+      commandToProcess = commandToProcess.replace(/\$@/g, scriptArgs.join(' '));
+      commandToProcess = commandToProcess.replace(/\$#/g, scriptArgs.length);
       scriptArgs.forEach((arg, i) => {
         const regex = new RegExp(`\\$${i + 1}`, 'g');
-        expandedCommand = expandedCommand.replace(regex, arg);
+        commandToProcess = commandToProcess.replace(regex, arg);
       });
     }
-    // --- End of New Logic ---
 
-    expandedCommand = expandedCommand.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g, (match, var1, var2) => {
+    commandToProcess = commandToProcess.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g, (match, var1, var2) => {
       const varName = var1 || var2;
       return EnvironmentManager.get(varName);
     });
 
-    const aliasResult = AliasManager.resolveAlias(expandedCommand);
+    const aliasResult = AliasManager.resolveAlias(commandToProcess);
     if (aliasResult.error) {
       throw new Error(aliasResult.error);
     }
@@ -540,8 +547,8 @@ const CommandExecutor = (() => {
         expandedArgs.push(originalArg);
       }
     }
-    const commandToParse = hasExpansionOccurred ? expandedArgs.join(' ') : commandAfterAliases;
-    return commandToParse;
+    const finalCommandToParse = hasExpansionOccurred ? expandedArgs.join(' ') : commandAfterAliases;
+    return finalCommandToParse;
   }
 
 

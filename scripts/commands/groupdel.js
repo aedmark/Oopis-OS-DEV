@@ -46,5 +46,6 @@ EXAMPLES
 PERMISSIONS
        Only the superuser (root) can delete groups.`;
 
-    CommandRegistry.register("groupdel", groupaddCommandDefinition, groupdelDescription, groupdelHelpText);
+    // The variable name here is now correct.
+    CommandRegistry.register("groupdel", groupdelCommandDefinition, groupdelDescription, groupdelHelpText);
 })();

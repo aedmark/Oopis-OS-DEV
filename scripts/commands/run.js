@@ -9,10 +9,20 @@
             min: 1,
         },
         coreLogic: async (context) => {
-            const { args, options, signal, currentUser } = context;
+            const { args, options, signal } = context;
             const scriptPathArg = args[0];
 
             try {
+                // --- RECURSION DEPTH CHECK ---
+                const currentDepth = (options.scriptingContext?.depth || 0) + 1;
+                if (currentDepth > Config.FILESYSTEM.MAX_SCRIPT_DEPTH) {
+                    return {
+                        success: false,
+                        error: `Maximum script recursion depth (${Config.FILESYSTEM.MAX_SCRIPT_DEPTH}) exceeded. Halting execution.`
+                    };
+                }
+                // --- END CHECK ---
+
                 const pathValidation = FileSystemManager.validatePath(scriptPathArg, {
                     expectedType: 'file',
                     permissions: ['read', 'execute']
@@ -25,22 +35,18 @@
                 const scriptNode = pathValidation.node;
                 const scriptContent = scriptNode.content || "";
                 const scriptArgs = args.slice(1);
-
-                // CORRECTED: The script is split by the newline character.
                 const lines = scriptContent.split('\n');
                 let overallSuccess = true;
 
-                // Define the full context ONCE before the loop.
                 const scriptingContext = {
                     sourceFile: scriptPathArg,
                     isScripting: true,
                     lines: lines,
-                    currentLineIndex: -1
+                    currentLineIndex: -1,
+                    depth: currentDepth // Pass the new depth to child commands
                 };
 
-                // Loop through each line of the script.
                 for (let i = 0; i < lines.length; i++) {
-                    // Update the context's index at the start of each iteration.
                     scriptingContext.currentLineIndex = i;
 
                     if (signal?.aborted) {
@@ -55,7 +61,6 @@
                         continue;
                     }
 
-                    // Argument substitution remains the same.
                     line = line.replace(/\$@/g, scriptArgs.join(' '));
                     line = line.replace(/\$#/g, scriptArgs.length);
                     scriptArgs.forEach((arg, j) => {
@@ -63,13 +68,11 @@
                         line = line.replace(regex, arg);
                     });
 
-                    // Execute the command with the FULL scripting context.
                     const result = await CommandExecutor.processSingleCommand(line, {
                         isInteractive: false,
                         scriptingContext: scriptingContext
                     });
 
-                    // IMPORTANT: Resynchronize the loop counter in case the command consumed lines.
                     i = scriptingContext.currentLineIndex;
 
                     if (!result.success) {
@@ -82,13 +85,11 @@
                 return { success: overallSuccess };
 
             } catch (e) {
-                // Catch any unexpected catastrophic errors.
                 return { success: false, error: `run: An unexpected error occurred: ${e.message}` };
             }
         }
     };
 
-    // The help text and description remain the same as the user-facing functionality has not changed.
     const runDescription = "Executes a shell script.";
     const runHelpText = `Usage: run <script_path> [arguments...]
 
