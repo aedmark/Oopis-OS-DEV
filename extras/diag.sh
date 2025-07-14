@@ -19,7 +19,7 @@ groupadd testgroup
 chgrp testgroup /home/diagUser/diag_workspace/
 chmod 775 /home/diagUser/diag_workspace/
 delay 500
-login diagUser testpass
+login diagUser
 echo "Current User (expected: diagUser):"
 whoami
 echo "Current Path after login (expected: /home/diagUser):"
