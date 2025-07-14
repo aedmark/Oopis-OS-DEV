@@ -1,54 +1,50 @@
+// scripts/commands/groupdel.js
 (() => {
     "use strict";
 
-    const groupsCommandDefinition = {
-        commandName: "groups",
-        argValidation: { max: 1 },
-
+    const groupdelCommandDefinition = {
+        commandName: "groupdel",
+        argValidation: { exact: 1, error: "Usage: groupdel <groupname>" },
         coreLogic: async (context) => {
             const { args, currentUser } = context;
-            const targetUser = args.length > 0 ? args[0] : currentUser;
+            const groupName = args[0];
 
-            if (!await UserManager.userExists(targetUser) && targetUser !== Config.USER.DEFAULT_NAME) {
-                return {
-                    success: false,
-                    error: `groups: user '${targetUser}' does not exist`,
-                };
+            try {
+                if (currentUser !== "root") {
+                    return { success: false, error: "groupdel: only root can delete groups." };
+                }
+
+                const result = GroupManager.deleteGroup(groupName);
+
+                if (!result.success) {
+                    return { success: false, error: `groupdel: ${result.error}` };
+                }
+
+                return { success: true, output: `Group '${groupName}' deleted.` };
+            } catch (e) {
+                return { success: false, error: `groupdel: An unexpected error occurred: ${e.message}` };
             }
-
-            const userGroups = GroupManager.getGroupsForUser(targetUser);
-
-            if (userGroups.length === 0) {
-                return { success: true, output: `${targetUser} :` };
-            }
-
-            return {
-                success: true,
-                output: `${targetUser} : ${userGroups.join(" ")}`,
-            };
         },
     };
 
-    const groupsDescription = "Displays the group memberships for a user.";
+    const groupdelDescription = "Deletes an existing user group.";
+    const groupdelHelpText = `Usage: groupdel <groupname>
 
-    const groupsHelpText = `Usage: groups [username]
-
-Display group memberships for a user.
+Delete an existing user group.
 
 DESCRIPTION
-       The groups command prints the names of the primary and supplementary
-       groups for the specified <username>.
+       The groupdel command deletes the group specified by <groupname>.
 
-       If no <username> is provided, the groups for the current user are
-       displayed. Every user is a member of a "primary group" that shares
-       their username, which is created automatically with 'useradd'.
+       You cannot remove the primary group of an existing user. You must
+       either delete the user first ('removeuser') or change their
+       primary group before deleting the group.
 
 EXAMPLES
-       groups
-              Displays the group memberships for the current user.
+       groupdel developers
+              Deletes the group named 'developers'.
 
-       groups root
-              Displays the group memberships for the 'root' user.`;
+PERMISSIONS
+       Only the superuser (root) can delete groups.`;
 
-    CommandRegistry.register("groups", groupsCommandDefinition, groupsDescription, groupsHelpText);
+    CommandRegistry.register("groupdel", groupaddCommandDefinition, groupdelDescription, groupdelHelpText);
 })();
