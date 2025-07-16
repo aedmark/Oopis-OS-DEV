@@ -3,23 +3,30 @@
 const CommandExecutor = (() => {
   "use strict";
   let backgroundProcessIdCounter = 0;
-  let activeJobs = {};
+  const activeJobs = {};
   const commands = {};
-  const loadingPromises = {}; // Cache for script loading promises
+  const loadedScripts = new Set(); // Track all loaded script paths
 
   // Helper to load a single script and return a promise
   function _loadScript(scriptPath) {
-    if (loadingPromises[scriptPath]) {
-      return loadingPromises[scriptPath];
+    // If script is already loaded, return an instantly resolved promise
+    if (loadedScripts.has(scriptPath)) {
+      return Promise.resolve(true);
     }
-    loadingPromises[scriptPath] = new Promise((resolve, reject) => {
+
+    return new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = `./scripts/${scriptPath}`;
-      script.onload = () => resolve(true);
-      script.onerror = () => reject(new Error(`Failed to load script: ${scriptPath}`));
+      script.onload = () => {
+        loadedScripts.add(scriptPath); // Mark as loaded on success
+        resolve(true);
+      };
+      script.onerror = () => {
+        console.error(`Failed to load script: ${scriptPath}`);
+        reject(new Error(`Failed to load script: ${scriptPath}`));
+      };
       document.head.appendChild(script);
     });
-    return loadingPromises[scriptPath];
   }
 
   // The new dependency-aware command loader
@@ -27,26 +34,20 @@ const CommandExecutor = (() => {
     if (!commandName || typeof commandName !== 'string') return false;
     if (commands[commandName]) return true;
 
-    // 1. Load Dependencies First
-    const dependencies = Config.COMMAND_DEPENDENCIES[commandName];
-    if (dependencies && Array.isArray(dependencies)) {
-      try {
-        await Promise.all(dependencies.map(dep => _loadScript(dep)));
-      } catch (error) {
-        console.error(`Failed to load dependencies for command '${commandName}':`, error);
-        return false;
-      }
-    }
+    const commandScriptPath = `commands/${commandName}.js`;
+    const dependencies = Config.COMMAND_DEPENDENCIES[commandName] || [];
 
-    // 2. Load the Command Script Itself
     try {
-      await _loadScript(`commands/${commandName}.js`);
+      // Load all dependencies in parallel
+      await Promise.all(dependencies.map(dep => _loadScript(dep)));
+      // Load the command script itself after dependencies are met
+      await _loadScript(commandScriptPath);
     } catch (error) {
-      // If the command script itself fails, that's okay, it just means it's not a valid command.
+      console.error(`Error loading command '${commandName}' or its dependencies.`, error);
       return false;
     }
 
-    // 3. Populate the command cache from the registry
+    // Populate the command handler cache from the registry
     const definition = CommandRegistry.getDefinitions()[commandName];
     if (definition) {
       commands[commandName] = {
@@ -57,11 +58,11 @@ const CommandExecutor = (() => {
       return true;
     }
 
-    return false; // Command script loaded but didn't register itself
+    return false; // Command script might have loaded but didn't register itself
   }
 
-  // The rest of the CommandExecutor file remains unchanged...
-  // ... (all other functions: _generateInputContent, createCommandHandler, getActiveJobs, etc.)
+  // ... (The rest of commexec.js remains exactly the same as the previous correct version)
+  // No changes are needed for createCommandHandler, _executePipeline, processSingleCommand, etc.
   async function* _generateInputContent(context, firstFileArgIndex = 0) {
     const {args, options, currentUser} = context;
 
@@ -487,7 +488,6 @@ const CommandExecutor = (() => {
     return lastResult;
   }
 
-  // This function handles script arguments.
   async function _preprocessCommandString(rawCommandText, scriptingContext = null) {
     let commandToProcess = rawCommandText.trim();
 
@@ -661,6 +661,6 @@ const CommandExecutor = (() => {
     getCommands,
     getActiveJobs,
     killJob,
-    _ensureCommandLoaded,
+    _ensureCommandLoaded
   };
 })();
