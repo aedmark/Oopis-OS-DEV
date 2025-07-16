@@ -1,0 +1,54 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "OopisOS",
+  "version": "4.1.0",
+  "identifier": "com.oopisos.app",
+  "build": {
+    "frontendDist": ".",
+    "devUrl": ".",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "dialog": {
+        "all": true
+      },
+      "fs": {
+        "all": true,
+        "scope": [
+          "$APPDATA/*",
+          "$DESKTOP/*",
+          "$DOCUMENT/*",
+          "$DOWNLOAD/*"
+        ]
+      }
+    },
+    "app": {
+      "windows": [
+        {
+          "title": "OopisOS v4.1",
+          "width": 1280,
+          "height": 960,
+          "resizable": true,
+          "fullscreen": false
+        }
+      ],
+      "security": {
+        "csp": null
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    }
+  }
+}

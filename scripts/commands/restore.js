@@ -1,4 +1,7 @@
 // scripts/commands/restore.js
+import { open } from '@tauri-apps/api/dialog';
+import { readTextFile } from '@tauri-apps/api/fs';
+
 (() => {
     "use strict";
 
@@ -18,58 +21,20 @@
                 let fileContent;
                 let fileName;
 
-                if (window.electronAPI && typeof window.electronAPI.showOpenDialog === 'function') {
-                    const filePath = await window.electronAPI.showOpenDialog({
-                        title: 'Select OopisOS Backup File',
-                        properties: ['openFile'],
-                        filters: [{ name: 'OopisOS Backups', extensions: ['json'] }]
-                    });
+                // --- TAURI REFACTOR ---
+                const filePath = await open({
+                    title: 'Select OopisOS Backup File',
+                    multiple: false,
+                    filters: [{ name: 'OopisOS Backups', extensions: ['json'] }]
+                });
 
-                    if (filePath) {
-                        const readResult = await CommandExecutor.processSingleCommand(`cat "${filePath}"`, { isInteractive: false });
-                        if (!readResult.success) {
-                            return { success: false, error: `restore: Could not read file '${filePath}': ${readResult.error}` };
-                        }
-                        fileContent = readResult.output;
-                        fileName = filePath.split(/[\\\\/]/).pop();
-                    } else {
-                        return { success: true, output: Config.MESSAGES.RESTORE_CANCELLED_NO_FILE };
-                    }
+                if (filePath) {
+                    fileContent = await readTextFile(filePath);
+                    fileName = filePath.split(/[\\/]/).pop();
+                } else {
+                    return { success: true, output: Config.MESSAGES.RESTORE_CANCELLED_NO_FILE };
                 }
-                else {
-                    const input = Utils.createElement("input", { type: "file", accept: ".json" });
-                    input.style.display = "none";
-                    document.body.appendChild(input);
-
-                    const fileResult = await new Promise((resolve) => {
-                        let dialogClosed = false;
-                        const onFocus = () => {
-                            setTimeout(() => {
-                                window.removeEventListener("focus", onFocus);
-                                if (!dialogClosed) {
-                                    dialogClosed = true;
-                                    resolve({ success: false, error: Config.MESSAGES.RESTORE_CANCELLED_NO_FILE });
-                                }
-                            }, 300);
-                        };
-                        input.onchange = (e) => {
-                            dialogClosed = true;
-                            window.removeEventListener("focus", onFocus);
-                            const f = e.target.files[0];
-                            if (f) resolve({ success: true, file: f });
-                            else resolve({ success: false, error: Config.MESSAGES.RESTORE_CANCELLED_NO_FILE });
-                        };
-                        window.addEventListener("focus", onFocus);
-                        input.click();
-                    });
-
-                    document.body.removeChild(input);
-                    if (!fileResult.success) {
-                        return { success: true, output: `restore: ${fileResult.error}` };
-                    }
-                    fileContent = await fileResult.file.text();
-                    fileName = fileResult.file.name;
-                }
+                // --- END REFACTOR ---
 
                 let backupData;
                 try {

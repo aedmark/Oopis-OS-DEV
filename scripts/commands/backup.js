@@ -1,4 +1,7 @@
 // scripts/commands/backup.js
+import { save } from '@tauri-apps/api/dialog';
+import { writeTextFile } from '@tauri-apps/api/fs';
+
 (() => {
   "use strict";
 
@@ -50,39 +53,21 @@
         const backupJsonString = JSON.stringify(backupData, null, 2);
         const defaultFileName = `OopisOS_System_Backup_${currentUser.name}_${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
 
-        if (window.electronAPI && typeof window.electronAPI.showSaveDialog === 'function') {
-          const filePath = await window.electronAPI.showSaveDialog({
-            title: 'Save OopisOS Backup',
-            defaultPath: defaultFileName,
-            filters: [{ name: 'OopisOS Backup', extensions: ['json'] }]
-          });
+        // --- TAURI REFACTOR ---
+        const filePath = await save({
+          title: 'Save OopisOS Backup',
+          defaultPath: defaultFileName,
+          filters: [{ name: 'OopisOS Backup', extensions: ['json'] }]
+        });
 
-          if (filePath) {
-            const escapedContent = backupJsonString.replace(/'/g, "'\\\\''");
-            const writeResult = await CommandExecutor.processSingleCommand(`echo '${escapedContent}' > "${filePath}"`, { isInteractive: false });
+        if (filePath) {
+          await writeTextFile(filePath, backupJsonString);
+          return { success: true, output: `Backup saved successfully to ${filePath}.` };
+        } else {
+          return { success: true, output: "Backup cancelled." };
+        }
+        // --- END REFACTOR ---
 
-            if (writeResult.success) {
-              return { success: true, output: `Backup saved successfully to ${filePath}.` };
-            } else {
-              return { success: false, error: `backup: Failed to write to file: ${writeResult.error}` };
-            }
-          } else {
-            return { success: true, output: "Backup cancelled." };
-          }
-        }
-        else {
-          const blob = new Blob([backupJsonString], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const a = Utils.createElement("a", { href: url, download: defaultFileName });
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          return {
-            success: true,
-            output: `${Config.MESSAGES.BACKUP_CREATING_PREFIX}${defaultFileName}${Config.MESSAGES.BACKUP_CREATING_SUFFIX}`,
-          };
-        }
       } catch (e) {
         return { success: false, error: `backup: An unexpected error occurred: ${e.message}` };
       }
@@ -90,18 +75,6 @@
   };
 
   const backupDescription = "Creates a secure backup of the current OopisOS system state.";
-  const backupHelpText = `Usage: backup
-
-Creates a secure, verifiable backup of the current OopisOS system state.
-
-DESCRIPTION
-       The backup command creates a JSON file containing a snapshot of the current
-       OopisOS system state. This backup includes an integrity checksum (SHA-256)
-       to ensure the file is not corrupted or tampered with. This backup can be
-       used to restore the system to a previous state using the 'restore' command.
-
-       When run in the Electron desktop app, it will open a native file save dialog.
-       Otherwise, it will trigger a browser download.`;
-
+  const backupHelpText = `Usage: backup\n\nCreates a secure, verifiable backup of the current OopisOS system state.`;
   CommandRegistry.register("backup", backupCommandDefinition, backupDescription, backupHelpText);
 })();
