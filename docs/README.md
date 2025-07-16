@@ -54,7 +54,7 @@ OopisOS is more than just a terminal; it's a complete ecosystem.
   - `chidi`: An AI-powered document analysis tool to summarize and query your files.
   - `basic`: An integrated development environment for the classic BASIC programming language.
   - `log`: A secure, timestamped journaling application.
-  - `edit`: A powerful text editor with live Markdown preview.
+  - `edit`: A powerful, context-aware text editor with live Markdown preview as well as syntax highlighting.
   - `paint`: A character-based art studio for your inner artist.
   - `adventure`: A powerful, data-driven text adventure engine to play and build interactive fiction.
 

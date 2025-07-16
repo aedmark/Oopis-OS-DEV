@@ -1,4 +1,3 @@
-// scripts/apps/editor/editor_ui.js
 const EditorUI = (() => {
     "use strict";
 
@@ -53,51 +52,46 @@ const EditorUI = (() => {
         updateDirtyStatus(initialState.isDirty);
         updateWindowTitle(initialState.currentFilePath);
         setWordWrap(initialState.wordWrap);
-        setViewMode(initialState.viewMode, initialState.fileType, initialState.currentContent, managerCallbacks.onContentChange);
+        setViewMode(initialState.viewMode, initialState.fileMode, initialState.currentContent);
 
-
-        AppLayerManager.show(elements.container);
+        AppLayerManager.show(elements.container); // Use AppLayerManager to display
         elements.textarea.focus();
     }
 
-    function renderPreview(content, fileType, highlighterFn) {
+    function renderPreview(content, mode) {
         if (!elements.preview) return;
+
+        // Ensure a predictable, clean slate for rendering.
         elements.preview.innerHTML = '';
 
-        switch (fileType) {
-            case 'markdown':
-                elements.preview.innerHTML = DOMPurify.sanitize(marked.parse(content));
-                break;
-            case 'html':
-                const iframe = Utils.createElement('iframe', {style: 'width: 100%; height: 100%; border: none;'});
-                elements.preview.appendChild(iframe);
-                const iframeDoc = iframe.contentWindow.document;
-                iframeDoc.open();
-                iframeDoc.write(DOMPurify.sanitize(content));
-                iframeDoc.close();
-                break;
-            case 'code':
-                elements.preview.innerHTML = highlighterFn(content);
-                break;
-            default:
-                elements.preview.textContent = content;
-                break;
+        if (mode === 'markdown') {
+            elements.preview.innerHTML = DOMPurify.sanitize(marked.parse(content));
+        } else if (mode === 'html') {
+            // Create and append a new iframe for each render to ensure a clean context
+            const iframe = Utils.createElement('iframe', {style: 'width: 100%; height: 100%; border: none;'});
+            elements.preview.appendChild(iframe);
+
+            // Access contentWindow *after* appending to the DOM
+            const iframeDoc = iframe.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write(DOMPurify.sanitize(content)); // Sanitize before writing
+            iframeDoc.close();
         }
     }
 
 
-    function setViewMode(viewMode, fileType, content, highlighterFn) {
+    function setViewMode(viewMode, fileMode, content) {
         if (!elements.preview || !elements.textarea || !elements.main) return;
 
-        elements.previewBtn.disabled = (fileType === 'text' || fileType === 'code');
-        if (fileType === 'text' || fileType === 'code') {
-            viewMode = 'edit';
+        elements.previewBtn.disabled = fileMode === 'text';
+
+        if (fileMode === 'text') {
+            viewMode = 'edit'; // Force editor-only mode for plain text
         }
 
         elements.textarea.style.display = 'none';
         elements.preview.style.display = 'none';
         elements.main.classList.remove('editor-main--split', 'editor-main--full');
-        elements.preview.classList.remove('code-highlighter');
 
         switch (viewMode) {
             case 'edit':
@@ -107,16 +101,14 @@ const EditorUI = (() => {
             case 'preview':
                 elements.preview.style.display = 'block';
                 elements.main.classList.add('editor-main--full');
-                if (fileType === 'code') elements.preview.classList.add('code-highlighter');
-                renderPreview(content, fileType, highlighterFn);
+                renderPreview(content, fileMode);
                 break;
             case 'split':
             default:
                 elements.textarea.style.display = 'block';
                 elements.preview.style.display = 'block';
                 elements.main.classList.add('editor-main--split');
-                if (fileType === 'code') elements.preview.classList.add('code-highlighter');
-                renderPreview(content, fileType, highlighterFn);
+                renderPreview(content, fileMode);
                 break;
         }
     }
@@ -158,7 +150,7 @@ const EditorUI = (() => {
     function setWordWrap(enabled) {
         if (elements.textarea) {
             elements.textarea.style.whiteSpace = enabled ? 'pre-wrap' : 'pre';
-            elements.textarea.style.wordBreak = enabled ? 'break-word' : 'normal';
+            elements.textarea.style.wordBreak = enabled ? 'break-all' : 'normal';
             elements.wordWrapBtn.classList.toggle('active', enabled);
         }
     }
