@@ -1,15 +1,28 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "OopisOS",
-  "version": "4.1.0",
-  "identifier": "com.oopisos.app",
   "build": {
-    "frontendDist": ".",
-    "devUrl": ".",
     "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "",
+    "devUrl": "https://github.com/aedmark/oopis-os-dev",
+    "frontendDist": "."
+  },
+  "package": {
+    "productName": "OopisOS",
+    "version": "4.1.0"
   },
   "tauri": {
+    "bundle": {
+      "active": true,
+      "identifier": "com.oopisos.app",
+      "targets": "all",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
     "allowlist": {
       "all": false,
       "dialog": {
@@ -25,30 +38,17 @@
         ]
       }
     },
-    "app": {
-      "windows": [
-        {
-          "title": "OopisOS v4.1",
-          "width": 1280,
-          "height": 960,
-          "resizable": true,
-          "fullscreen": false
-        }
-      ],
-      "security": {
-        "csp": null
-      }
+    "security": {
+      "csp": null
     },
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ]
-    }
+    "windows": [
+      {
+        "title": "OopisOS v4.1",
+        "width": 1280,
+        "height": 960,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
   }
 }
