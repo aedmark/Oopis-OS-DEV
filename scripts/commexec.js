@@ -512,7 +512,7 @@ const CommandExecutor = (() => {
   async function _finalizeInteractiveModeUI(originalCommandText) {
     TerminalUI.clearInput();
     TerminalUI.updatePrompt();
-    if (!EditorManager.isActive()) {
+    if (!AppLayerManager.isActive()) {
       if (DOM.inputLineContainerDiv) {
         DOM.inputLineContainerDiv.classList.remove(Config.CSS_CLASSES.HIDDEN);
       }
@@ -540,11 +540,12 @@ const CommandExecutor = (() => {
       if (isInteractive) await _finalizeInteractiveModeUI(rawCommandText);
       return { success: true, output: "" };
     }
-    if (EditorManager.isActive()) return { success: true, output: "" };
+
+    // CORRECTED LINE: Replace specific manager checks with the general AppLayerManager check.
+    if (AppLayerManager.isActive()) return { success: true, output: "" };
 
     let commandToParse;
     try {
-      // Pass scripting context to preprocessing for argument expansion
       commandToParse = await _preprocessCommandString(rawCommandText, scriptingContext);
     } catch (e) {
       await OutputManager.appendToOutput(e.message, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
@@ -553,7 +554,7 @@ const CommandExecutor = (() => {
     }
 
     const cmdToEcho = rawCommandText.trim();
-    if (isInteractive && !scriptingContext) { // Only echo for direct user commands
+    if (isInteractive && !scriptingContext) {
       DOM.inputLineContainerDiv.classList.add(Config.CSS_CLASSES.HIDDEN);
       const prompt = DOM.promptContainer.textContent;
       await OutputManager.appendToOutput(`${prompt}${cmdToEcho}`);

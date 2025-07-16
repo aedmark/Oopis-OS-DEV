@@ -21,7 +21,7 @@
                     };
                 }
 
-                if (typeof ExplorerManager === 'undefined') {
+                if (typeof Explorer === 'undefined' || typeof AppLayerManager === 'undefined') {
                     return {
                         success: false,
                         error: "explore: Explorer application module is not loaded.",
@@ -30,11 +30,12 @@
 
                 const startPath = args.length > 0 ? args[0] : null;
 
-                await ExplorerManager.enter(startPath);
+                // CORRECTED: Use AppLayerManager to show the singleton Explorer instance
+                AppLayerManager.show(Explorer, { startPath: startPath });
 
                 return {
                     success: true,
-                    output: "Opening File Explorer..."
+                    output: "" // The command returns immediately; the app layer handles the UI
                 };
             } catch(e) {
                 return { success: false, error: `explore: An unexpected error occurred: ${e.message}` };
@@ -55,8 +56,8 @@ DESCRIPTION
        If an optional [path] is provided, the explorer will attempt to
        start at that location.
 
-       The explorer is a read-only view and respects all file permissions
-       of the current user.`;
+       Right-click on files, directories, or the pane background to access
+       actions like creating, renaming, moving, and deleting items.`;
 
     CommandRegistry.register("explore", exploreCommandDefinition, exploreDescription, exploreHelpText);
 

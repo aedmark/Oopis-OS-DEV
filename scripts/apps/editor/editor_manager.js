@@ -1,52 +1,86 @@
-// In scripts/apps/editor/editor_manager.js
+// scripts/apps/editor/editor_manager.js
 
 class EditorManager extends App {
     constructor() {
         super();
         this.state = {};
+        this._debouncedPushUndo = Utils.debounce((content) => {
+            if (!this.isActive) return;
+            this.state.undoStack.push(content);
+            if (this.state.undoStack.length > 50) { // Limit undo history
+                this.state.undoStack.shift();
+            }
+            this.state.redoStack = []; // Clear redo on new action
+        }, 500);
     }
 
     enter(appLayer, options = {}) {
         const { filePath, fileContent, onSaveCallback } = options;
+        const normalizedContent = (fileContent || "").replace(/\r\n|\r/g, "\n");
 
         this.state = {
-            isActive: true,
             currentFilePath: filePath,
-            originalContent: (fileContent || "").replace(/\r\n|\r/g, "\n"),
-            currentContent: (fileContent || "").replace(/\r\n|\r/g, "\n"),
+            originalContent: normalizedContent,
+            currentContent: normalizedContent,
             isDirty: false,
             fileMode: this._getFileMode(filePath),
             viewMode: 'split',
-            undoStack: [(fileContent || "").replace(/\r\n|\r/g, "\n")],
+            undoStack: [normalizedContent],
             redoStack: [],
             wordWrap: StorageManager.loadItem(Config.STORAGE_KEYS.EDITOR_WORD_WRAP_ENABLED, "Editor Word Wrap", false),
             onSaveCallback: onSaveCallback || null,
         };
 
+        this.isActive = true;
         this.container = EditorUI.buildAndShow(this.state, this._getCallbacks());
         appLayer.appendChild(this.container);
+        this.container.focus();
     }
 
-    exit() {
+    async exit() {
         if (!this.isActive) return;
 
         if (this.state.isDirty) {
-            ModalManager.request({
-                context: 'graphical',
-                messageLines: ["You have unsaved changes that will be lost.", "Are you sure you want to exit?"],
-                confirmText: "Discard Changes",
-                cancelText: "Cancel",
-                onConfirm: () => this._performExit(),
-                onCancel: () => {}
+            const confirmed = await new Promise(resolve => {
+                ModalManager.request({
+                    context: 'graphical',
+                    messageLines: ["You have unsaved changes that will be lost.", "Are you sure you want to exit?"],
+                    confirmText: "Discard Changes",
+                    cancelText: "Cancel",
+                    onConfirm: () => resolve(true),
+                    onCancel: () => resolve(false)
+                });
             });
-        } else {
-            this._performExit();
+            if (!confirmed) return;
         }
+        this._performExit();
     }
 
     _performExit() {
         EditorUI.hideAndReset();
         AppLayerManager.hide(this);
+        this.isActive = false;
+        this.state = {};
+    }
+
+    handleKeyDown(event) {
+        if (!this.isActive) return;
+
+        if (event.ctrlKey || event.metaKey) {
+            let handled = true;
+            switch (event.key.toLowerCase()) {
+                case 's': this._getCallbacks().onSaveRequest(); break;
+                case 'o': this.exit(); break;
+                case 'p': this._getCallbacks().onTogglePreview(); break;
+                case 'z': event.shiftKey ? this._getCallbacks().onRedo() : this._getCallbacks().onUndo(); break;
+                case 'y': this._getCallbacks().onRedo(); break;
+                default: handled = false; break;
+            }
+            if (handled) event.preventDefault();
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            this.exit();
+        }
     }
 
     _getFileMode(filePath) {
@@ -57,23 +91,9 @@ class EditorManager extends App {
         return 'text';
     }
 
-    _debouncedPushUndo(content) {
-        if (!this._debouncedUndo) {
-            this._debouncedUndo = Utils.debounce((c) => {
-                this.state.undoStack.push(c);
-                if (this.state.undoStack.length > 50) {
-                    this.state.undoStack.shift();
-                }
-                this.state.redoStack = [];
-            }, 500);
-        }
-        this._debouncedUndo(content);
-    }
-
     _getCallbacks() {
         return {
             onContentChange: (newContent) => {
-                if (!this.isActive) return;
                 this.state.currentContent = newContent;
                 this.state.isDirty = this.state.currentContent !== this.state.originalContent;
                 EditorUI.updateDirtyStatus(this.state.isDirty);
@@ -83,7 +103,6 @@ class EditorManager extends App {
                 }
             },
             onSaveRequest: async () => {
-                if (!this.isActive) return;
                 let savePath = this.state.currentFilePath;
                 if (!savePath) {
                     savePath = await new Promise(resolve => {
@@ -122,7 +141,7 @@ class EditorManager extends App {
             onExitRequest: this.exit.bind(this),
             onTogglePreview: () => {
                 const modes = ['split', 'edit', 'preview'];
-                this.state.viewMode = modes[(modes.indexOf(this.state.viewMode) + 1) % modes.length];
+                this.state.viewMode = this.state.fileMode === 'text' ? 'edit' : modes[(modes.indexOf(this.state.viewMode) + 1) % modes.length];
                 EditorUI.setViewMode(this.state.viewMode, this.state.fileMode, this.state.currentContent);
             },
             onUndo: () => {

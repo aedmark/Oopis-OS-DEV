@@ -17,15 +17,21 @@
         },
         coreLogic: async (context) => {
             const { options, resolvedPath, node } = context;
+
             try {
                 if (!options.isInteractive) {
                     return { success: false, error: "edit: Can only be run in interactive mode." };
                 }
-                if (typeof EditorManager === 'undefined' || typeof EditorUI === 'undefined') {
+
+                if (typeof Editor === 'undefined' || typeof EditorUI === 'undefined' || typeof App === 'undefined') {
                     return { success: false, error: "edit: The editor application modules are not loaded." };
                 }
+
                 const fileContent = node ? node.content || "" : "";
-                AppLayerManager.show(Editor, { filePath: resolvedPath, fileContent: fileContent });
+
+                // Use AppLayerManager to show the singleton Editor instance
+                AppLayerManager.show(Editor, { filePath: resolvedPath, fileContent });
+
                 return { success: true, output: "" };
             } catch (e) {
                 return { success: false, error: `edit: An unexpected error occurred: ${e.message}` };
@@ -53,8 +59,7 @@ MODES
 
 KEYBOARD SHORTCUTS
        Ctrl+S: Save       Ctrl+O: Exit
-       Ctrl+P: Toggle Preview    Ctrl+B: Bold
-       Ctrl+I: Italic      Ctrl+K: Insert Link`;
+       Ctrl+P: Toggle Preview`;
 
     CommandRegistry.register("edit", editCommandDefinition, editDescription, editHelpText);
 })();

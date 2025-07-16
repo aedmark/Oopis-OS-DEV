@@ -7,45 +7,27 @@ const EditorUI = (() => {
     function buildAndShow(initialState, callbacks) {
         managerCallbacks = callbacks;
 
-        // --- Create Main Structure ---
         elements.container = Utils.createElement('div', {id: 'editor-container', className: 'editor-container'});
-
-        // --- Header ---
-        elements.titleInput = Utils.createElement('input', {
-            id: 'editor-title',
-            className: 'editor-title-input',
-            type: 'text',
-            value: initialState.currentFilePath || 'Untitled'
-        });
+        elements.titleInput = Utils.createElement('input', { id: 'editor-title', className: 'editor-title-input', type: 'text', value: initialState.currentFilePath || 'Untitled' });
         const header = Utils.createElement('header', {className: 'editor-header'}, [elements.titleInput]);
 
-        // --- Toolbar ---
-        elements.saveBtn = Utils.createElement('button', {className: 'btn', textContent: '💾'});
+        elements.saveBtn = Utils.createElement('button', {className: 'btn', textContent: '💾 Save'});
         elements.exitBtn = Utils.createElement('button', {className: 'btn', textContent: 'Exit'});
-        elements.previewBtn = Utils.createElement('button', {className: 'btn', textContent: 'View️'});
-        elements.undoBtn = Utils.createElement('button', {className: 'btn', textContent: '↩'});
-        elements.redoBtn = Utils.createElement('button', {className: 'btn', textContent: '↪'});
+        elements.previewBtn = Utils.createElement('button', {className: 'btn', textContent: '👁️ View'});
+        elements.undoBtn = Utils.createElement('button', {className: 'btn', textContent: '↩ Undo'});
+        elements.redoBtn = Utils.createElement('button', {className: 'btn', textContent: '↪ Redo'});
         elements.wordWrapBtn = Utils.createElement('button', {className: 'btn', textContent: 'Wrap'});
-
         const toolbarGroup = Utils.createElement('div', {className: 'editor-toolbar-group'}, [elements.previewBtn, elements.wordWrapBtn, elements.undoBtn, elements.redoBtn, elements.saveBtn, elements.exitBtn]);
         const toolbar = Utils.createElement('div', {className: 'editor-toolbar'}, [toolbarGroup]);
 
-
-        // --- Main Area ---
-        elements.textarea = Utils.createElement('textarea', {
-            id: 'editor-textarea',
-            className: 'editor-textarea',
-        });
-        elements.textarea.value = initialState.currentContent;
+        elements.textarea = Utils.createElement('textarea', { id: 'editor-textarea', className: 'editor-textarea', value: initialState.currentContent });
         elements.preview = Utils.createElement('div', {id: 'editor-preview', className: 'editor-preview'});
         elements.main = Utils.createElement('main', {className: 'editor-main'}, [elements.textarea, elements.preview]);
 
-        // --- Footer ---
         elements.dirtyStatus = Utils.createElement('span', {id: 'editor-dirty-status'});
         elements.statusMessage = Utils.createElement('span', {id: 'editor-status-message'});
         const footer = Utils.createElement('footer', {className: 'editor-footer'}, [elements.dirtyStatus, elements.statusMessage]);
 
-        // --- Assemble ---
         elements.container.append(header, toolbar, elements.main, footer);
 
         _addEventListeners();
@@ -54,8 +36,9 @@ const EditorUI = (() => {
         setWordWrap(initialState.wordWrap);
         setViewMode(initialState.viewMode, initialState.fileMode, initialState.currentContent);
 
-        AppLayerManager.show(elements.container); // Use AppLayerManager to display
         elements.textarea.focus();
+
+        return elements.container; // Return the created container
     }
 
     function renderPreview(content, mode) {
@@ -166,34 +149,6 @@ const EditorUI = (() => {
         elements.undoBtn.addEventListener('click', () => managerCallbacks.onUndo());
         elements.redoBtn.addEventListener('click', () => managerCallbacks.onRedo());
         elements.wordWrapBtn.addEventListener('click', () => managerCallbacks.onWordWrapToggle());
-
-        document.addEventListener('keydown', (e) => {
-            if (!EditorManager.isActive()) return;
-            if (e.ctrlKey || e.metaKey) {
-                switch (e.key.toLowerCase()) {
-                    case 's':
-                        e.preventDefault();
-                        managerCallbacks.onSaveRequest();
-                        break;
-                    case 'o':
-                        e.preventDefault();
-                        managerCallbacks.onExitRequest();
-                        break;
-                    case 'p':
-                        e.preventDefault();
-                        managerCallbacks.onTogglePreview();
-                        break;
-                    case 'z':
-                        e.preventDefault();
-                        e.shiftKey ? managerCallbacks.onRedo() : managerCallbacks.onUndo();
-                        break;
-                    case 'y':
-                        e.preventDefault();
-                        managerCallbacks.onRedo();
-                        break;
-                }
-            }
-        });
     }
 
     return {
