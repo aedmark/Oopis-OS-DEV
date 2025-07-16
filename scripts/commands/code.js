@@ -9,11 +9,11 @@
             max: 1,
             error: "Usage: code [filepath]"
         },
-        pathValidation: { // Added contract for the executor
+        pathValidation: {
             argIndex: 0,
             options: { allowMissing: true, expectedType: 'file' },
             permissions: ['read'],
-            required: false // path is optional
+            required: false
         },
         coreLogic: async (context) => {
             const { options, resolvedPath, node } = context;

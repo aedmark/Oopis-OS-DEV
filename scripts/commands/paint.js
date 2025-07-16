@@ -9,11 +9,11 @@
             max: 1,
             error: "Usage: paint [filename.oopic]"
         },
-        pathValidation: { // Added contract for the executor
+        pathValidation: {
             argIndex: 0,
             options: { allowMissing: true, expectedType: 'file' },
             permissions: ['read'],
-            required: false // path is optional
+            required: false
         },
         coreLogic: async (context) => {
             const { args, options, node, resolvedPath } = context;

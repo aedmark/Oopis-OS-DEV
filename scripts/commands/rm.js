@@ -14,11 +14,6 @@
             min: 1,
             error: "missing operand",
         },
-        // The executor will now validate the path for each argument.
-        // Since rm can take multiple paths, we'll handle this in the coreLogic
-        // and assume the executor might pre-validate or we do it iteratively.
-        // For this fix, we'll keep the iterative logic inside coreLogic
-        // but it's now streamlined.
         coreLogic: async (context) => {
             const { args, flags, currentUser, options } = context;
             let allSuccess = true;

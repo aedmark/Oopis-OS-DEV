@@ -15,8 +15,6 @@
         argValidation: {
             min: 1,
         },
-        // mkdir is special because the path DOESN'T have to exist.
-        // So we do the validation inside, but it is now much simpler.
         coreLogic: async (context) => {
             const { args, flags, currentUser } = context;
             let allSuccess = true;

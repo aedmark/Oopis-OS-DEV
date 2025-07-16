@@ -12,13 +12,13 @@
         argValidation: {
             max: 1,
         },
-        pathValidation: { // Added contract for the executor
+        pathValidation: {
             argIndex: 0,
             options: { expectedType: 'directory' },
             permissions: ['read']
         },
         coreLogic: async (context) => {
-            const { args, flags, currentUser, node, resolvedPath } = context;
+            const { args, flags, currentUser, resolvedPath } = context;
 
             try {
                 const maxDepth = flags.level

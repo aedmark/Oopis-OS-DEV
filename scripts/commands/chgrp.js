@@ -6,7 +6,7 @@
         commandName: "chgrp",
         completionType: "groups",
         argValidation: { exact: 2, error: "Usage: chgrp <groupname> <path>" },
-        pathValidation: { // Added contract for the executor
+        pathValidation: {
             argIndex: 1
         },
         coreLogic: async (context) => {

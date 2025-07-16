@@ -11,8 +11,6 @@
             { name: "stamp", short: "-t", takesValue: true },
         ],
         argValidation: { min: 1 },
-        // Touch is special, it needs to validate but allow missing files.
-        // This is handled in coreLogic.
         coreLogic: async (context) => {
             const { args, flags, currentUser } = context;
 

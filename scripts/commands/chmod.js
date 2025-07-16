@@ -9,7 +9,7 @@
             exact: 2,
             error: "Usage: chmod <mode> <path>",
         },
-        pathValidation: { // Added contract for the executor
+        pathValidation: {
             argIndex: 1
         },
         coreLogic: async (context) => {
