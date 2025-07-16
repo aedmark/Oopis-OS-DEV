@@ -727,7 +727,7 @@ const TabCompletionManager = (() => {
 const AppLayerManager = (() => {
     "use strict";
     let appLayer = null;
-    let activeApp = null; // Replaces modalStack
+    let activeApp = null;
 
     function _cacheDOM() {
         if (!appLayer) appLayer = document.getElementById('app-layer');
@@ -739,7 +739,6 @@ const AppLayerManager = (() => {
         }
     }
 
-    // The new, simplified 'show' method.
     function show(appInstance, options = {}) {
         if (!(appInstance instanceof App)) {
             console.error("AppLayerManager: Attempted to show an object that is not an instance of App.");
@@ -747,13 +746,13 @@ const AppLayerManager = (() => {
         }
 
         if (activeApp) {
-            activeApp.exit(); // Ensure the previous app is cleanly exited.
+            activeApp.exit();
         }
 
         _cacheDOM();
         activeApp = appInstance;
 
-        // The app itself will build its UI and set its state in the enter method
+        // The app's enter method is responsible for building the UI and appending it
         activeApp.enter(appLayer, options);
 
         appLayer.classList.remove('hidden');
@@ -767,10 +766,9 @@ const AppLayerManager = (() => {
         }
     }
 
-    // The new, simplified 'hide' method. Called by the app's exit() method.
     function hide(appInstance) {
         if (activeApp !== appInstance) {
-            return; // Only the active app can hide itself.
+            return;
         }
         _cacheDOM();
         if (appInstance.container && appInstance.container.parentNode === appLayer) {
@@ -779,9 +777,13 @@ const AppLayerManager = (() => {
         appLayer.classList.add('hidden');
         document.removeEventListener('keydown', _handleGlobalKeyDown, true);
 
-        activeApp.isActive = false;
         activeApp = null;
 
+        // Restore terminal interactivity when the app layer is hidden
+        const inputLineContainer = document.querySelector('.terminal__input-line');
+        if (inputLineContainer) {
+            inputLineContainer.classList.remove('hidden');
+        }
         TerminalUI.setInputState(true);
         OutputManager.setEditorActive(false);
         TerminalUI.focusInput();
