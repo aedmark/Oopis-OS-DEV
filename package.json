@@ -18,5 +18,11 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.6.2"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.6.0"
   }
 }
