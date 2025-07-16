@@ -23,12 +23,15 @@
                     return { success: false, error: "code: Can only be run in interactive mode." };
                 }
 
+                // CORRECTED: Check for the INSTANCE 'Code', not the class 'CodeManager'.
+                // Also ensure the base App class and UI module are loaded.
                 if (typeof Code === 'undefined' || typeof CodeUI === 'undefined' || typeof App === 'undefined') {
                     return { success: false, error: "code: The code editor application modules are not loaded." };
                 }
 
                 const fileContent = node ? node.content || "" : "";
 
+                // Use the singleton instance 'Code'
                 AppLayerManager.show(Code, { filePath: resolvedPath, fileContent });
 
                 return { success: true, output: "" };
