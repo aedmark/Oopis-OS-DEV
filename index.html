@@ -40,6 +40,47 @@
   </div>
 </div>
 
+<template id="editor-template">
+  <div id="editor-container" class="editor-container">
+    <header class="editor-header">
+      <input id="editor-title" class="editor-title-input" type="text" value="Untitled" />
+    </header>
+    <div class="editor-toolbar">
+      <div class="editor-toolbar-group">
+        <button id="editor-preview-btn" class="btn">👁️ View</button>
+        <button id="editor-word-wrap-btn" class="btn">Wrap</button>
+        <button id="editor-undo-btn" class="btn">↩ Undo</button>
+        <button id="editor-redo-btn" class="btn">↪ Redo</button>
+        <button id="editor-save-btn" class="btn">💾 Save</button>
+        <button id="editor-exit-btn" class="btn">Exit</button>
+      </div>
+    </div>
+    <main class="editor-main">
+      <textarea id="editor-textarea" class="editor-textarea"></textarea>
+      <div id="editor-preview" class.explorer__tree-pane" class="editor-preview"></div>
+  </main>
+  <footer class="editor-footer">
+    <span id="editor-dirty-status"></span>
+    <span id="editor-status-message"></span>
+  </footer>
+  </div>
+</template>
+
+<template id="explorer-template">
+  <div id="explorer-container" class="explorer-container">
+    <header id="explorer-header" class="explorer__header">
+      <h2 class="explorer__title">OopisOS File Explorer</h2>
+      <button id="explorer-exit-btn" class="explorer__exit-btn" title="Close Explorer (Esc)">×</button>
+    </header>
+    <div id="explorer-main-container" class="explorer__main">
+      <div id="explorer-tree-pane" class="explorer__tree-pane"></div>
+      <div id="explorer-main-pane" class="explorer__main-pane"></div>
+    </div>
+    <footer id="explorer-status-bar" class="explorer__status-bar"></footer>
+  </div>
+</template>
+
+
 <script src="./scripts/utils.js"></script>
 <script src="./scripts/config.js"></script>
 <script src="./scripts/storage.js"></script>

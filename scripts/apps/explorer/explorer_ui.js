@@ -6,38 +6,24 @@ const ExplorerUI = (() => {
 
     function buildLayout(cb) {
         callbacks = cb;
-        elements.treePane = Utils.createElement('div', { id: 'explorer-tree-pane', className: 'explorer__tree-pane' });
-        elements.mainPane = Utils.createElement('div', { id: 'explorer-main-pane', className: 'explorer__main-pane' });
-        elements.statusBar = Utils.createElement('div', { id: 'explorer-status-bar', className: 'explorer__status-bar' });
 
-        elements.exitBtn = Utils.createElement('button', {
-            id: 'explorer-exit-btn',
-            className: 'explorer__exit-btn',
-            textContent: '×',
-            title: 'Close Explorer (Esc)',
-            eventListeners: { click: () => callbacks.onExit() }
-        });
+        const template = document.getElementById('explorer-template');
+        const clone = template.content.cloneNode(true);
+        elements.container = clone.querySelector('#explorer-container');
 
-        const header = Utils.createElement('header', { id: 'explorer-header', className: 'explorer__header' },
-            Utils.createElement('h2', { className: 'explorer__title', textContent: 'OopisOS File Explorer' }),
-            elements.exitBtn
-        );
+        elements.treePane = elements.container.querySelector('#explorer-tree-pane');
+        elements.mainPane = elements.container.querySelector('#explorer-main-pane');
+        elements.statusBar = elements.container.querySelector('#explorer-status-bar');
+        elements.exitBtn = elements.container.querySelector('#explorer-exit-btn');
 
-        const mainContainer = Utils.createElement('div', { id: 'explorer-main-container', className: 'explorer__main' }, elements.treePane, elements.mainPane);
+        elements.exitBtn.addEventListener('click', () => callbacks.onExit());
 
-        elements.container = Utils.createElement('div', {
-            id: 'explorer-container',
-            className: 'explorer-container'
-        }, header, mainContainer, elements.statusBar);
-
-        // This single listener will handle all context menu logic for the main pane.
         elements.mainPane.addEventListener('contextmenu', (e) => {
-            e.preventDefault(); // Prevent the default browser menu.
-            
+            e.preventDefault();
+
             const listItem = e.target.closest('li[data-path]');
 
             if (listItem) {
-                // User right-clicked on a file or directory item
                 const path = listItem.getAttribute('data-path');
                 const name = listItem.querySelector('.explorer-item-name').textContent;
                 const menuItems = [
@@ -47,7 +33,6 @@ const ExplorerUI = (() => {
                 ];
                 _createContextMenu(menuItems, e.clientX, e.clientY);
             } else {
-                // User right-clicked on the background of the main pane
                 const currentPath = elements.statusBar.textContent.split('  |')[0].replace('Path: ', '');
                 const menuItems = [
                     { label: 'New File...', callback: () => callbacks.onCreateFile(currentPath) },
@@ -57,7 +42,6 @@ const ExplorerUI = (() => {
             }
         });
 
-        // Close context menu when clicking elsewhere
         document.addEventListener('click', (e) => {
             if (activeContextMenu && !activeContextMenu.contains(e.target)) {
                 _removeContextMenu();
@@ -66,22 +50,21 @@ const ExplorerUI = (() => {
 
         return elements.container;
     }
-    
+
     function _removeContextMenu() {
         if (activeContextMenu) {
             activeContextMenu.remove();
             activeContextMenu = null;
         }
     }
-    
+
     function _createContextMenu(items, x, y) {
-        _removeContextMenu(); // Remove any existing menu before creating a new one.
+        _removeContextMenu();
 
         const menu = Utils.createElement('div', { className: 'context-menu' });
         menu.style.left = `${x}px`;
         menu.style.top = `${y}px`;
-        
-        // Clicks inside the menu should not close it.
+
         menu.addEventListener('click', e => e.stopPropagation());
 
         items.forEach(item => {
@@ -156,68 +139,62 @@ const ExplorerUI = (() => {
     }
 
     function renderMainPane(items, currentPath) {
-    if (!elements.mainPane) return;
-    elements.mainPane.innerHTML = '';
+        if (!elements.mainPane) return;
+        elements.mainPane.innerHTML = '';
 
-    // Add a context menu for the pane itself (for creating new files/dirs)
-    elements.mainPane.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const menuItems = [
-            { label: 'New File...', callback: () => callbacks.onCreateFile(currentPath) },
-            { label: 'New Directory...', callback: () => callbacks.onCreateDirectory(currentPath) }
-        ];
-        _createContextMenu(menuItems, e.clientX, e.clientY);
-    });
-
-    if (items.length === 0) {
-        elements.mainPane.appendChild(Utils.createElement('div', {
-            className: 'p-4 text-zinc-500',
-            textContent: '(Directory is empty)'
-        }));
-        return;
-    }
-
-    const list = Utils.createElement('ul', { className: 'explorer-file-list' });
-    items.forEach(item => {
-        const icon = Utils.createElement('span', {
-            className: 'mr-2 w-4 inline-block',
-            textContent: item.type === 'directory' ? '📁' : '📄'
-        });
-        const name = Utils.createElement('span', { className: 'explorer-item-name', textContent: item.name });
-        const perms = Utils.createElement('span', { className: 'explorer-item-perms', textContent: FileSystemManager.formatModeToString(item.node) });
-        const size = Utils.createElement('span', {
-            className: 'explorer-item-size',
-            textContent: item.type === 'file' ? Utils.formatBytes(item.size) : ''
-        });
-
-        const li = Utils.createElement('li', {
-            'data-path': item.path,
-            title: item.path
-        }, icon, name, perms, size);
-
-        // --- FIXED ---
-        // Added dblclick event listener for file/directory activation
-        li.addEventListener('dblclick', () => callbacks.onMainItemActivate(item.path, item.type));
-
-        // --- FIXED ---
-        // Added contextmenu event listener for individual item actions
-        li.addEventListener('contextmenu', (e) => {
+        elements.mainPane.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
             const menuItems = [
-                { label: 'Rename...', callback: () => callbacks.onRename(item.path, item.name) },
-                { label: 'Delete', callback: () => callbacks.onDelete(item.path, item.name) },
-                { label: 'Move', callback: () => callbacks.onMove(item.path, null) }
+                { label: 'New File...', callback: () => callbacks.onCreateFile(currentPath) },
+                { label: 'New Directory...', callback: () => callbacks.onCreateDirectory(currentPath) }
             ];
             _createContextMenu(menuItems, e.clientX, e.clientY);
         });
 
-        list.appendChild(li);
-    });
-    elements.mainPane.appendChild(list);
-}
+        if (items.length === 0) {
+            elements.mainPane.appendChild(Utils.createElement('div', {
+                className: 'p-4 text-zinc-500',
+                textContent: '(Directory is empty)'
+            }));
+            return;
+        }
 
+        const list = Utils.createElement('ul', { className: 'explorer-file-list' });
+        items.forEach(item => {
+            const icon = Utils.createElement('span', {
+                className: 'mr-2 w-4 inline-block',
+                textContent: item.type === 'directory' ? '📁' : '📄'
+            });
+            const name = Utils.createElement('span', { className: 'explorer-item-name', textContent: item.name });
+            const perms = Utils.createElement('span', { className: 'explorer-item-perms', textContent: FileSystemManager.formatModeToString(item.node) });
+            const size = Utils.createElement('span', {
+                className: 'explorer-item-size',
+                textContent: item.type === 'file' ? Utils.formatBytes(item.size) : ''
+            });
+
+            const li = Utils.createElement('li', {
+                'data-path': item.path,
+                title: item.path
+            }, icon, name, perms, size);
+
+            li.addEventListener('dblclick', () => callbacks.onMainItemActivate(item.path, item.type));
+
+            li.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const menuItems = [
+                    { label: 'Rename...', callback: () => callbacks.onRename(item.path, item.name) },
+                    { label: 'Delete', callback: () => callbacks.onDelete(item.path, item.name) },
+                    { label: 'Move', callback: () => callbacks.onMove(item.path, null) }
+                ];
+                _createContextMenu(menuItems, e.clientX, e.clientY);
+            });
+
+            list.appendChild(li);
+        });
+        elements.mainPane.appendChild(list);
+    }
 
     function updateStatusBar(path, itemCount) {
         if (!elements.statusBar) return;
@@ -231,14 +208,12 @@ const ExplorerUI = (() => {
     }
 
     function highlightItem(path, isHighlighted) {
-        // Clear previous highlights
         const allItems = elements.mainPane.querySelectorAll('li');
         allItems.forEach(li => {
             li.style.backgroundColor = '';
             li.style.color = '';
         });
 
-        // Apply new highlight
         if (isHighlighted) {
             const itemElement = elements.mainPane.querySelector(`[data-path="${path}"]`);
             if (itemElement) {

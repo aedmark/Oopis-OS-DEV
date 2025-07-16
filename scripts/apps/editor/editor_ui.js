@@ -7,28 +7,27 @@ const EditorUI = (() => {
     function buildAndShow(initialState, callbacks) {
         managerCallbacks = callbacks;
 
-        elements.container = Utils.createElement('div', {id: 'editor-container', className: 'editor-container'});
-        elements.titleInput = Utils.createElement('input', { id: 'editor-title', className: 'editor-title-input', type: 'text', value: initialState.currentFilePath || 'Untitled' });
-        const header = Utils.createElement('header', {className: 'editor-header'}, [elements.titleInput]);
+        const template = document.getElementById('editor-template');
+        const clone = template.content.cloneNode(true);
+        elements.container = clone.querySelector('#editor-container');
 
-        elements.saveBtn = Utils.createElement('button', {className: 'btn', textContent: '💾 Save'});
-        elements.exitBtn = Utils.createElement('button', {className: 'btn', textContent: 'Exit'});
-        elements.previewBtn = Utils.createElement('button', {className: 'btn', textContent: '👁️ View'});
-        elements.undoBtn = Utils.createElement('button', {className: 'btn', textContent: '↩ Undo'});
-        elements.redoBtn = Utils.createElement('button', {className: 'btn', textContent: '↪ Redo'});
-        elements.wordWrapBtn = Utils.createElement('button', {className: 'btn', textContent: 'Wrap'});
-        const toolbarGroup = Utils.createElement('div', {className: 'editor-toolbar-group'}, [elements.previewBtn, elements.wordWrapBtn, elements.undoBtn, elements.redoBtn, elements.saveBtn, elements.exitBtn]);
-        const toolbar = Utils.createElement('div', {className: 'editor-toolbar'}, [toolbarGroup]);
+        // Cache elements from the cloned template
+        elements.titleInput = elements.container.querySelector('#editor-title');
+        elements.saveBtn = elements.container.querySelector('#editor-save-btn');
+        elements.exitBtn = elements.container.querySelector('#editor-exit-btn');
+        elements.previewBtn = elements.container.querySelector('#editor-preview-btn');
+        elements.wordWrapBtn = elements.container.querySelector('#editor-word-wrap-btn');
+        elements.undoBtn = elements.container.querySelector('#editor-undo-btn');
+        elements.redoBtn = elements.container.querySelector('#editor-redo-btn');
+        elements.textarea = elements.container.querySelector('#editor-textarea');
+        elements.preview = elements.container.querySelector('#editor-preview');
+        elements.main = elements.container.querySelector('.editor-main');
+        elements.dirtyStatus = elements.container.querySelector('#editor-dirty-status');
+        elements.statusMessage = elements.container.querySelector('#editor-status-message');
 
-        elements.textarea = Utils.createElement('textarea', { id: 'editor-textarea', className: 'editor-textarea', value: initialState.currentContent });
-        elements.preview = Utils.createElement('div', {id: 'editor-preview', className: 'editor-preview'});
-        elements.main = Utils.createElement('main', {className: 'editor-main'}, [elements.textarea, elements.preview]);
-
-        elements.dirtyStatus = Utils.createElement('span', {id: 'editor-dirty-status'});
-        elements.statusMessage = Utils.createElement('span', {id: 'editor-status-message'});
-        const footer = Utils.createElement('footer', {className: 'editor-footer'}, [elements.dirtyStatus, elements.statusMessage]);
-
-        elements.container.append(header, toolbar, elements.main, footer);
+        // Set initial values
+        elements.titleInput.value = initialState.currentFilePath || 'Untitled';
+        elements.textarea.value = initialState.currentContent;
 
         _addEventListeners();
         updateDirtyStatus(initialState.isDirty);
@@ -38,30 +37,26 @@ const EditorUI = (() => {
 
         elements.textarea.focus();
 
-        return elements.container; // Return the created container
+        return elements.container;
     }
 
     function renderPreview(content, mode) {
         if (!elements.preview) return;
 
-        // Ensure a predictable, clean slate for rendering.
         elements.preview.innerHTML = '';
 
         if (mode === 'markdown') {
             elements.preview.innerHTML = DOMPurify.sanitize(marked.parse(content));
         } else if (mode === 'html') {
-            // Create and append a new iframe for each render to ensure a clean context
             const iframe = Utils.createElement('iframe', {style: 'width: 100%; height: 100%; border: none;'});
             elements.preview.appendChild(iframe);
 
-            // Access contentWindow *after* appending to the DOM
             const iframeDoc = iframe.contentWindow.document;
             iframeDoc.open();
-            iframeDoc.write(DOMPurify.sanitize(content)); // Sanitize before writing
+            iframeDoc.write(DOMPurify.sanitize(content));
             iframeDoc.close();
         }
     }
-
 
     function setViewMode(viewMode, fileMode, content) {
         if (!elements.preview || !elements.textarea || !elements.main) return;
@@ -69,7 +64,7 @@ const EditorUI = (() => {
         elements.previewBtn.disabled = fileMode === 'text';
 
         if (fileMode === 'text') {
-            viewMode = 'edit'; // Force editor-only mode for plain text
+            viewMode = 'edit';
         }
 
         elements.textarea.style.display = 'none';
