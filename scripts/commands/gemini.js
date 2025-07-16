@@ -41,10 +41,11 @@ ls [-l, -a, -R], cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -type [
                     if (!options.isInteractive) {
                         return { success: false, error: "gemini: Chat mode can only be run in interactive mode." };
                     }
-                    if (typeof GeminiChatManager === 'undefined') {
+                    if (typeof GeminiChat === 'undefined' || typeof App === 'undefined') {
                         return { success: false, error: "gemini: The GeminiChatManager module is not loaded." };
                     }
-                    await GeminiChatManager.enter(flags.provider, flags.model);
+                    // THE FIX: Use AppLayerManager to show the singleton instance
+                    AppLayerManager.show(GeminiChat, { provider: flags.provider, model: flags.model });
                     return { success: true, output: "" };
                 }
 
@@ -70,28 +71,17 @@ ls [-l, -a, -R], cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -type [
                             "Please enter your Gemini API key:",
                             (providedKey) => {
                                 if (!providedKey || providedKey.trim() === "") {
-                                    resolve({
-                                        success: false,
-                                        error: "API key entry cancelled or empty."
-                                    });
+                                    resolve({ success: false, error: "API key entry cancelled or empty." });
                                     return;
                                 }
                                 StorageManager.saveItem(Config.STORAGE_KEYS.GEMINI_API_KEY, providedKey, "Gemini API Key");
-                                OutputManager.appendToOutput("API Key saved. Launching Chidi...", {
-                                    typeClass: Config.CSS_CLASSES.SUCCESS_MSG
-                                });
-                                resolve({
-                                    success: true,
-                                    key: providedKey
-                                });
+                                OutputManager.appendToOutput("API Key saved.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
+                                resolve({ success: true, key: providedKey });
                             },
                             () => {
-                                resolve({
-                                    success: false,
-                                    error: "API key entry cancelled."
-                                });
+                                resolve({ success: false, error: "API key entry cancelled." });
                             },
-                            false,
+                            true, // Obscured input
                             options
                         );
                     });
@@ -132,7 +122,7 @@ ${historyResult.output || '(none)'}
 Environment Variables:
 ${setResult.output || '(none)'}
 `;
-                    const plannerPrompt = `User Prompt: "${userPrompt}"\\n\\n${localContext}`;
+                    const plannerPrompt = `User Prompt: "${userPrompt}"\n\n${localContext}`;
 
                     const plannerConversation = [...conversationHistory, { role: "user", parts: [{ text: plannerPrompt }] }];
 
@@ -166,17 +156,10 @@ ${setResult.output || '(none)'}
                         return { success: false, error: `gemini: Planner stage failed. ${plannerResult.error}` };
                     }
 
-                    if (isNewKeyProvided && requiresGeminiApiKey) {
-                        StorageManager.saveItem(Config.STORAGE_KEYS.GEMINI_API_KEY, apiKey);
-                        if (options.isInteractive) {
-                            await OutputManager.appendToOutput("Gemini API key saved successfully.", {typeClass: Config.CSS_CLASSES.SUCCESS_MSG});
-                        }
-                    }
-
                     const planText = plannerResult.answer?.trim();
                     if (!planText) return { success: false, error: "gemini: AI failed to generate a valid plan or response." };
 
-                    const firstWordOfPlan = planText.split(/\\s+/)[0];
+                    const firstWordOfPlan = planText.split(/\s+/)[0];
                     if (!COMMAND_WHITELIST.includes(firstWordOfPlan)) {
                         conversationHistory.push({ role: "user", parts: [{ text: userPrompt }] });
                         conversationHistory.push({ role: "model", parts: [{ text: planText }] });
@@ -184,25 +167,9 @@ ${setResult.output || '(none)'}
                     }
 
                     let executedCommandsOutput = "";
-                    const commandsToExecute = planText.split('\\n').map(line => line.replace(/^\\d+\\.\\s*/, '').trim()).filter(Boolean);
+                    const commandsToExecute = planText.split('\n').map(line => line.replace(/^\d+\.\s*/, '').trim()).filter(Boolean);
                     if (flags.verbose && options.isInteractive) {
-                        await OutputManager.appendToOutput(`AI's Plan:\\n${commandsToExecute.map(c => `- ${c}`).join('\\n')}`, {typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG});
-                    }
-
-                    if (!flags.confirm && options.isInteractive) {
-                        const confirmed = await new Promise(resolve => {
-                            ModalManager.request({
-                                context: 'terminal',
-                                messageLines: ["The AI has proposed the following plan:", ...commandsToExecute.map(c => `  - ${c}`), "Execute this plan?"],
-                                onConfirm: () => resolve(true),
-                                onCancel: () => resolve(false)
-                            });
-                        });
-
-                        if (!confirmed) {
-                            await OutputManager.appendToOutput("Execution cancelled by user.", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
-                            return { success: true, output: "" };
-                        }
+                        await OutputManager.appendToOutput(`AI's Plan:\n${commandsToExecute.map(c => `- ${c}`).join('\n')}`, {typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG});
                     }
 
                     for (const commandStr of commandsToExecute) {
@@ -217,10 +184,10 @@ ${setResult.output || '(none)'}
                         }
                         const execResult = await CommandExecutor.processSingleCommand(commandStr, {suppressOutput: !flags.verbose});
                         const output = execResult.success ? execResult.output : `Error: ${execResult.error}`;
-                        executedCommandsOutput += `--- Output of '${commandStr}' ---\\n${output}\\n\\n`;
+                        executedCommandsOutput += `--- Output of '${commandStr}' ---\n${output}\n\n`;
                     }
 
-                    const synthesizerPrompt = `Original user question: "${userPrompt}"\\n\\nContext from file system:\\n${executedCommandsOutput || "No commands were run."}`;
+                    const synthesizerPrompt = `Original user question: "${userPrompt}"\n\nContext from file system:\n${executedCommandsOutput || "No commands were run."}`;
                     const synthesizerResult = await Utils.callLlmApi(provider, model, [{ role: "user", parts: [{ text: synthesizerPrompt }] }], apiKey, SYNTHESIZER_SYSTEM_PROMPT);
 
                     if (!synthesizerResult.success) {

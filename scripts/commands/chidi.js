@@ -23,7 +23,7 @@
                 }
             } else if (node.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
                 if (!FileSystemManager.hasPermission(node, currentUser, "execute")) return;
-                for (const childName of Object.keys(node.children || {})) {
+                for (const childName of Object.keys(node.children || {}).sort()) {
                     await recurse(FileSystemManager.getAbsolutePath(childName, currentPath), node.children[childName]);
                 }
             }
@@ -35,7 +35,7 @@
 
     const chidiCommandDefinition = {
         commandName: "chidi",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         flagDefinitions: [
             { name: "new", short: "-n", long: "--new" },
             { name: "provider", short: "-p", long: "--provider", takesValue: true },
@@ -53,13 +53,13 @@
                     return { success: false, error: "chidi: Can only be run in interactive mode." };
                 }
 
-                const provider = flags.provider || 'gemini';
+                if (typeof Chidi === 'undefined' || typeof App === 'undefined') {
+                    return { success: false, error: "chidi: The Chidi application modules are not properly loaded." };
+                }
 
+                const provider = flags.provider || 'gemini';
                 if (provider === 'gemini' && !StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY)) {
-                    return {
-                        success: false,
-                        error: "chidi: Gemini API key not set for the 'gemini' provider. Please run 'gemini' once to set it."
-                    };
+                    return { success: false, error: "chidi: Gemini API key not set. Please run 'gemini' once to set it." };
                 }
 
                 let files = [];
@@ -67,12 +67,8 @@
                 const SUPPORTED_EXTENSIONS = new Set(['md', 'txt', 'js', 'sh']);
 
                 if (options.stdinContent) {
-                    if (args.length > 0) return {
-                        success: false,
-                        error: "chidi: does not accept file arguments when receiving piped input."
-                    };
-
-                    const pathsFromPipe = options.stdinContent.trim().split('\\n');
+                    if (args.length > 0) return { success: false, error: "chidi: does not accept file arguments when receiving piped input." };
+                    const pathsFromPipe = options.stdinContent.trim().split('\n');
                     for (const path of pathsFromPipe) {
                         if (!path.trim()) continue;
                         const pathValidation = FileSystemManager.validatePath(path, { expectedType: 'file', permissions: ['read'] });
@@ -102,10 +98,13 @@
                     return { success: true, output: `No supported files (.md, .txt, .js, .sh) found to open.` };
                 }
 
-                ChidiManager.launch(files, {
-                    isNewSession: flags.new,
-                    provider: provider,
-                    model: flags.model
+                AppLayerManager.show(Chidi, {
+                    initialFiles: files,
+                    launchOptions: {
+                        isNewSession: flags.new,
+                        provider: provider,
+                        model: flags.model
+                    }
                 });
 
                 return { success: !hadErrors, output: "" };

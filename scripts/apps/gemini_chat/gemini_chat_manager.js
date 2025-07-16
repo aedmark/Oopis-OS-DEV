@@ -1,26 +1,24 @@
 // scripts/apps/gemini_chat/gemini_chat_manager.js
 
-const GeminiChatManager = (() => {
-    "use strict";
+class GeminiChatManager extends App {
+    constructor() {
+        super();
+        this.state = {};
+        this.callbacks = this._createCallbacks();
+    }
 
-    let state = {};
+    async enter(appLayer, options = {}) {
+        if (this.isActive) return;
 
-    const defaultState = {
-        isActive: false,
-        conversationHistory: [],
-        provider: 'gemini', // Default provider
-        model: null, // Default model
-    };
+        this.isActive = true;
+        this.state = {
+            isActive: true,
+            conversationHistory: [],
+            provider: options.provider || 'gemini',
+            model: options.model || null,
+        };
 
-    async function enter(provider, model) {
-        if (state.isActive) return;
-
-        state = { ...defaultState };
-        state.isActive = true;
-        state.provider = provider || 'gemini';
-        state.model = model || null;
-
-        // NEW: Gather and prepend context at the start of the session
+        // Gather and prepend context at the start of the session
         const pwdResult = await CommandExecutor.processSingleCommand("pwd", { suppressOutput: true });
         const lsResult = await CommandExecutor.processSingleCommand("ls -la", { suppressOutput: true });
         const historyResult = await CommandExecutor.processSingleCommand("history", { suppressOutput: true });
@@ -37,63 +35,62 @@ ${lsResult.output || '(empty)'}
 Recent Command History:
 ${historyResult.output || '(none)'}
 `;
-        // Prepend the context to the conversation history as a system message.
-        // This is sent only once at the beginning of the conversation.
-        state.conversationHistory.push({ role: 'system', parts: [{ text: systemContext }] });
 
-        GeminiChatUI.buildAndShow({
-            onSendMessage: _sendMessage,
-            onExit: exit
-        });
+        this.state.conversationHistory.push({ role: 'system', parts: [{ text: systemContext }] });
+
+        this.container = GeminiChatUI.buildAndShow(this.callbacks);
+        appLayer.appendChild(this.container);
     }
 
-    async function exit() {
-        if (!state.isActive) return;
+    exit() {
+        if (!this.isActive) return;
 
         GeminiChatUI.hideAndReset();
-        state = {};
+        AppLayerManager.hide(this);
+        this.isActive = false;
+        this.state = {};
     }
 
-    async function _sendMessage(userInput) {
-        if (!userInput || userInput.trim() === '') return;
+    _createCallbacks() {
+        return {
+            onSendMessage: async (userInput) => {
+                if (!userInput || userInput.trim() === '') return;
 
-        const userMessage = { role: 'user', parts: [{ text: userInput }] };
-        state.conversationHistory.push(userMessage);
+                const userMessage = { role: 'user', parts: [{ text: userInput }] };
+                this.state.conversationHistory.push(userMessage);
 
-        GeminiChatUI.appendMessage(userInput, 'user');
-        GeminiChatUI.toggleLoader(true);
+                GeminiChatUI.appendMessage(userInput, 'user');
+                GeminiChatUI.toggleLoader(true);
 
-        let apiKey = null;
+                let apiKey = null;
 
-        if (state.provider === 'gemini') {
-            apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
-            if (!apiKey) {
+                if (this.state.provider === 'gemini') {
+                    apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+                    if (!apiKey) {
+                        GeminiChatUI.toggleLoader(false);
+                        GeminiChatUI.appendMessage("Error: Gemini API key not set. Please run the `gemini` command in the terminal once to set it.", 'ai');
+                        this.state.conversationHistory.pop(); // Remove the failed user message
+                        return;
+                    }
+                }
+
+                const result = await Utils.callLlmApi(this.state.provider, this.state.model, this.state.conversationHistory, apiKey, null);
+
                 GeminiChatUI.toggleLoader(false);
-                GeminiChatUI.appendMessage("Error: Gemini API key not set. Please run the `gemini` command in the terminal once to set it.", 'ai');
-                state.conversationHistory.pop();
-                return;
-            }
-        }
 
-        // The conversation history now naturally includes the system context at the beginning
-        const result = await Utils.callLlmApi(state.provider, state.model, state.conversationHistory, apiKey, null);
-
-        GeminiChatUI.toggleLoader(false);
-
-        if (result.success) {
-            const aiResponse = result.answer;
-            state.conversationHistory.push({ role: 'model', parts: [{ text: aiResponse }] });
-            GeminiChatUI.appendMessage(aiResponse, 'ai');
-        } else {
-            const errorMessage = `AI Error: ${result.error}`;
-            GeminiChatUI.appendMessage(errorMessage, 'ai');
-            state.conversationHistory.pop();
-        }
+                if (result.success) {
+                    const aiResponse = result.answer;
+                    this.state.conversationHistory.push({ role: 'model', parts: [{ text: aiResponse }] });
+                    GeminiChatUI.appendMessage(aiResponse, 'ai');
+                } else {
+                    const errorMessage = `AI Error: ${result.error}`;
+                    GeminiChatUI.appendMessage(errorMessage, 'ai');
+                    this.state.conversationHistory.pop(); // Remove the failed user message
+                }
+            },
+            onExit: this.exit.bind(this)
+        };
     }
+}
 
-    return {
-        enter,
-        exit,
-        isActive: () => state.isActive
-    };
-})();
+const GeminiChat = new GeminiChatManager();

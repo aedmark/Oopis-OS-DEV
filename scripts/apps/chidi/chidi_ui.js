@@ -1,4 +1,5 @@
-// REFACTORED: aedmark/oopis-os-dev/Oopis-OS-DEV-cbc33c0961be0b361f0e88490da8362b6de6b93c/scripts/apps/chidi/chidi_ui.js
+// scripts/apps/chidi/chidi_ui.js
+
 const ChidiUI = (() => {
     "use strict";
 
@@ -8,7 +9,6 @@ const ChidiUI = (() => {
     function buildAndShow(initialState, cb) {
         callbacks = cb;
 
-        // --- Programmatic UI Construction ---
         const header = Utils.createElement('header', {className: 'chidi-console-header'},
             Utils.createElement('div', {id: 'chidi-custom-selector'},
                 Utils.createElement('button', {id: 'chidi-selector-trigger', className: 'chidi-btn chidi-select'}),
@@ -16,67 +16,38 @@ const ChidiUI = (() => {
             ),
             Utils.createElement('h1', {id: 'chidi-mainTitle', textContent: 'chidi.md'}),
             Utils.createElement('div', {className: 'chidi-control-group'},
-                Utils.createElement('button', {
-                    id: 'chidi-summarizeBtn',
-                    className: 'chidi-btn',
-                    textContent: 'Summarize'
-                }),
-                Utils.createElement('button', {
-                    id: 'chidi-suggestQuestionsBtn',
-                    className: 'chidi-btn',
-                    textContent: 'Study'
-                }),
-                Utils.createElement('button', {id: 'chidi-askAllFilesBtn', className: 'chidi-btn', textContent: 'Ask'}),
-                Utils.createElement('button', {
-                    id: 'chidi-autolink-btn',
-                    className: 'chidi-btn',
-                    textContent: 'Auto-Link Summary'
-                })
+                Utils.createElement('button', {id: 'chidi-summarizeBtn', className: 'chidi-btn', textContent: 'Summarize'}),
+                Utils.createElement('button', {id: 'chidi-suggestQuestionsBtn', className: 'chidi-btn', textContent: 'Study'}),
+                Utils.createElement('button', {id: 'chidi-askAllFilesBtn', className: 'chidi-btn', textContent: 'Ask'})
             )
         );
 
-        const mainContent = Utils.createElement('main', {
-            id: 'chidi-markdownDisplay',
-            className: 'chidi-markdown-content'
-        });
+        const mainContent = Utils.createElement('main', {id: 'chidi-markdownDisplay', className: 'chidi-markdown-content'});
 
         const footer = Utils.createElement('footer', {className: 'chidi-status-readout'},
             Utils.createElement('div', {id: 'chidi-fileCountDisplay', className: 'chidi-status-item'}),
-            Utils.createElement('div', {id: 'chidi-messageBox', className: 'chidi-status-message'}), // This is our new indicator
+            Utils.createElement('div', {id: 'chidi-messageBox', className: 'chidi-status-message'}),
             Utils.createElement('div', {className: 'chidi-control-group'},
                 Utils.createElement('div', {id: 'chidi-loader', className: 'chidi-loader chidi-hidden'}),
-                Utils.createElement('button', {
-                    id: 'chidi-verbose-toggle-btn',
-                    className: 'chidi-btn',
-                    textContent: 'Log: Off'
-                }),
-                Utils.createElement('button', {
-                    id: 'chidi-saveSessionBtn',
-                    className: 'chidi-btn',
-                    textContent: 'Save'
-                }),
+                Utils.createElement('button', {id: 'chidi-saveSessionBtn', className: 'chidi-btn', textContent: 'Save'}),
                 Utils.createElement('button', {id: 'chidi-exportBtn', className: 'chidi-btn', textContent: 'Export'}),
-                Utils.createElement('button', {
-                    id: 'chidi-closeBtn',
-                    className: 'chidi-btn chidi-exit-btn',
-                    textContent: 'Exit'
-                })
+                Utils.createElement('button', {id: 'chidi-closeBtn', className: 'chidi-btn chidi-exit-btn', textContent: 'Exit'})
             )
         );
 
         const appContainer = Utils.createElement('div', {id: 'chidi-console-panel'}, header, mainContent, footer);
-        // --- End Programmatic UI Construction ---
 
-        AppLayerManager.show(appContainer);
-
-        _cacheDOMElements();
+        _cacheDOMElements(appContainer);
         _setupEventListeners();
         update(initialState);
+
+        return appContainer;
     }
 
-
     function hideAndReset() {
-        AppLayerManager.hide();
+        if (elements.container) {
+            elements.container.remove();
+        }
         elements = {};
         callbacks = {};
     }
@@ -88,7 +59,6 @@ const ChidiUI = (() => {
         const currentFile = hasFiles ? state.loadedFiles[state.currentIndex] : null;
 
         elements.fileCountDisplay.textContent = `🖹 ${state.loadedFiles.length}`;
-        // NEW: Update status message to reflect session state
         elements.messageBox.textContent = `Analyzing ${state.loadedFiles.length} files. Ask a follow-up question.`;
 
         elements.exportBtn.disabled = !hasFiles;
@@ -96,7 +66,6 @@ const ChidiUI = (() => {
         elements.summarizeBtn.disabled = !hasFiles;
         elements.studyBtn.disabled = !hasFiles;
         elements.askBtn.disabled = !hasFiles;
-        elements.autoLinkBtn.disabled = !hasFiles;
 
         _populateFileDropdown(state.loadedFiles, state.currentIndex);
 
@@ -114,10 +83,11 @@ const ChidiUI = (() => {
         }
     }
 
-    function _cacheDOMElements() {
-        const get = (id) => document.getElementById(id);
+    function _cacheDOMElements(container) {
+        elements.container = container;
+        const get = (id) => container.querySelector(`#${id}`);
         elements = {
-            container: get('chidi-console-panel'),
+            ...elements,
             selectorTrigger: get('chidi-selector-trigger'),
             selectorPanel: get('chidi-selector-panel'),
             mainTitle: get('chidi-mainTitle'),
@@ -128,9 +98,7 @@ const ChidiUI = (() => {
             summarizeBtn: get('chidi-summarizeBtn'),
             studyBtn: get('chidi-suggestQuestionsBtn'),
             askBtn: get('chidi-askAllFilesBtn'),
-            autoLinkBtn: get('chidi-autolink-btn'),
             saveSessionBtn: get('chidi-saveSessionBtn'),
-            verboseToggleBtn: get('chidi-verbose-toggle-btn'),
             exportBtn: get('chidi-exportBtn'),
             closeBtn: get('chidi-closeBtn')
         };
@@ -145,11 +113,6 @@ const ChidiUI = (() => {
             _toggleDropdown();
         });
 
-        elements.verboseToggleBtn.addEventListener('click', () => {
-            const isVerbose = callbacks.onVerboseToggle();
-            elements.verboseToggleBtn.textContent = isVerbose ? 'Log: On' : 'Log: Off';
-        });
-
         elements.askBtn.addEventListener('click', async () => {
             const userQuestion = await new Promise(resolve => {
                 ModalManager.request({
@@ -160,8 +123,6 @@ const ChidiUI = (() => {
             });
             if (userQuestion) callbacks.onAsk(userQuestion);
         });
-
-        elements.autoLinkBtn.addEventListener('click', () => callbacks.onAutoLink());
 
         elements.summarizeBtn.addEventListener('click', () => callbacks.onSummarize());
         elements.studyBtn.addEventListener('click', () => callbacks.onStudy());
@@ -179,11 +140,15 @@ const ChidiUI = (() => {
         });
 
         document.addEventListener('keydown', (e) => {
-            if (!AppLayerManager.isActive() || !elements.container) return;
+            if (!elements.container?.isConnected) return;
             if (e.key === 'Escape') {
-                elements.selectorPanel.classList.contains('hidden') ? callbacks.onClose() : _toggleDropdown(false);
+                if (elements.selectorPanel.classList.contains('hidden')) {
+                    callbacks.onClose();
+                } else {
+                    _toggleDropdown(false);
+                }
             }
-        });
+        }, true);
     }
 
     function _populateFileDropdown(files, currentIndex) {
