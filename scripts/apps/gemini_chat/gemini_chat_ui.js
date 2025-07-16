@@ -9,6 +9,7 @@ const GeminiChatUI = (() => {
     function buildAndShow(callbacks) {
         managerCallbacks = callbacks;
 
+        // Create DOM elements
         elements.container = Utils.createElement('div', { id: 'gemini-chat-container' });
         const title = Utils.createElement('h2', { textContent: 'Gemini Chat' });
         const exitBtn = Utils.createElement('button', { className: 'btn btn--cancel', textContent: 'Exit' });
@@ -27,6 +28,7 @@ const GeminiChatUI = (() => {
 
         elements.container.append(header, elements.messageDisplay, elements.loader, form);
 
+        // Add event listeners
         exitBtn.addEventListener('click', () => managerCallbacks.onExit());
         form.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -40,12 +42,16 @@ const GeminiChatUI = (() => {
             }
         });
 
-        AppLayerManager.show(elements.container);
         elements.input.focus();
+
+        // Return the created container instead of calling AppLayerManager
+        return elements.container;
     }
 
     function hideAndReset() {
-        AppLayerManager.hide();
+        if (elements.container) {
+            elements.container.remove();
+        }
         elements = {};
         managerCallbacks = {};
     }
@@ -61,20 +67,17 @@ const GeminiChatUI = (() => {
             const sanitizedHtml = DOMPurify.sanitize(marked.parse(message));
             messageDiv.innerHTML = sanitizedHtml;
 
-            // NEW: Add a "Copy" button to each AI message for usability
             const copyBtn = Utils.createElement('button', { class: 'btn', style: 'position: absolute; top: 5px; right: 5px; font-size: 0.75rem; padding: 2px 5px;', textContent: 'Copy' });
             copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(message); // Copy the raw markdown
+                navigator.clipboard.writeText(message);
                 copyBtn.textContent = 'Copied!';
                 setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
             });
             messageDiv.style.position = 'relative';
             messageDiv.appendChild(copyBtn);
 
-            // NEW: Add "Run Command" buttons for code blocks
             messageDiv.querySelectorAll('pre > code').forEach(codeBlock => {
                 const commandText = codeBlock.textContent.trim();
-                // Check if it's a single-line command
                 if (!commandText.includes('\n')) {
                     const runButton = Utils.createElement('button', {
                         class: 'btn btn--confirm',
@@ -82,8 +85,8 @@ const GeminiChatUI = (() => {
                         style: 'display: block; margin-top: 10px;'
                     });
                     runButton.addEventListener('click', async () => {
-                        managerCallbacks.onExit(); // Close chat
-                        await new Promise(resolve => setTimeout(resolve, 50)); // Allow UI to hide
+                        managerCallbacks.onExit();
+                        await new Promise(resolve => setTimeout(resolve, 50));
                         await CommandExecutor.processSingleCommand(commandText, { isInteractive: true });
                     });
                     codeBlock.parentElement.insertAdjacentElement('afterend', runButton);

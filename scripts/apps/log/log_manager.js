@@ -1,116 +1,64 @@
-const LogManager = (() => {
-    "use strict";
-    let state = {
-        isActive: false,
-        allEntries: [],
-        filteredEntries: [],
-        selectedPath: null,
-        isDirty: false,
-    };
+// scripts/apps/log/log_manager.js
 
-    const callbacks = {
-        onExit: exit,
-        onSearch: (query) => {
-            state.filteredEntries = state.allEntries.filter(e => e.content.toLowerCase().includes(query.toLowerCase()));
-            LogUI.renderEntries(state.filteredEntries, state.selectedPath);
-        },
-        onSelect: async (path) => {
-            if (state.isDirty) {
-                const confirmed = await new Promise(r => ModalManager.request({
-                    context: 'graphical',
-                    messageLines: ["You have unsaved changes. Discard them?"],
-                    onConfirm: () => r(true), onCancel: () => r(false)
-                }));
-                if (!confirmed) return;
-            }
-            state.selectedPath = path;
-            const selectedEntry = state.allEntries.find(e => e.path === path);
-            LogUI.renderContent(selectedEntry);
-            LogUI.renderEntries(state.filteredEntries, state.selectedPath);
-            state.isDirty = false;
-            LogUI.updateSaveButton(false);
-        },
-        onNew: async () => {
-            const title = await new Promise(resolve => ModalManager.request({
-                context: 'graphical-input',
-                messageLines: ["Enter New Log Title:"],
-                placeholder: "A new beginning...",
-                onConfirm: (value) => resolve(value), onCancel: () => resolve(null)
-            }));
-            if (title) {
-                const newContent = `# ${title}`;
-                const result = await quickAdd(newContent, UserManager.getCurrentUser().name);
-                if (result.success) {
-                    await _loadEntries();
-                    await callbacks.onSelect(result.path);
-                }
-            }
-        },
-        onSave: async () => {
-            if (!state.selectedPath || !state.isDirty) return;
-            const newContent = LogUI.getContent();
-            const result = await _saveEntry(state.selectedPath, newContent);
-            if (result.success) {
-                const entryIndex = state.allEntries.findIndex(e => e.path === state.selectedPath);
-                if (entryIndex > -1) {
-                    state.allEntries[entryIndex].content = newContent;
-                }
-                state.isDirty = false;
-                LogUI.updateSaveButton(false);
-            } else {
-                alert(`Error saving: ${result.error}`);
-            }
-        },
-        onContentChange: () => {
-            const selectedEntry = state.allEntries.find(e => e.path === state.selectedPath);
-            if (!selectedEntry) return;
-            const currentContent = LogUI.getContent();
-            state.isDirty = currentContent !== selectedEntry.content;
-            LogUI.updateSaveButton(state.isDirty);
-        }
-    };
+class LogManager extends App {
+    constructor() {
+        super();
+        this.state = {};
+        this.callbacks = this._createCallbacks();
+        this.LOG_DIR = "/home/Guest/.journal";
+    }
 
-    async function enter() {
-        if (state.isActive) return;
-        state.isActive = true;
-        document.addEventListener('keydown', handleKeyDown);
-        await _ensureLogDir();
-        await _loadEntries();
-        const layout = LogUI.buildLayout(callbacks);
-        AppLayerManager.show(layout);
-        LogUI.renderEntries(state.filteredEntries, null);
+    async enter(appLayer, options = {}) {
+        if (this.isActive) return;
+
+        this.isActive = true;
+        this.container = LogUI.buildLayout(this.callbacks);
+        appLayer.appendChild(this.container);
+
+        await this._ensureLogDir();
+        await this._loadEntries();
+
+        LogUI.renderEntries(this.state.filteredEntries, null);
         LogUI.renderContent(null);
     }
 
-    async function exit() {
-        if (!state.isActive) return;
-        if (state.isDirty) {
-            const confirmed = await new Promise(r => ModalManager.request({
+    exit() {
+        if (!this.isActive) return;
+
+        const performExit = () => {
+            LogUI.reset();
+            AppLayerManager.hide(this);
+            this.isActive = false;
+            this.state = {};
+        };
+
+        if (this.state.isDirty) {
+            ModalManager.request({
                 context: 'graphical',
-                messageLines: ["You have unsaved changes. Exit and discard them?"],
-                onConfirm: () => r(true), onCancel: () => r(false)
-            }));
-            if (!confirmed) return;
-        }
-        document.removeEventListener('keydown', handleKeyDown);
-        AppLayerManager.hide();
-        LogUI.reset();
-        state = {isActive: false, allEntries: [], filteredEntries: [], selectedPath: null, isDirty: false};
-    }
-
-    function handleKeyDown(e) {
-        if (!state.isActive) return;
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-            e.preventDefault();
-            callbacks.onSave();
+                messageLines: ["You have unsaved changes that will be lost.", "Exit without saving?"],
+                onConfirm: performExit,
+                onCancel: () => {}
+            });
+        } else {
+            performExit();
         }
     }
 
-    async function quickAdd(entryText, currentUser) {
-        await _ensureLogDir(currentUser);
+    handleKeyDown(event) {
+        if (!this.isActive) return;
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+            event.preventDefault();
+            this.callbacks.onSave();
+        } else if (event.key === 'Escape') {
+            this.exit();
+        }
+    }
+
+    async quickAdd(entryText, currentUser) {
+        await this._ensureLogDir(currentUser);
         const timestamp = new Date().toISOString();
         const filename = `${timestamp.replace(/[:.]/g, '-')}.md`;
-        const fullPath = `${LOG_DIR}/${filename}`;
+        const fullPath = `${this.LOG_DIR}/${filename}`;
 
         const saveResult = await FileSystemManager.createOrUpdateFile(fullPath, entryText, {
             currentUser: currentUser,
@@ -124,7 +72,71 @@ const LogManager = (() => {
         return {success: true, message: `Log entry saved to ${fullPath}`, path: fullPath};
     }
 
-    async function _saveEntry(path, content) {
+    _createCallbacks() {
+        return {
+            onExit: this.exit.bind(this),
+            onSearch: (query) => {
+                this.state.filteredEntries = this.state.allEntries.filter(e => e.content.toLowerCase().includes(query.toLowerCase()));
+                LogUI.renderEntries(this.state.filteredEntries, this.state.selectedPath);
+            },
+            onSelect: async (path) => {
+                if (this.state.isDirty) {
+                    const confirmed = await new Promise(r => ModalManager.request({
+                        context: 'graphical',
+                        messageLines: ["You have unsaved changes. Discard them?"],
+                        onConfirm: () => r(true), onCancel: () => r(false)
+                    }));
+                    if (!confirmed) return;
+                }
+                this.state.selectedPath = path;
+                const selectedEntry = this.state.allEntries.find(e => e.path === path);
+                LogUI.renderContent(selectedEntry);
+                LogUI.renderEntries(this.state.filteredEntries, this.state.selectedPath);
+                this.state.isDirty = false;
+                LogUI.updateSaveButton(false);
+            },
+            onNew: async () => {
+                const title = await new Promise(resolve => ModalManager.request({
+                    context: 'graphical-input',
+                    messageLines: ["Enter New Log Title:"],
+                    placeholder: "A new beginning...",
+                    onConfirm: (value) => resolve(value), onCancel: () => resolve(null)
+                }));
+                if (title) {
+                    const newContent = `# ${title}`;
+                    const result = await this.quickAdd(newContent, UserManager.getCurrentUser().name);
+                    if (result.success) {
+                        await this._loadEntries();
+                        await this.callbacks.onSelect(result.path);
+                    }
+                }
+            },
+            onSave: async () => {
+                if (!this.state.selectedPath || !this.state.isDirty) return;
+                const newContent = LogUI.getContent();
+                const result = await this._saveEntry(this.state.selectedPath, newContent);
+                if (result.success) {
+                    const entryIndex = this.state.allEntries.findIndex(e => e.path === this.state.selectedPath);
+                    if (entryIndex > -1) {
+                        this.state.allEntries[entryIndex].content = newContent;
+                    }
+                    this.state.isDirty = false;
+                    LogUI.updateSaveButton(false);
+                } else {
+                    alert(`Error saving: ${result.error}`);
+                }
+            },
+            onContentChange: () => {
+                const selectedEntry = this.state.allEntries.find(e => e.path === this.state.selectedPath);
+                if (!selectedEntry) return;
+                const currentContent = LogUI.getContent();
+                this.state.isDirty = currentContent !== selectedEntry.content;
+                LogUI.updateSaveButton(this.state.isDirty);
+            }
+        };
+    }
+
+    async _saveEntry(path, content) {
         const result = await FileSystemManager.createOrUpdateFile(path, content, {
             currentUser: UserManager.getCurrentUser().name,
             primaryGroup: UserManager.getPrimaryGroupForUser(UserManager.getCurrentUser().name)
@@ -133,16 +145,16 @@ const LogManager = (() => {
         return result;
     }
 
-    async function _ensureLogDir(currentUser) {
-        const pathInfo = FileSystemManager.validatePath("log", LOG_DIR, {allowMissing: true});
+    async _ensureLogDir(currentUser) {
+        const pathInfo = FileSystemManager.validatePath(this.LOG_DIR, {allowMissing: true});
         if (!pathInfo.node) {
-            await CommandExecutor.processSingleCommand(`mkdir -p ${LOG_DIR}`);
+            await CommandExecutor.processSingleCommand(`mkdir -p ${this.LOG_DIR}`, { isInteractive: false });
         }
     }
 
-    async function _loadEntries() {
-        const dirNode = FileSystemManager.getNodeByPath(LOG_DIR);
-        state.allEntries = [];
+    async _loadEntries() {
+        this.state.allEntries = [];
+        const dirNode = FileSystemManager.getNodeByPath(this.LOG_DIR);
         if (dirNode && dirNode.children) {
             for (const filename in dirNode.children) {
                 if (filename.endsWith('.md')) {
@@ -153,17 +165,17 @@ const LogManager = (() => {
                         rawTimestamp.substring(14, 16) + ':' +
                         rawTimestamp.substring(17, 19) + '.' +
                         rawTimestamp.substring(20, 23) + 'Z';
-                    state.allEntries.push({
+                    this.state.allEntries.push({
                         timestamp: new Date(isoString),
                         content: fileNode.content || '',
-                        path: `${LOG_DIR}/${filename}`
+                        path: `${this.LOG_DIR}/${filename}`
                     });
                 }
             }
         }
-        state.allEntries.sort((a, b) => b.timestamp - a.timestamp);
-        state.filteredEntries = [...state.allEntries];
+        this.state.allEntries.sort((a, b) => b.timestamp - a.timestamp);
+        this.state.filteredEntries = [...this.state.allEntries];
     }
+}
 
-    return {enter, exit, quickAdd};
-})();
+const Log = new LogManager();

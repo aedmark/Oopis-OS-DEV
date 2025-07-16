@@ -19,7 +19,7 @@
                     };
                 }
 
-                if (typeof LogManager === 'undefined' || typeof LogUI === 'undefined') {
+                if (typeof Log === 'undefined' || typeof LogUI === 'undefined' || typeof App === 'undefined') {
                     return {
                         success: false,
                         error: "log: The Log application module is not loaded."
@@ -28,7 +28,7 @@
 
                 if (args.length === 1) {
                     const entryText = args[0];
-                    const result = await LogManager.quickAdd(entryText, currentUser);
+                    const result = await Log.quickAdd(entryText, currentUser);
                     if (result.success) {
                         await OutputManager.appendToOutput(result.message, { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
                         return { success: true, output: "" };
@@ -37,7 +37,9 @@
                     }
                 }
 
-                await LogManager.enter();
+                // Launch the full application using the AppLayerManager
+                AppLayerManager.show(Log);
+
                 return { success: true, output: "" };
             } catch (e) {
                 return { success: false, error: `log: An unexpected error occurred: ${e.message}` };

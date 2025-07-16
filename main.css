@@ -86,6 +86,8 @@ html {
     font-size: var(--font-size-base);
     line-height: var(--line-height-base);
     -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+
 }
 
 body {
@@ -228,6 +230,8 @@ body {
     justify-content: center;
     background-color: rgba(10, 10, 10, 0.85);
     backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+
 }
 
 

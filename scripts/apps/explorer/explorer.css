@@ -83,6 +83,7 @@
 .explorer-tree-item summary {
     cursor: pointer;
     user-select: none;
+    -webkit-user-select: none;
     padding: var(--spacing-xs);
     border-radius: var(--border-radius-sm);
 }

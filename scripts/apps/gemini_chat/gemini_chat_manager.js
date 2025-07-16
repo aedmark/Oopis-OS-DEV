@@ -18,7 +18,6 @@ class GeminiChatManager extends App {
             model: options.model || null,
         };
 
-        // Gather and prepend context at the start of the session
         const pwdResult = await CommandExecutor.processSingleCommand("pwd", { suppressOutput: true });
         const lsResult = await CommandExecutor.processSingleCommand("ls -la", { suppressOutput: true });
         const historyResult = await CommandExecutor.processSingleCommand("history", { suppressOutput: true });
@@ -38,17 +37,24 @@ ${historyResult.output || '(none)'}
 
         this.state.conversationHistory.push({ role: 'system', parts: [{ text: systemContext }] });
 
+        // This is now correct: buildAndShow returns the container, which is then appended.
         this.container = GeminiChatUI.buildAndShow(this.callbacks);
         appLayer.appendChild(this.container);
+        this.container.focus();
     }
 
     exit() {
         if (!this.isActive) return;
-
         GeminiChatUI.hideAndReset();
         AppLayerManager.hide(this);
         this.isActive = false;
         this.state = {};
+    }
+
+    handleKeyDown(event) {
+        if(event.key === "Escape") {
+            this.exit();
+        }
     }
 
     _createCallbacks() {
@@ -69,7 +75,7 @@ ${historyResult.output || '(none)'}
                     if (!apiKey) {
                         GeminiChatUI.toggleLoader(false);
                         GeminiChatUI.appendMessage("Error: Gemini API key not set. Please run the `gemini` command in the terminal once to set it.", 'ai');
-                        this.state.conversationHistory.pop(); // Remove the failed user message
+                        this.state.conversationHistory.pop();
                         return;
                     }
                 }
@@ -85,7 +91,7 @@ ${historyResult.output || '(none)'}
                 } else {
                     const errorMessage = `AI Error: ${result.error}`;
                     GeminiChatUI.appendMessage(errorMessage, 'ai');
-                    this.state.conversationHistory.pop(); // Remove the failed user message
+                    this.state.conversationHistory.pop();
                 }
             },
             onExit: this.exit.bind(this)

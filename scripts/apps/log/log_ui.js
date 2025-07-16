@@ -1,4 +1,4 @@
-const LOG_DIR = "/home/Guest/.journal";
+// scripts/apps/log/log_ui.js
 
 const LogUI = (() => {
     "use strict";
@@ -17,9 +17,7 @@ const LogUI = (() => {
 
         elements.searchBar = Utils.createElement('input', { id: 'log-search-bar', type: 'text', placeholder: 'Search entries...', className: 'log-app__search' });
         elements.newBtn = Utils.createElement('button', { id: 'log-new-btn', textContent: 'New Entry', className: 'log-app__btn' });
-
         elements.saveBtn = Utils.createElement('button', { id: 'log-save-btn', textContent: 'Save Changes', className: 'log-app__btn hidden' });
-
         elements.exitBtn = Utils.createElement('button', { id: 'log-exit-btn', textContent: 'Exit', className: 'log-app__btn log-app__btn--exit' });
 
         elements.searchBar.addEventListener('input', () => callbacks.onSearch(elements.searchBar.value));
@@ -41,6 +39,7 @@ const LogUI = (() => {
     }
 
     function renderEntries(entries, selectedPath) {
+        if (!elements.entryList) return;
         elements.entryList.innerHTML = '';
         if (entries.length === 0) {
             elements.entryList.textContent = 'No entries found.';
@@ -65,6 +64,7 @@ const LogUI = (() => {
     }
 
     function renderContent(entry) {
+        if (!elements.contentView) return;
         if (!entry) {
             elements.contentView.value = '';
             elements.contentView.placeholder = 'Select an entry to view or edit...';
@@ -75,11 +75,13 @@ const LogUI = (() => {
     }
 
     function updateSaveButton(isDirty) {
-        elements.saveBtn.classList.toggle('hidden', !isDirty);
+        if (elements.saveBtn) {
+            elements.saveBtn.classList.toggle('hidden', !isDirty);
+        }
     }
 
     function getContent() {
-        return elements.contentView.value;
+        return elements.contentView ? elements.contentView.value : "";
     }
 
     function reset() {
