@@ -33,7 +33,9 @@
                     return { success: false, error: `printscreen: '${filePathArg}': Permission denied` };
                 }
 
-                const outputContent = DOM.outputDiv ? DOM.outputDiv.innerText : "";
+                // Correctly reference the output div from the document
+                const outputDiv = document.getElementById('output');
+                const outputContent = outputDiv ? outputDiv.innerText : "";
 
                 const saveResult = await FileSystemManager.createOrUpdateFile(
                     pathValidation.resolvedPath,

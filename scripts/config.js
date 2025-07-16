@@ -152,7 +152,7 @@ const Config = (() => {
             }
         },
         COMMANDS_MANIFEST: [
-            "adventure", "alias", "awk", "backup", "basic", "bc", "cat", "cd", "check_fail",
+            "adventure", "alias", "awk", "backup", "base64", "basic", "bc", "cat", "cd", "check_fail",
             "chgrp", "chidi", "chmod", "chown", "cksum", "clear", "clearfs", "cp", "csplit",
             "curl", "date", "delay", "df", "diff", "du", "echo", "edit", "explore",
             "export", "find", "gemini", "grep", "groupadd", "groupdel",

@@ -1,4 +1,4 @@
-const Utils = (() => {
+var Utils = (() => {
     "use strict";
 
     function extractComments(content, fileExtension) {
@@ -374,7 +374,7 @@ const Utils = (() => {
     };
 })();
 
-const TimestampParser = (() => {
+var TimestampParser = (() => {
     "use strict";
 
     function parseDateString(dateStr) {
@@ -487,7 +487,7 @@ const TimestampParser = (() => {
     };
 })();
 
-const DiffUtils = (() => {
+var DiffUtils = (() => {
     "use strict";
 
     function compare(textA, textB) {
@@ -563,7 +563,7 @@ const DiffUtils = (() => {
     };
 })();
 
-const PatchUtils = (() => {
+var PatchUtils = (() => {
     "use strict";
 
     function createPatch(oldText, newText) {
@@ -609,7 +609,7 @@ const PatchUtils = (() => {
     };
 })();
 
-const PagerUI = (() => {
+var PagerUI = (() => {
     "use strict";
     let elements = {};
 
@@ -650,7 +650,7 @@ const PagerUI = (() => {
     return { buildLayout, render, getTerminalRows, reset };
 })();
 
-const PagerManager = (() => {
+var PagerManager = (() => {
     "use strict";
     let isActive = false;
     let lines = [];

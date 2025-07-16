@@ -30,6 +30,13 @@ const CommandExecutor = (() => {
     if (!commandName || typeof commandName !== 'string') return false;
     if (commands[commandName]) return true;
 
+    // NEW: Check if the command should even exist
+    if (!Config.COMMANDS_MANIFEST.includes(commandName)) {
+      // It's not a built-in command, so don't even try to load a script.
+      // This is likely an alias that wasn't resolved or a typo.
+      return false;
+    }
+
     const commandScriptPath = `commands/${commandName}.js`;
     const dependencies = Config.COMMAND_DEPENDENCIES[commandName] || [];
 
