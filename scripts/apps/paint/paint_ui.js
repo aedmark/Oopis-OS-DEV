@@ -34,7 +34,8 @@ const PaintUI = (() => {
             type: 'color',
             id: 'paint-color-picker',
             className: 'paint-color-picker',
-            title: 'Select Color'
+            title: 'Select Color',
+            value: initialState.currentColor
         });
         const colorGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [elements.colorPicker]);
 
@@ -51,47 +52,20 @@ const PaintUI = (() => {
         const historyGroup = Utils.createElement('div', { className: 'paint-tool-group' }, [elements.undoBtn, elements.redoBtn, elements.gridBtn]);
 
         elements.cutBtn = Utils.createElement('button', {className: 'btn', textContent: '✂️', title: 'Cut (Ctrl+X)'});
-        elements.copyBtn = Utils.createElement('button', {
-            className: 'btn',
-            textContent: '🖨️',
-            title: 'Copy (Ctrl+C)'
-        });
-        elements.pasteBtn = Utils.createElement('button', {
-            className: 'btn',
-            textContent: '🧩',
-            title: 'Paste (Ctrl+V)'
-        });
+        elements.copyBtn = Utils.createElement('button', { className: 'btn', textContent: '🖨️', title: 'Copy (Ctrl+C)' });
+        elements.pasteBtn = Utils.createElement('button', { className: 'btn', textContent: '🧩', title: 'Paste (Ctrl+V)' });
         const clipboardGroup = Utils.createElement('div', {className: 'paint-tool-group'}, [elements.cutBtn, elements.copyBtn, elements.pasteBtn]);
 
-        elements.zoomInBtn = Utils.createElement('button', {
-            className: 'btn',
-            textContent: '➕'
-        });
-        elements.zoomOutBtn = Utils.createElement('button', {
-            className: 'btn',
-            textContent: '➖'
-        });
+        elements.zoomInBtn = Utils.createElement('button', { className: 'btn', textContent: '➕' });
+        elements.zoomOutBtn = Utils.createElement('button', { className: 'btn', textContent: '➖' });
         const zoomGroup = Utils.createElement('div', {className: 'paint-tool-group'}, [elements.zoomOutBtn, elements.zoomInBtn]);
 
         const toolbarSpacer = Utils.createElement('div', {style: 'flex-grow: 1;'});
-        elements.exitBtn = Utils.createElement('button', {
-            id: 'paint-exit-btn',
-            className: 'btn',
-            textContent: '✕',
-            title: 'Exit Application'
-        });
+        elements.exitBtn = Utils.createElement('button', { id: 'paint-exit-btn', className: 'btn', textContent: '✕', title: 'Exit Application' });
 
 
         const toolbar = Utils.createElement('header', {className: 'paint-toolbar'}, [
-            toolGroup,
-            colorGroup,
-            brushGroup,
-            elements.charInput,
-            historyGroup,
-            clipboardGroup,
-            zoomGroup,
-            toolbarSpacer,
-            elements.exitBtn
+            toolGroup, colorGroup, brushGroup, elements.charInput, historyGroup, clipboardGroup, zoomGroup, toolbarSpacer, elements.exitBtn
         ]);
 
         // --- Canvas ---
@@ -111,7 +85,7 @@ const PaintUI = (() => {
             elements.statusTool, elements.statusChar, elements.statusBrush, elements.statusCoords, elements.statusZoom
         ]);
 
-        // --- Assemble & Show ---
+        // --- Assemble ---
         elements.container.append(toolbar, mainArea, elements.statusBar);
 
         renderInitialCanvas(initialState.canvasData, initialState.canvasDimensions);
@@ -120,17 +94,20 @@ const PaintUI = (() => {
         updateZoom(initialState.zoomLevel);
         _addEventListeners();
 
-        AppLayerManager.show(elements.container);
-        elements.container.focus();
+        // **THE FIX**: Return the container instead of calling AppLayerManager
+        return elements.container;
     }
 
     function hideAndReset() {
-        AppLayerManager.hide();
+        if (elements.container) {
+            elements.container.remove();
+        }
         elements = {};
         managerCallbacks = {};
     }
 
     function renderInitialCanvas(canvasData, dimensions) {
+        if (!elements.canvas || !elements.previewCanvas) return;
         elements.canvas.innerHTML = '';
         elements.previewCanvas.innerHTML = '';
 
@@ -141,7 +118,7 @@ const PaintUI = (() => {
 
         for (let y = 0; y < dimensions.height; y++) {
             for (let x = 0; x < dimensions.width; x++) {
-                const dataCell = canvasData[y][x];
+                const dataCell = canvasData[y]?.[x] || { char: ' ', color: '#000000' };
                 const cell = Utils.createElement('span', { id: `cell-${x}-${y}`, className: 'paint-canvas-cell', textContent: dataCell.char, style: { color: dataCell.color } });
                 elements.canvas.appendChild(cell);
 
@@ -162,7 +139,6 @@ const PaintUI = (() => {
     }
 
     function updatePreviewCanvas(cellsToUpdate) {
-        // Clear previous preview
         Array.from(elements.previewCanvas.children).forEach(child => {
             if (child.textContent !== ' ') {
                 child.textContent = ' ';
@@ -170,7 +146,6 @@ const PaintUI = (() => {
             }
         });
 
-        // Draw new preview
         cellsToUpdate.forEach(data => {
             const cell = document.getElementById(`preview-cell-${data.x}-${data.y}`);
             if (cell) {
@@ -181,6 +156,7 @@ const PaintUI = (() => {
     }
 
     function updateToolbar(state) {
+        if (!elements.pencilBtn) return;
         ['pencil', 'eraser', 'line', 'rect', 'circle', 'fill', 'select'].forEach(tool => {
             elements[`${tool}Btn`].classList.toggle('active', state.currentTool === tool);
         });
@@ -192,6 +168,7 @@ const PaintUI = (() => {
     }
 
     function updateStatusBar(state, coords = null) {
+        if(!elements.statusTool) return;
         elements.statusTool.textContent = `Tool: ${state.currentTool}`;
         elements.statusChar.textContent = `Char: ${state.currentCharacter}`;
         elements.statusBrush.textContent = `Brush: ${state.brushSize}`;
@@ -218,7 +195,7 @@ const PaintUI = (() => {
     }
 
     function showSelectionRect(rect) {
-        if (!elements.selectionRect) return;
+        if (!elements.selectionRect || !elements.canvas.firstChild) return;
         const charWidth = elements.canvas.firstChild.offsetWidth;
         const charHeight = elements.canvas.firstChild.offsetHeight;
 
@@ -248,7 +225,6 @@ const PaintUI = (() => {
     }
 
     function _addEventListeners() {
-        // Tool selection
         elements.pencilBtn.addEventListener('click', () => managerCallbacks.onToolSelect('pencil'));
         elements.eraserBtn.addEventListener('click', () => managerCallbacks.onToolSelect('eraser'));
         elements.lineBtn.addEventListener('click', () => managerCallbacks.onToolSelect('line'));
@@ -256,34 +232,20 @@ const PaintUI = (() => {
         elements.circleBtn.addEventListener('click', () => managerCallbacks.onToolSelect('circle'));
         elements.fillBtn.addEventListener('click', () => managerCallbacks.onToolSelect('fill'));
         elements.selectBtn.addEventListener('click', () => managerCallbacks.onToolSelect('select'));
-
-        // Color selection
         elements.colorPicker.addEventListener('input', (e) => managerCallbacks.onColorSelect(e.target.value));
-
-        // Brush & Char
         elements.brushSizeInput.addEventListener('change', (e) => managerCallbacks.onBrushSizeChange(parseInt(e.target.value, 10)));
         elements.container.querySelector('.paint-brush-controls .btn:nth-child(1)').addEventListener('click', () => managerCallbacks.onBrushSizeChange(parseInt(elements.brushSizeInput.value, 10) - 1));
         elements.container.querySelector('.paint-brush-controls .btn:nth-child(3)').addEventListener('click', () => managerCallbacks.onBrushSizeChange(parseInt(elements.brushSizeInput.value, 10) + 1));
         elements.charInput.addEventListener('input', (e) => managerCallbacks.onCharChange(e.target.value));
-
-        // History and Grid
         elements.undoBtn.addEventListener('click', () => managerCallbacks.onUndo());
         elements.redoBtn.addEventListener('click', () => managerCallbacks.onRedo());
         elements.gridBtn.addEventListener('click', () => managerCallbacks.onToggleGrid());
-
         elements.cutBtn.addEventListener('click', () => managerCallbacks.onCut());
         elements.copyBtn.addEventListener('click', () => managerCallbacks.onCopy());
         elements.pasteBtn.addEventListener('click', () => managerCallbacks.onPaste());
-
-
-        // Zoom
         elements.zoomInBtn.addEventListener('click', () => managerCallbacks.onZoomIn());
         elements.zoomOutBtn.addEventListener('click', () => managerCallbacks.onZoomOut());
-
-        // MODIFICATION: Add exit button listener
         elements.exitBtn.addEventListener('click', () => managerCallbacks.onExitRequest());
-
-        // Canvas mouse events
         elements.canvas.addEventListener('mousedown', (e) => {
             const coords = _getCoordsFromEvent(e);
             if(coords) managerCallbacks.onCanvasMouseDown(coords);
@@ -292,71 +254,8 @@ const PaintUI = (() => {
             const coords = _getCoordsFromEvent(e);
             if(coords) managerCallbacks.onCanvasMouseMove(coords);
         });
-        document.addEventListener('mouseup', (e) => {
-            managerCallbacks.onCanvasMouseUp(null);
-        });
-        elements.canvas.addEventListener('mouseleave', () => updateStatusBar({
-            currentTool: elements.statusTool.textContent.split(': ')[1],
-            currentCharacter: elements.statusChar.textContent.split(': ')[1],
-            brushSize: elements.statusBrush.textContent.split(': ')[1],
-            zoomLevel: parseInt(elements.statusZoom.textContent.replace(/\D/g, ''))
-        }));
-
-        // Keyboard shortcuts
-        elements.container.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT') return;
-
-            if (e.ctrlKey || e.metaKey) {
-                e.preventDefault();
-                switch (e.key.toLowerCase()) {
-                    case 's':
-                        managerCallbacks.onSaveRequest();
-                        break;
-                    case 'o':
-                        managerCallbacks.onExitRequest();
-                        break;
-                    case 'z':
-                        e.shiftKey ? managerCallbacks.onRedo() : managerCallbacks.onUndo();
-                        break;
-                    case 'y':
-                        managerCallbacks.onRedo();
-                        break;
-                    case '=':
-                        managerCallbacks.onZoomIn();
-                        break;
-                    case '-':
-                        managerCallbacks.onZoomOut();
-                        break;
-                    case 'x':
-                        managerCallbacks.onCut();
-                        break;
-                    case 'c':
-                        managerCallbacks.onCopy();
-                        break;
-                    case 'v':
-                        managerCallbacks.onPaste();
-                        break;
-                }
-            } else {
-                switch (e.key.toLowerCase()) {
-                    case 'p': managerCallbacks.onToolSelect('pencil'); break;
-                    case 'e': managerCallbacks.onToolSelect('eraser'); break;
-                    case 'l': managerCallbacks.onToolSelect('line'); break;
-                    case 'r': managerCallbacks.onToolSelect('rect'); break;
-                    case 'c':
-                        managerCallbacks.onToolSelect('circle');
-                        break;
-                    case 'f':
-                        managerCallbacks.onToolSelect('fill');
-                        break;
-                    case 's':
-                        managerCallbacks.onToolSelect('select');
-                        break;
-                    case 'g': managerCallbacks.onToggleGrid(); break;
-                    case 'escape': managerCallbacks.onExitRequest(); break;
-                }
-            }
-        });
+        document.addEventListener('mouseup', () => managerCallbacks.onCanvasMouseUp());
+        elements.canvas.addEventListener('mouseleave', () => updateStatusBar(managerCallbacks.onGetState(), null));
         elements.container.setAttribute('tabindex', '-1');
     }
 

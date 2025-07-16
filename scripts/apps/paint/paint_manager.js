@@ -43,41 +43,6 @@ class PaintManager extends App {
         }
     }
 
-    handleKeyDown(event) {
-        if (!this.isActive || document.activeElement.tagName === 'INPUT') return;
-
-        const key = event.key.toLowerCase();
-        const ctrlOrMeta = event.ctrlKey || event.metaKey;
-
-        if (ctrlOrMeta) {
-            event.preventDefault();
-            switch (key) {
-                case 's': this.callbacks.onSaveRequest(); break;
-                case 'o': this.exit(); break;
-                case 'z': event.shiftKey ? this.callbacks.onRedo() : this.callbacks.onUndo(); break;
-                case 'y': this.callbacks.onRedo(); break;
-                case '=': this.callbacks.onZoomIn(); break;
-                case '-': this.callbacks.onZoomOut(); break;
-                case 'x': this.callbacks.onCut(); break;
-                case 'c': this.callbacks.onCopy(); break;
-                case 'v': this.callbacks.onPaste(); break;
-            }
-        } else {
-            switch (key) {
-                case 'p': this.callbacks.onToolSelect('pencil'); break;
-                case 'e': this.callbacks.onToolSelect('eraser'); break;
-                case 'l': this.callbacks.onToolSelect('line'); break;
-                case 'r': this.callbacks.onToolSelect('rect'); break;
-                case 'c': this.callbacks.onToolSelect('circle'); break;
-                case 'f': this.callbacks.onToolSelect('fill'); break;
-                case 's': this.callbacks.onToolSelect('select'); break;
-                case 'g': this.callbacks.onToggleGrid(); break;
-                case 'escape': this.exit(); break;
-            }
-        }
-    }
-
-
     _createInitialState(filePath, fileContent) {
         const initialState = {
             isActive: true,
@@ -241,10 +206,10 @@ class PaintManager extends App {
                 PaintUI.updatePreviewCanvas(previewCells);
                 PaintUI.updateStatusBar(this.state, coords);
             },
-            onCanvasMouseUp: (coords) => {
+            onCanvasMouseUp: () => {
                 if (!this.state.isDrawing) return;
 
-                const endCoords = coords || this.state.lastCoords;
+                const endCoords = this.state.lastCoords;
                 this.state.isDrawing = false;
                 PaintUI.updatePreviewCanvas([]);
 
@@ -324,7 +289,8 @@ class PaintManager extends App {
                 this.state.zoomLevel = Math.max(this.state.ZOOM_MIN, this.state.zoomLevel - this.state.ZOOM_STEP);
                 PaintUI.updateZoom(this.state.zoomLevel);
                 PaintUI.updateStatusBar(this.state);
-            }
+            },
+            onGetState: () => this.state,
         };
     }
 
@@ -433,14 +399,12 @@ class PaintManager extends App {
         if (rx < 0 || ry < 0) return [];
         const allPoints = [];
 
-        function plotPoints(x, y) {
+        const plotPoints = (x, y) => {
             allPoints.push(...this._getCellsInBrush(xc + x, yc + y, char, color));
             allPoints.push(...this._getCellsInBrush(xc - x, yc + y, char, color));
             allPoints.push(...this._getCellsInBrush(xc + x, yc - y, char, color));
             allPoints.push(...this._getCellsInBrush(xc - x, yc - y, char, color));
         }
-        plotPoints = plotPoints.bind(this);
-
 
         let x = 0;
         let y = ry;

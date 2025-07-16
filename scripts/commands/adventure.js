@@ -129,7 +129,7 @@
             {name: 'create', short: '--create'}
         ],
         argValidation: {
-            max: 2,
+            max: 1, // Changed to 1 since --create is a flag now
             error: "Usage: adventure [--create] [path_to_adventure.json]",
         },
         coreLogic: async (context) => {
@@ -145,103 +145,51 @@
                         return {success: false, error: "Filename must end with .json"};
                     }
 
+                    // The create logic remains unchanged as it's a CLI tool
                     let initialData = {};
-                    const pathInfo = FileSystemManager.validatePath(filename, {allowMissing: true});
+                    const pathInfo = FileSystemManager.validatePath(filename, {allowMissing: true, expectedType: 'file'});
+                    if (pathInfo.error && pathInfo.node) return {success: false, error: `adventure: ${pathInfo.error}`};
 
                     if (pathInfo.node) {
                         try {
                             initialData = JSON.parse(pathInfo.node.content || '{}');
                         } catch (e) {
-                            return {
-                                success: false,
-                                error: `Could not parse existing file '${filename}'. It may be corrupt.`
-                            };
+                            return { success: false, error: `Could not parse existing file '${filename}'. It may be corrupt.` };
                         }
                     } else {
-                        initialData = {
-                            title: "New Adventure",
-                            startingRoomId: "start",
-                            winCondition: {type: "playerHasItem", itemId: "macguffin"},
-                            winMessage: "You found the MacGuffin! You win!",
-                            rooms: {
-                                start: {name: "The Starting Room", description: "A blank canvas for your adventure."}
-                            },
-                            items: {
-                                macguffin: {
-                                    id: "macguffin",
-                                    name: "a shiny MacGuffin",
-                                    noun: "macguffin",
-                                    description: "It's very shiny.",
-                                    location: "start",
-                                    canTake: true
-                                }
-                            },
-                            npcs: {},
-                            daemons: {}
-                        };
+                        initialData = { title: "New Adventure", rooms: {}, items: {}, npcs: {}, daemons: {} };
                     }
-
-                    if (typeof Adventure_create === 'undefined' || !Adventure_create.enter) {
-                        return {
-                            success: false,
-                            error: "AdventureCreator module not found. Catastrophic blueprint failure."
-                        };
-                    }
-
                     Adventure_create.enter(filename, initialData, context);
                     return {success: true, output: ""};
                 }
 
-                if (typeof TextAdventureModal === "undefined" || typeof TextAdventureEngine === "undefined") {
+                // Play mode logic
+                if (typeof Adventure === 'undefined' || typeof TextAdventureModal === 'undefined' || typeof App === 'undefined') {
                     return {success: false, error: "Adventure module is not properly loaded."};
-                }
-                if (TextAdventureModal.isActive()) {
-                    return {success: false, error: "An adventure is already in progress."};
                 }
 
                 let adventureToLoad;
-
                 if (args.length > 0) {
-                    const pathValidation = FileSystemManager.validatePath(args[0], {
-                        expectedType: 'file',
-                        permissions: ['read']
-                    });
-
+                    const pathValidation = FileSystemManager.validatePath(args[0], { expectedType: 'file', permissions: ['read'] });
                     if (pathValidation.error) {
                         return {success: false, error: `adventure: ${pathValidation.error}`};
                     }
-
                     try {
                         adventureToLoad = JSON.parse(pathValidation.node.content);
-                        if (!adventureToLoad.rooms || !adventureToLoad.startingRoomId) {
-                            return {success: false, error: `adventure: Invalid adventure file format in '${args[0]}'.`};
-                        }
-                        if (!adventureToLoad.title) adventureToLoad.title = args[0];
                     } catch (e) {
-                        return {
-                            success: false,
-                            error: `adventure: Error parsing adventure file '${args[0]}': ${e.message}`
-                        };
+                        return { success: false, error: `adventure: Error parsing adventure file '${args[0]}': ${e.message}` };
                     }
                 } else {
                     adventureToLoad = defaultAdventureData;
                 }
 
-                const scriptingContext = options.scriptingContext || null;
-                await TextAdventureEngine.startAdventure(adventureToLoad, {scriptingContext: scriptingContext});
-
-                if (scriptingContext && scriptingContext.isScripting) {
-                    while (scriptingContext.currentLineIndex < scriptingContext.lines.length - 1 && TextAdventureModal.isActive()) {
-                        let nextCommand = await TextAdventureModal.requestInput("");
-                        if (nextCommand === null) break;
-                        await TextAdventureEngine.processCommand(nextCommand);
-                    }
-                    if (TextAdventureModal.isActive()) {
-                        TextAdventureModal.hide();
-                    }
-                }
+                AppLayerManager.show(Adventure, {
+                    adventureData: adventureToLoad,
+                    scriptingContext: options.scriptingContext
+                });
 
                 return {success: true, output: ""};
+
             } catch (e) {
                 return { success: false, error: `adventure: An unexpected error occurred: ${e.message}` };
             }
