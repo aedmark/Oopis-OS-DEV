@@ -1,5 +1,5 @@
 // scripts/terminal_ui.js
-const ModalManager = (() => {
+var ModalManager = (() => {
     "use strict";
     let isAwaitingTerminalInput = false;
     let activeModalContext = null;
@@ -227,7 +227,7 @@ const ModalManager = (() => {
     return { initialize, request, handleTerminalInput, isAwaiting: () => isAwaitingTerminalInput };
 })();
 
-const TerminalUI = (() => {
+var TerminalUI = (() => {
     "use strict";
     let isNavigatingHistory = false;
     let _isObscuredInputMode = false;
@@ -417,7 +417,7 @@ const TerminalUI = (() => {
     };
 })();
 
-const ModalInputManager = (() => {
+var ModalInputManager = (() => {
     "use strict";
     let _isAwaitingInput = false;
     let _inputContext = null;
@@ -555,7 +555,183 @@ const ModalInputManager = (() => {
     };
 })();
 
-const AppLayerManager = (() => {
+var TabCompletionManager = (() => {
+    "use strict";
+    let suggestionsCache = [];
+    let cycleIndex = -1;
+    let lastCompletionInput = null;
+
+    function resetCycle() {
+        suggestionsCache = [];
+        cycleIndex = -1;
+        lastCompletionInput = null;
+    }
+
+    function findLongestCommonPrefix(strs) {
+        if (!strs || strs.length === 0) return "";
+        if (strs.length === 1) return strs[0];
+        let prefix = strs[0];
+        for (let i = 1; i < strs.length; i++) {
+            while (strs[i].indexOf(prefix) !== 0) {
+                prefix = prefix.substring(0, prefix.length - 1);
+                if (prefix === "") return "";
+            }
+        }
+        return prefix;
+    }
+
+    function _getCompletionContext(fullInput, cursorPos) {
+        const tokens = (fullInput.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || []);
+        const commandName = tokens.length > 0 ? tokens[0].replace(/["']/g, '') : "";
+        const textBeforeCursor = fullInput.substring(0, cursorPos);
+        let startOfWordIndex = 0;
+        let inQuote = null;
+        for (let i = 0; i < textBeforeCursor.length; i++) {
+            const char = textBeforeCursor[i];
+            if (inQuote && char === inQuote && textBeforeCursor[i - 1] !== '\\') {
+                inQuote = null;
+            } else if (!inQuote && (char === '"' || char === "'") && (i === 0 || textBeforeCursor[i - 1] === ' ' || textBeforeCursor[i - 1] === undefined)) {
+                inQuote = char;
+            }
+            if (char === ' ' && !inQuote) {
+                startOfWordIndex = i + 1;
+            }
+        }
+        const currentWordWithQuotes = fullInput.substring(startOfWordIndex, cursorPos);
+        const quoteChar = currentWordWithQuotes.startsWith("'") ? "'" : currentWordWithQuotes.startsWith('"') ? '"' : null;
+        const currentWordPrefix = quoteChar ? currentWordWithQuotes.substring(1) : currentWordWithQuotes;
+        const isQuoted = !!quoteChar;
+        const isCompletingCommand = tokens.length === 0 || (tokens.length === 1 && !fullInput.substring(0, tokens[0].length).includes(' '));
+        return {
+            commandName,
+            isCompletingCommand,
+            currentWordPrefix,
+            startOfWordIndex,
+            currentWordLength: currentWordWithQuotes.length,
+            isQuoted,
+            quoteChar
+        };
+    }
+
+    async function _getSuggestionsFromProvider(context) {
+        const {currentWordPrefix, isCompletingCommand, commandName} = context;
+        let suggestions = [];
+
+        if (isCompletingCommand) {
+            suggestions = Config.COMMANDS_MANIFEST
+                .filter((cmd) => cmd.toLowerCase().startsWith(currentWordPrefix.toLowerCase()))
+                .sort();
+        } else {
+            const commandLoaded = await CommandExecutor._ensureCommandLoaded(commandName);
+            if (!commandLoaded) return [];
+
+            const commandDefinition = CommandExecutor.getCommands()[commandName]?.handler.definition;
+            if (!commandDefinition) return [];
+
+            if (commandDefinition.completionType === "commands") {
+                suggestions = Config.COMMANDS_MANIFEST
+                    .filter((cmd) => cmd.toLowerCase().startsWith(currentWordPrefix.toLowerCase()))
+                    .sort();
+            } else if (commandDefinition.completionType === "users") {
+                const users = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
+                const userNames = Object.keys(users);
+                if (!userNames.includes(Config.USER.DEFAULT_NAME)) userNames.push(Config.USER.DEFAULT_NAME);
+                suggestions = userNames
+                    .filter((name) => name.toLowerCase().startsWith(currentWordPrefix.toLowerCase()))
+                    .sort();
+            } else if (commandDefinition.completionType === 'paths' || commandDefinition.pathValidation) {
+                const lastSlashIndex = currentWordPrefix.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR);
+                const pathPrefixForFS = lastSlashIndex !== -1 ? currentWordPrefix.substring(0, lastSlashIndex + 1) : "";
+                const segmentToMatchForFS = lastSlashIndex !== -1 ? currentWordPrefix.substring(lastSlashIndex + 1) : currentWordPrefix;
+
+                const effectiveBasePathForFS = FileSystemManager.getAbsolutePath(pathPrefixForFS, FileSystemManager.getCurrentPath());
+                const baseNode = FileSystemManager.getNodeByPath(effectiveBasePathForFS);
+                const currentUser = UserManager.getCurrentUser().name;
+
+                if (baseNode && baseNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE && FileSystemManager.hasPermission(baseNode, currentUser, "read")) {
+                    suggestions = Object.keys(baseNode.children)
+                        .filter((name) => name.toLowerCase().startsWith(segmentToMatchForFS.toLowerCase()))
+                        .map((name) => pathPrefixForFS + name)
+                        .sort();
+                }
+            }
+        }
+        return suggestions;
+    }
+
+    async function handleTab(fullInput, cursorPos) {
+        if (fullInput !== lastCompletionInput) {
+            resetCycle();
+        }
+
+        const context = _getCompletionContext(fullInput, cursorPos);
+
+        if (suggestionsCache.length === 0) {
+            const suggestions = await _getSuggestionsFromProvider(context);
+            if (!suggestions || suggestions.length === 0) {
+                resetCycle();
+                return {textToInsert: null};
+            }
+            if (suggestions.length === 1) {
+                const completion = suggestions[0];
+                const completedNode = FileSystemManager.getNodeByPath(FileSystemManager.getAbsolutePath(completion));
+                const isDirectory = completedNode && completedNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE;
+
+                const finalCompletion = completion + (isDirectory ? '/' : ' ');
+                const textBefore = fullInput.substring(0, context.startOfWordIndex);
+                const textAfter = fullInput.substring(cursorPos);
+
+                let newText = textBefore + finalCompletion + textAfter;
+
+                resetCycle();
+                return {textToInsert: newText, newCursorPos: (textBefore + finalCompletion).length};
+            }
+
+            const lcp = findLongestCommonPrefix(suggestions);
+            if (lcp && lcp.length > context.currentWordPrefix.length) {
+                const textBefore = fullInput.substring(0, context.startOfWordIndex);
+                const textAfter = fullInput.substring(cursorPos);
+                let newText = textBefore + lcp + textAfter;
+
+                lastCompletionInput = newText;
+                return {textToInsert: newText, newCursorPos: (textBefore + lcp).length};
+            } else {
+                suggestionsCache = suggestions;
+                cycleIndex = -1;
+                lastCompletionInput = fullInput;
+                const promptText = `${TerminalUI.getPromptText()} `;
+                void OutputManager.appendToOutput(`${promptText}${fullInput}`, {isCompletionSuggestion: true});
+                void OutputManager.appendToOutput(suggestionsCache.join("    "), {
+                    typeClass: 'text-subtle',
+                    isCompletionSuggestion: true
+                });
+
+                TerminalUI.scrollOutputToEnd();
+                return {textToInsert: null};
+            }
+        } else {
+            cycleIndex = (cycleIndex + 1) % suggestionsCache.length;
+            const nextSuggestion = suggestionsCache[cycleIndex];
+            const completedNode = FileSystemManager.getNodeByPath(FileSystemManager.getAbsolutePath(nextSuggestion));
+            const isDirectory = completedNode && completedNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE;
+
+            const textBefore = fullInput.substring(0, context.startOfWordIndex);
+            const textAfter = fullInput.substring(cursorPos);
+            const completionText = nextSuggestion + (isDirectory ? '/' : ' ');
+            let newText = textBefore + completionText + textAfter;
+
+            lastCompletionInput = newText;
+            return {textToInsert: newText, newCursorPos: (textBefore + completionText).length};
+        }
+    }
+
+    return {
+        handleTab,
+        resetCycle,
+    };
+})();
+
+var AppLayerManager = (() => {
     "use strict";
     let cachedAppLayer = null;
     let activeApp = null;
