@@ -637,7 +637,6 @@ const CommandExecutor = (() => {
     return overallResult;
   }
 
-
   function getCommands() {
     return commands;
   }
