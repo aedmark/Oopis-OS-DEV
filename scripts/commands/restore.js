@@ -1,6 +1,4 @@
 // scripts/commands/restore.js
-import { open } from '@tauri-apps/api/dialog';
-import { readTextFile } from '@tauri-apps/api/fs';
 
 (() => {
     "use strict";
@@ -21,7 +19,7 @@ import { readTextFile } from '@tauri-apps/api/fs';
                 // --- Environment-Agnostic File Getter ---
                 const getFileContent = async () => {
                     if (window.__TAURI__) {
-                        // Tauri Environment
+                        // Tauri Environment: Use dynamic imports
                         const { open } = await import('@tauri-apps/api/dialog');
                         const { readTextFile } = await import('@tauri-apps/api/fs');
                         const filePath = await open({
@@ -43,22 +41,29 @@ import { readTextFile } from '@tauri-apps/api/fs';
                             input.style.display = "none";
                             document.body.appendChild(input);
 
+                            const cleanup = () => document.body.removeChild(input);
+
                             input.onchange = (e) => {
                                 const file = e.target.files[0];
                                 if (file) {
                                     const reader = new FileReader();
                                     reader.onload = (readEvent) => {
                                         resolve({ content: readEvent.target.result, name: file.name });
+                                        cleanup();
+                                    };
+                                    reader.onerror = () => {
+                                        resolve(null); // Or handle error
+                                        cleanup();
                                     };
                                     reader.readAsText(file);
                                 } else {
                                     resolve(null); // User cancelled
+                                    cleanup();
                                 }
-                                document.body.removeChild(input);
                             };
                             input.addEventListener('cancel', () => {
                                 resolve(null);
-                                document.body.removeChild(input);
+                                cleanup();
                             });
                             input.click();
                         });
@@ -73,7 +78,6 @@ import { readTextFile } from '@tauri-apps/api/fs';
 
                 const { content: fileContent, name: fileName } = fileData;
 
-                // ... (The rest of the logic for parsing, checksum, confirmation, and applying the backup remains the same)
                 let backupData;
                 try {
                     backupData = JSON.parse(fileContent);
@@ -153,7 +157,7 @@ DESCRIPTION
        The restore command initiates a full system restoration from a
        '.json' file previously created with the 'backup' command.
 
-       When run in the Electron desktop app, this command will open a native
+       When run in a desktop app context, this command will open a native
        file selection dialog. Otherwise, it will use the browser's uploader.
 
        The system will first verify the backup file's integrity using

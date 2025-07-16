@@ -1,6 +1,4 @@
 // scripts/commands/backup.js
-import { save } from '@tauri-apps/api/dialog';
-import { writeTextFile } from '@tauri-apps/api/fs';
 
 (() => {
   "use strict";
@@ -19,7 +17,6 @@ import { writeTextFile } from '@tauri-apps/api/fs';
         }
 
         const currentUser = UserManager.getCurrentUser();
-        // ... (rest of the data gathering logic from the original file remains the same)
         const allKeys = StorageManager.getAllLocalStorageKeys();
         const automaticSessionStates = {};
         const manualSaveStates = {};
@@ -56,7 +53,7 @@ import { writeTextFile } from '@tauri-apps/api/fs';
 
         // --- Environment-Specific Logic ---
         if (window.__TAURI__) {
-          // Tauri Environment: Use native file save dialog
+          // Tauri Environment: Use native file save dialog with dynamic import
           const { save } = await import('@tauri-apps/api/dialog');
           const { writeTextFile } = await import('@tauri-apps/api/fs');
 

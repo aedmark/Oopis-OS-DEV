@@ -1,0 +1,22 @@
+{
+  "name": "oopisos",
+  "version": "4.1.0",
+  "description": "OopisOS Pocket",
+  "keywords": [
+    "OS"
+  ],
+  "homepage": "https://github.com/aedmark/oopis-os#readme",
+  "bugs": {
+    "url": "https://github.com/aedmark/oopis-os/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aedmark/oopis-os.git"
+  },
+  "license": "MIT",
+  "author": "Andrew Edmark & Gemini <oopismcgoopis@gmail.com> (https://oopisos.com/)",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build"
+  }
+}
