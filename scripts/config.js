@@ -165,7 +165,7 @@ const Config = (() => {
             "visudo", "wc", "wget", "whoami", "xor", "zip", "xargs"
         ],
         COMMAND_DEPENDENCIES: {
-            'adventure': ['apps/app.js', 'apps/adventure/adventure_ui.js', 'apps/adventure/adventure_engine.js', 'apps/adventure/adventure_create.js'],
+            'adventure': ['apps/app.js', 'apps/adventure/adventure_ui.js', 'apps/adventure/adventure_manager.js', 'apps/adventure/adventure_create.js'],
             'basic': ['apps/app.js', 'apps/basic/basic_interp.js', 'apps/basic/basic_ui.js', 'apps/basic/basic_manager.js'],
             'chidi': ['apps/app.js', 'apps/chidi/chidi_ui.js', 'apps/chidi/chidi_manager.js'],
             'code': ['apps/app.js', 'apps/code/code_ui.js', 'apps/code/code_manager.js'],
