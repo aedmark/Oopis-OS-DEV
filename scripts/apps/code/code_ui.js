@@ -93,6 +93,12 @@ const CodeUI = (() => {
             elements.highlighter.scrollLeft = elements.textarea.scrollLeft;
         });
         // --- END PHASE 2 ---
+
+        elements.textarea.addEventListener('paste', e => {
+            e.preventDefault();
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text/plain');
+            callbacks.onPaste(e.target, pastedText);
+        });
     }
 
     return {buildAndShow, hideAndReset};

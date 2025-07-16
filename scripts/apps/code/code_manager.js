@@ -96,6 +96,21 @@ const CodeManager = (() => {
 
         onInput: (content) => {
             debouncedHighlight(content);
+        },
+
+        onPaste: (textarea, pastedText) => {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const value = textarea.value;
+
+            // Manually insert the pasted text
+            textarea.value = value.substring(0, start) + pastedText + value.substring(end);
+
+            // Set the cursor to the beginning of the pasted content
+            textarea.selectionStart = textarea.selectionEnd = start;
+
+            // Trigger the input event to re-highlight
+            callbacks.onInput(textarea.value);
         }
     };
 
