@@ -9,21 +9,15 @@
             max: 1,
             error: "Usage: paint [filename.oopic]"
         },
-        pathValidation: {
-            argIndex: 0,
-            options: { allowMissing: true, expectedType: 'file' },
-            permissions: ['read'],
-            required: false
-        },
         coreLogic: async (context) => {
-            const { args, options, node, resolvedPath } = context;
+            const { args, options } = context;
 
             try {
                 if (!options.isInteractive) {
                     return { success: false, error: "paint: Can only be run in interactive mode." };
                 }
 
-                if (typeof PaintManager === 'undefined' || typeof PaintUI === 'undefined') {
+                if (typeof Paint === 'undefined' || typeof PaintUI === 'undefined' || typeof App === 'undefined') {
                     return {
                         success: false,
                         error: "paint: The Paint application module is not loaded."
@@ -31,15 +25,23 @@
                 }
 
                 const pathArg = args.length > 0 ? args[0] : `untitled-${new Date().getTime()}.oopic`;
-                const filePath = resolvedPath || FileSystemManager.getAbsolutePath(pathArg);
+                const pathValidation = FileSystemManager.validatePath(pathArg, {
+                    allowMissing: true,
+                    expectedType: 'file',
+                    permissions: ['read']
+                });
 
-                if (Utils.getFileExtension(filePath) !== 'oopic') {
+                if (pathValidation.error && !pathValidation.node) {
+                    return { success: false, error: `paint: ${pathValidation.error}` };
+                }
+                if (Utils.getFileExtension(pathValidation.resolvedPath) !== 'oopic') {
                     return { success: false, error: `paint: can only edit .oopic files.` };
                 }
 
-                const fileContent = node ? node.content || "" : "";
 
-                PaintManager.enter(filePath, fileContent);
+                const fileContent = pathValidation.node ? pathValidation.node.content || "" : "";
+
+                AppLayerManager.show(Paint, { filePath: pathValidation.resolvedPath, fileContent });
 
                 return {
                     success: true,
