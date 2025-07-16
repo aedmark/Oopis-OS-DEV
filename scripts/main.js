@@ -1,14 +1,13 @@
-let DOM = {};
-
-function initializeTerminalEventListeners() {
-  if (!DOM.terminalDiv || !DOM.editableInputDiv) {
+// scripts/main.js
+function initializeTerminalEventListeners(domElements) {
+  if (!domElements.terminalDiv || !domElements.editableInputDiv) {
     console.error(
         "Terminal event listeners cannot be initialized: Core DOM elements not found."
     );
     return;
   }
 
-  DOM.terminalDiv.addEventListener("click", (e) => {
+  domElements.terminalDiv.addEventListener("click", (e) => {
     if (AppLayerManager.isActive()) return;
 
     const selection = window.getSelection();
@@ -17,9 +16,9 @@ function initializeTerminalEventListeners() {
     }
     if (
         !e.target.closest("button, a") &&
-        (!DOM.editableInputDiv || !DOM.editableInputDiv.contains(e.target))
+        (!domElements.editableInputDiv || !domElements.editableInputDiv.contains(e.target))
     ) {
-      if (DOM.editableInputDiv.contentEditable === "true")
+      if (domElements.editableInputDiv.contentEditable === "true")
         TerminalUI.focusInput();
     }
   });
@@ -46,7 +45,7 @@ function initializeTerminalEventListeners() {
       return;
     }
 
-    if (e.target !== DOM.editableInputDiv) {
+    if (e.target !== domElements.editableInputDiv) {
       return;
     }
 
@@ -83,11 +82,11 @@ function initializeTerminalEventListeners() {
         if (sel && sel.rangeCount > 0) {
           const range = sel.getRangeAt(0);
           if (
-              DOM.editableInputDiv &&
-              DOM.editableInputDiv.contains(range.commonAncestorContainer)
+              domElements.editableInputDiv &&
+              domElements.editableInputDiv.contains(range.commonAncestorContainer)
           ) {
             const preCaretRange = range.cloneRange();
-            preCaretRange.selectNodeContents(DOM.editableInputDiv);
+            preCaretRange.selectNodeContents(domElements.editableInputDiv);
             preCaretRange.setEnd(range.endContainer, range.endOffset);
             cursorPos = preCaretRange.toString().length;
           } else {
@@ -103,7 +102,7 @@ function initializeTerminalEventListeners() {
         ) {
           TerminalUI.setCurrentInputValue(result.textToInsert, false);
           TerminalUI.setCaretPosition(
-              DOM.editableInputDiv,
+              domElements.editableInputDiv,
               result.newCursorPos
           );
         }
@@ -111,10 +110,10 @@ function initializeTerminalEventListeners() {
     }
   });
 
-  if (DOM.editableInputDiv) {
-    DOM.editableInputDiv.addEventListener("paste", (e) => {
+  if (domElements.editableInputDiv) {
+    domElements.editableInputDiv.addEventListener("paste", (e) => {
       e.preventDefault(); // Always prevent default native paste to control it.
-      if (DOM.editableInputDiv.contentEditable !== "true") return;
+      if (domElements.editableInputDiv.contentEditable !== "true") return;
 
       const text = (e.clipboardData || window.clipboardData).getData("text/plain");
       const processedText = text.replace(/\r?\n|\r/g, " ");
@@ -126,7 +125,7 @@ function initializeTerminalEventListeners() {
         if (!selection || !selection.rangeCount) return;
 
         const range = selection.getRangeAt(0);
-        if (!DOM.editableInputDiv.contains(range.commonAncestorContainer)) return;
+        if (!domElements.editableInputDiv.contains(range.commonAncestorContainer)) return;
 
         range.deleteContents();
         const textNode = document.createTextNode(processedText);
@@ -142,7 +141,7 @@ function initializeTerminalEventListeners() {
 }
 
 window.onload = async () => {
-  DOM = {
+  const domElements = {
     terminalBezel: document.getElementById("terminal-bezel"),
     terminalDiv: document.getElementById("terminal"),
     outputDiv: document.getElementById("output"),
@@ -150,9 +149,14 @@ window.onload = async () => {
     promptContainer: document.getElementById("prompt-container"),
     editableInputContainer: document.getElementById("editable-input-container"),
     editableInputDiv: document.getElementById("editable-input"),
-    adventureModal: document.getElementById("adventure-modal"),
-    adventureInput: document.getElementById("adventure-input"),
+    appLayer: document.getElementById("app-layer"),
   };
+
+  OutputManager.initialize(domElements);
+  TerminalUI.initialize(domElements);
+  ModalManager.initialize(domElements);
+  SessionManager.initialize(domElements); // Added this line
+  AppLayerManager.initialize(domElements);
 
   OutputManager.initializeConsoleOverrides();
 
@@ -166,9 +170,6 @@ window.onload = async () => {
     EnvironmentManager.initialize();
     SessionManager.initializeStack();
 
-    // REMOVED CommandExecutor.initialize();
-    // REMOVED await CommandExecutor.precacheCommonCommands();
-
     SessionManager.loadAutomaticState(Config.USER.DEFAULT_NAME);
 
     const guestHome = `/home/${Config.USER.DEFAULT_NAME}`;
@@ -180,7 +181,7 @@ window.onload = async () => {
       }
     }
 
-    initializeTerminalEventListeners();
+    initializeTerminalEventListeners(domElements);
     TerminalUI.updatePrompt();
     TerminalUI.focusInput();
     console.log(
@@ -195,8 +196,8 @@ window.onload = async () => {
       }
     });
 
-    if (DOM.terminalDiv) {
-      resizeObserver.observe(DOM.terminalDiv);
+    if (domElements.terminalDiv) {
+      resizeObserver.observe(domElements.terminalDiv);
     }
 
   } catch (error) {
@@ -205,8 +206,8 @@ window.onload = async () => {
         error,
         error.stack
     );
-    if (DOM.outputDiv) {
-      DOM.outputDiv.innerHTML += `<div class="text-red-500">FATAL ERROR: ${error.message}. Check console for details.</div>`;
+    if (domElements.outputDiv) {
+      domElements.outputDiv.innerHTML += `<div class="text-red-500">FATAL ERROR: ${error.message}. Check console for details.</div>`;
     }
   }
 };

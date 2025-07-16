@@ -1,15 +1,12 @@
-// /scripts/commexec.js
-
+// scripts/commexec.js
 const CommandExecutor = (() => {
   "use strict";
   let backgroundProcessIdCounter = 0;
   const activeJobs = {};
   const commands = {};
-  const loadedScripts = new Set(); // Track all loaded script paths
+  const loadedScripts = new Set();
 
-  // Helper to load a single script and return a promise
   function _loadScript(scriptPath) {
-    // If script is already loaded, return an instantly resolved promise
     if (loadedScripts.has(scriptPath)) {
       return Promise.resolve(true);
     }
@@ -18,7 +15,7 @@ const CommandExecutor = (() => {
       const script = document.createElement('script');
       script.src = `./scripts/${scriptPath}`;
       script.onload = () => {
-        loadedScripts.add(scriptPath); // Mark as loaded on success
+        loadedScripts.add(scriptPath);
         resolve(true);
       };
       script.onerror = () => {
@@ -29,7 +26,6 @@ const CommandExecutor = (() => {
     });
   }
 
-  // The new dependency-aware command loader
   async function _ensureCommandLoaded(commandName) {
     if (!commandName || typeof commandName !== 'string') return false;
     if (commands[commandName]) return true;
@@ -38,16 +34,13 @@ const CommandExecutor = (() => {
     const dependencies = Config.COMMAND_DEPENDENCIES[commandName] || [];
 
     try {
-      // Load all dependencies in parallel
       await Promise.all(dependencies.map(dep => _loadScript(dep)));
-      // Load the command script itself after dependencies are met
       await _loadScript(commandScriptPath);
     } catch (error) {
       console.error(`Error loading command '${commandName}' or its dependencies.`, error);
       return false;
     }
 
-    // Populate the command handler cache from the registry
     const definition = CommandRegistry.getDefinitions()[commandName];
     if (definition) {
       commands[commandName] = {
@@ -58,11 +51,9 @@ const CommandExecutor = (() => {
       return true;
     }
 
-    return false; // Command script might have loaded but didn't register itself
+    return false;
   }
 
-  // ... (The rest of commexec.js remains exactly the same as the previous correct version)
-  // No changes are needed for createCommandHandler, _executePipeline, processSingleCommand, etc.
   async function* _generateInputContent(context, firstFileArgIndex = 0) {
     const {args, options, currentUser} = context;
 
@@ -527,15 +518,12 @@ const CommandExecutor = (() => {
     TerminalUI.clearInput();
     TerminalUI.updatePrompt();
     if (!AppLayerManager.isActive()) {
-      if (DOM.inputLineContainerDiv) {
-        DOM.inputLineContainerDiv.classList.remove(Config.CSS_CLASSES.HIDDEN);
-      }
+      TerminalUI.showInputLine();
       TerminalUI.setInputState(true);
       TerminalUI.focusInput();
     }
-    if (DOM.outputDiv) {
-      DOM.outputDiv.scrollTop = DOM.outputDiv.scrollHeight;
-    }
+    TerminalUI.scrollOutputToEnd();
+
     if (!TerminalUI.getIsNavigatingHistory() && originalCommandText.trim()) {
       HistoryManager.resetIndex();
     }
@@ -568,8 +556,8 @@ const CommandExecutor = (() => {
 
     const cmdToEcho = rawCommandText.trim();
     if (isInteractive && !scriptingContext) {
-      DOM.inputLineContainerDiv.classList.add(Config.CSS_CLASSES.HIDDEN);
-      const prompt = DOM.promptContainer.textContent;
+      TerminalUI.hideInputLine();
+      const prompt = TerminalUI.getPromptText();
       await OutputManager.appendToOutput(`${prompt}${cmdToEcho}`);
     }
     if (cmdToEcho === "") {
@@ -656,7 +644,6 @@ const CommandExecutor = (() => {
   }
 
   return {
-    initialize: () => {},
     processSingleCommand,
     getCommands,
     getActiveJobs,

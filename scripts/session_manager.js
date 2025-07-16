@@ -220,6 +220,11 @@ const AliasManager = (() => {
 const SessionManager = (() => {
     "use strict";
     let userSessionStack = [];
+    let elements = {};
+
+    function initialize(dom) {
+        elements = dom;
+    }
 
     function initializeStack() {
         userSessionStack = [Config.USER.DEFAULT_NAME];
@@ -274,7 +279,7 @@ const SessionManager = (() => {
         const currentInput = TerminalUI.getCurrentInputValue();
         const autoState = {
             currentPath: FileSystemManager.getCurrentPath(),
-            outputHTML: DOM.outputDiv ? DOM.outputDiv.innerHTML : "",
+            outputHTML: elements.outputDiv ? elements.outputDiv.innerHTML : "",
             currentInput: currentInput,
             commandHistory: HistoryManager.getFullHistory(),
             environmentVariables: EnvironmentManager.getAll(),
@@ -291,7 +296,7 @@ const SessionManager = (() => {
             console.warn(
                 "loadAutomaticState: No username provided. Cannot load state."
             );
-            if (DOM.outputDiv) DOM.outputDiv.innerHTML = "";
+            if (elements.outputDiv) elements.outputDiv.innerHTML = "";
             TerminalUI.setCurrentInputValue("");
             FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
             HistoryManager.clearHistory();
@@ -299,7 +304,7 @@ const SessionManager = (() => {
                 `${Config.MESSAGES.WELCOME_PREFIX} ${Config.USER.DEFAULT_NAME}${Config.MESSAGES.WELCOME_SUFFIX}`
             );
             TerminalUI.updatePrompt();
-            if (DOM.outputDiv) DOM.outputDiv.scrollTop = DOM.outputDiv.scrollHeight;
+            if (elements.outputDiv) elements.outputDiv.scrollTop = elements.outputDiv.scrollHeight;
             return false;
         }
         const autoState = StorageManager.loadItem(
@@ -310,11 +315,11 @@ const SessionManager = (() => {
             FileSystemManager.setCurrentPath(
                 autoState.currentPath || Config.FILESYSTEM.ROOT_PATH
             );
-            if (DOM.outputDiv) {
+            if (elements.outputDiv) {
                 if (autoState.hasOwnProperty("outputHTML")) {
-                    DOM.outputDiv.innerHTML = autoState.outputHTML || "";
+                    elements.outputDiv.innerHTML = autoState.outputHTML || "";
                 } else {
-                    DOM.outputDiv.innerHTML = "";
+                    elements.outputDiv.innerHTML = "";
                     void OutputManager.appendToOutput(
                         `${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`
                     );
@@ -324,7 +329,7 @@ const SessionManager = (() => {
             HistoryManager.setHistory(autoState.commandHistory || []);
             EnvironmentManager.load(autoState.environmentVariables);
         } else {
-            if (DOM.outputDiv) DOM.outputDiv.innerHTML = "";
+            if (elements.outputDiv) elements.outputDiv.innerHTML = "";
             TerminalUI.setCurrentInputValue("");
             const homePath = `/home/${username}`;
             if (FileSystemManager.getNodeByPath(homePath)) {
@@ -346,7 +351,7 @@ const SessionManager = (() => {
             );
         }
         TerminalUI.updatePrompt();
-        if (DOM.outputDiv) DOM.outputDiv.scrollTop = DOM.outputDiv.scrollHeight;
+        if (elements.outputDiv) elements.outputDiv.scrollTop = elements.outputDiv.scrollHeight;
         return !!autoState;
     }
 
@@ -358,7 +363,7 @@ const SessionManager = (() => {
             osVersion: Config.OS.VERSION,
             timestamp: new Date().toISOString(),
             currentPath: FileSystemManager.getCurrentPath(),
-            outputHTML: DOM.outputDiv ? DOM.outputDiv.innerHTML : "",
+            outputHTML: elements.outputDiv ? elements.outputDiv.innerHTML : "",
             currentInput: currentInput,
             fsDataSnapshot: Utils.deepCopyNode(FileSystemManager.getFsData()),
             commandHistory: HistoryManager.getFullHistory(),
@@ -424,8 +429,8 @@ const SessionManager = (() => {
                     FileSystemManager.setCurrentPath(
                         data.pendingData.currentPath || Config.FILESYSTEM.ROOT_PATH
                     );
-                    if (DOM.outputDiv)
-                        DOM.outputDiv.innerHTML = data.pendingData.outputHTML || "";
+                    if (elements.outputDiv)
+                        elements.outputDiv.innerHTML = data.pendingData.outputHTML || "";
                     TerminalUI.setCurrentInputValue(data.pendingData.currentInput || "");
                     HistoryManager.setHistory(data.pendingData.commandHistory || []);
                     await FileSystemManager.save(data.userNameToRestoreTo);
@@ -436,8 +441,8 @@ const SessionManager = (() => {
                         }
                     );
                     TerminalUI.updatePrompt();
-                    if (DOM.outputDiv)
-                        DOM.outputDiv.scrollTop = DOM.outputDiv.scrollHeight;
+                    if (elements.outputDiv)
+                        elements.outputDiv.scrollTop = elements.outputDiv.scrollHeight;
                 },
                 onCancel: () => {
                     OutputManager.appendToOutput(Config.MESSAGES.LOAD_STATE_CANCELLED, {
@@ -520,8 +525,8 @@ const SessionManager = (() => {
             typeClass: Config.CSS_CLASSES.SUCCESS_MSG,
         });
         TerminalUI.setInputState(false);
-        if (DOM.inputLineContainerDiv) {
-            DOM.inputLineContainerDiv.classList.add(Config.CSS_CLASSES.HIDDEN);
+        if (elements.inputLineContainerDiv) {
+            elements.inputLineContainerDiv.classList.add(Config.CSS_CLASSES.HIDDEN);
         }
         setTimeout(() => {
             window.location.reload();
@@ -529,6 +534,7 @@ const SessionManager = (() => {
     }
 
     return {
+        initialize,
         initializeStack,
         getStack,
         pushUserToStack,

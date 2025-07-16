@@ -3,6 +3,11 @@ const ModalManager = (() => {
     "use strict";
     let isAwaitingTerminalInput = false;
     let activeModalContext = null;
+    let cachedTerminalBezel = null;
+
+    function initialize(dom) {
+        cachedTerminalBezel = dom.terminalBezel;
+    }
 
     function _renderGraphicalModal(options) {
         const {
@@ -12,8 +17,8 @@ const ModalManager = (() => {
             confirmText = "OK",
             cancelText = "Cancel",
         } = options;
-        const parentContainer = document.getElementById('terminal');
-        if (!parentContainer) {
+
+        if (!cachedTerminalBezel) {
             console.error("ModalManager: Cannot find terminal-bezel to attach modal.");
             if (options.onCancel) options.onCancel();
             return;
@@ -57,7 +62,7 @@ const ModalManager = (() => {
         const modalDialog = Utils.createElement("div", { className: "modal-dialog" }, [messageContainer, buttonContainer]);
         const modalOverlay = Utils.createElement("div", { id: "dynamic-modal-dialog", className: "modal-overlay" }, [modalDialog]);
 
-        parentContainer.appendChild(modalOverlay);
+        cachedTerminalBezel.appendChild(modalOverlay);
     }
 
     function _renderGraphicalInputModal(options) {
@@ -70,8 +75,7 @@ const ModalManager = (() => {
             placeholder = ""
         } = options;
 
-        const parentContainer = document.getElementById('terminal');
-        if (!parentContainer) {
+        if (!cachedTerminalBezel) {
             if (onCancel) onCancel();
             return;
         }
@@ -123,7 +127,7 @@ const ModalManager = (() => {
         const modalDialog = Utils.createElement("div", { className: "modal-dialog" }, [messageContainer, inputField, buttonContainer]);
         const modalOverlay = Utils.createElement("div", { id: "dynamic-modal-dialog", className: "modal-overlay" }, [modalDialog]);
 
-        parentContainer.appendChild(modalOverlay);
+        cachedTerminalBezel.appendChild(modalOverlay);
         inputField.focus();
     }
 
@@ -137,21 +141,17 @@ const ModalManager = (() => {
         options.messageLines.forEach((line) => void OutputManager.appendToOutput(line, {typeClass: 'text-warning'}));
         void OutputManager.appendToOutput(Config.MESSAGES.CONFIRMATION_PROMPT, {typeClass: 'text-subtle'});
 
-        const inputLineContainer = document.querySelector('.terminal__input-line');
-        if (inputLineContainer) inputLineContainer.classList.remove('hidden');
-
+        TerminalUI.showInputLine();
         TerminalUI.setInputState(true);
         TerminalUI.focusInput();
         TerminalUI.clearInput();
-
-        const outputDiv = document.getElementById('output');
-        if (outputDiv) outputDiv.scrollTop = outputDiv.scrollHeight;
+        TerminalUI.scrollOutputToEnd();
     }
 
     function request(options) {
         if (options.options?.stdinContent) {
             const inputLine = options.options.stdinContent.trim().split('\n')[0];
-            const promptEcho = `${document.getElementById('prompt-container').textContent} `;
+            const promptEcho = `${TerminalUI.getPromptText()} `;
 
             options.messageLines.forEach(line => void OutputManager.appendToOutput(line, {typeClass: 'text-warning'}));
             void OutputManager.appendToOutput(Config.MESSAGES.CONFIRMATION_PROMPT, {typeClass: 'text-subtle'});
@@ -181,7 +181,7 @@ const ModalManager = (() => {
             if (inputLine !== null) {
                 options.messageLines.forEach(line => void OutputManager.appendToOutput(line, {typeClass: 'text-warning'}));
                 void OutputManager.appendToOutput(Config.MESSAGES.CONFIRMATION_PROMPT, {typeClass: 'text-subtle'});
-                const promptEcho = `${document.getElementById('prompt-container').textContent} `;
+                const promptEcho = `${TerminalUI.getPromptText()} `;
                 void OutputManager.appendToOutput(`${promptEcho}${inputLine}`);
                 if (inputLine.toUpperCase() === 'YES') {
                     if (options.onConfirm) options.onConfirm(options.data);
@@ -208,7 +208,7 @@ const ModalManager = (() => {
 
     async function handleTerminalInput(input) {
         if (!isAwaitingTerminalInput) return false;
-        const promptString = `${document.getElementById('prompt-container').textContent} `;
+        const promptString = `${TerminalUI.getPromptText()} `;
         await OutputManager.appendToOutput(`${promptString}${input.trim()}`);
         if (input.trim() === "YES") {
             await activeModalContext.onConfirm(activeModalContext.data);
@@ -224,19 +224,24 @@ const ModalManager = (() => {
         return true;
     }
 
-    return { request, handleTerminalInput, isAwaiting: () => isAwaitingTerminalInput };
+    return { initialize, request, handleTerminalInput, isAwaiting: () => isAwaitingTerminalInput };
 })();
 
 const TerminalUI = (() => {
     "use strict";
     let isNavigatingHistory = false;
     let _isObscuredInputMode = false;
+    let elements = {};
+
+    function initialize(dom) {
+        elements = dom;
+    }
 
     function updatePrompt() {
         const user = UserManager.getCurrentUser() || {name: Config.USER.DEFAULT_NAME};
         const ps1 = EnvironmentManager.get('PS1');
-        const promptContainer = document.getElementById('prompt-container');
-        if (!promptContainer) return;
+
+        if (!elements.promptContainer) return;
 
         if (ps1) {
             const host = EnvironmentManager.get('HOST') || Config.OS.DEFAULT_HOST_NAME;
@@ -252,38 +257,38 @@ const TerminalUI = (() => {
                 .replace(/\\s/g, "OopisOS")
                 .replace(/\\\\/g, '\\');
 
-            promptContainer.textContent = parsedPrompt;
+            elements.promptContainer.textContent = parsedPrompt;
         } else {
             const path = FileSystemManager.getCurrentPath();
             const promptChar = user.name === 'root' ? '#' : Config.TERMINAL.PROMPT_CHAR;
-            promptContainer.textContent = `${user.name}${Config.TERMINAL.PROMPT_AT}${Config.OS.DEFAULT_HOST_NAME}${Config.TERMINAL.PROMPT_SEPARATOR}${path}${promptChar} `;
+            elements.promptContainer.textContent = `${user.name}${Config.TERMINAL.PROMPT_AT}${Config.OS.DEFAULT_HOST_NAME}${Config.TERMINAL.PROMPT_SEPARATOR}${path}${promptChar} `;
         }
     }
 
+    function getPromptText() {
+        return elements.promptContainer ? elements.promptContainer.textContent : '';
+    }
+
     function focusInput() {
-        const editableInputDiv = document.getElementById('editable-input');
-        if (editableInputDiv && editableInputDiv.contentEditable === "true") {
-            editableInputDiv.focus();
-            if (editableInputDiv.textContent.length === 0)
-                setCaretToEnd(editableInputDiv);
+        if (elements.editableInputDiv && elements.editableInputDiv.contentEditable === "true") {
+            elements.editableInputDiv.focus();
+            if (elements.editableInputDiv.textContent.length === 0)
+                setCaretToEnd(elements.editableInputDiv);
         }
     }
 
     function clearInput() {
-        const editableInputDiv = document.getElementById('editable-input');
-        if (editableInputDiv) editableInputDiv.textContent = "";
+        if (elements.editableInputDiv) elements.editableInputDiv.textContent = "";
     }
 
     function getCurrentInputValue() {
-        const editableInputDiv = document.getElementById('editable-input');
-        return editableInputDiv ? editableInputDiv.textContent : "";
+        return elements.editableInputDiv ? elements.editableInputDiv.textContent : "";
     }
 
     function setCurrentInputValue(value, setAtEnd = true) {
-        const editableInputDiv = document.getElementById('editable-input');
-        if (editableInputDiv) {
-            editableInputDiv.textContent = value;
-            if (setAtEnd) setCaretToEnd(editableInputDiv);
+        if (elements.editableInputDiv) {
+            elements.editableInputDiv.textContent = value;
+            if (setAtEnd) setCaretToEnd(elements.editableInputDiv);
         }
     }
 
@@ -339,12 +344,11 @@ const TerminalUI = (() => {
     }
 
     function setInputState(isEditable, obscured = false) {
-        const editableInputDiv = document.getElementById('editable-input');
-        if (editableInputDiv) {
-            editableInputDiv.contentEditable = isEditable ? "true" : "false";
-            editableInputDiv.style.opacity = isEditable ? "1" : "0.5";
+        if (elements.editableInputDiv) {
+            elements.editableInputDiv.contentEditable = isEditable ? "true" : "false";
+            elements.editableInputDiv.style.opacity = isEditable ? "1" : "0.5";
             _isObscuredInputMode = obscured;
-            if (!isEditable) editableInputDiv.blur();
+            if (!isEditable) elements.editableInputDiv.blur();
         }
     }
 
@@ -358,13 +362,12 @@ const TerminalUI = (() => {
 
     function getSelection() {
         const sel = window.getSelection();
-        const editableInputDiv = document.getElementById('editable-input');
         let start, end;
         if (sel && sel.rangeCount > 0) {
             const range = sel.getRangeAt(0);
-            if (editableInputDiv && editableInputDiv.contains(range.commonAncestorContainer)) {
+            if (elements.editableInputDiv && elements.editableInputDiv.contains(range.commonAncestorContainer)) {
                 const preSelectionRange = range.cloneRange();
-                preSelectionRange.selectNodeContents(editableInputDiv);
+                preSelectionRange.selectNodeContents(elements.editableInputDiv);
                 preSelectionRange.setEnd(range.startContainer, range.startOffset);
                 start = preSelectionRange.toString().length;
                 end = start + range.toString().length;
@@ -377,24 +380,28 @@ const TerminalUI = (() => {
         return {start, end};
     }
 
-    function handlePaste(pastedText) {
-        if (!_isAwaitingInput || !_inputContext) return;
+    function showInputLine() {
+        if (elements.inputLineContainerDiv) {
+            elements.inputLineContainerDiv.classList.remove(Config.CSS_CLASSES.HIDDEN);
+        }
+    }
 
-        const selection = TerminalUI.getSelection();
-        let {start, end} = selection;
+    function hideInputLine() {
+        if (elements.inputLineContainerDiv) {
+            elements.inputLineContainerDiv.classList.add(Config.CSS_CLASSES.HIDDEN);
+        }
+    }
 
-        let inputArray = Array.from(_inputContext.currentInput);
-        inputArray.splice(start, end - start, pastedText);
-
-        _inputContext.currentInput = inputArray.join("");
-        const displayText = _inputContext.isObscured ? "*".repeat(_inputContext.currentInput.length) : _inputContext.currentInput;
-
-        TerminalUI.setCurrentInputValue(displayText, false);
-        TerminalUI.setCaretPosition(document.getElementById('editable-input'), start + pastedText.length);
+    function scrollOutputToEnd() {
+        if (elements.outputDiv) {
+            elements.outputDiv.scrollTop = elements.outputDiv.scrollHeight;
+        }
     }
 
     return {
+        initialize,
         updatePrompt,
+        getPromptText,
         focusInput,
         clearInput,
         setCurrentInputValue,
@@ -404,7 +411,9 @@ const TerminalUI = (() => {
         setCaretPosition,
         setInputState,
         getSelection,
-        handlePaste,
+        showInputLine,
+        hideInputLine,
+        scrollOutputToEnd,
     };
 })();
 
@@ -424,7 +433,7 @@ const ModalInputManager = (() => {
                 void OutputManager.appendToOutput(promptMessage, {typeClass: 'text-subtle'});
             }
             const echoInput = isObscured ? '*'.repeat(inputLine.length) : inputLine;
-            const promptEcho = `${document.getElementById('prompt-container').textContent} `;
+            const promptEcho = `${TerminalUI.getPromptText()} `;
             void OutputManager.appendToOutput(`${promptEcho}${echoInput}`);
             onInputReceivedCallback(inputLine);
             return;
@@ -445,7 +454,7 @@ const ModalInputManager = (() => {
                     void OutputManager.appendToOutput(promptMessage, {typeClass: 'text-subtle'});
                 }
                 const echoInput = isObscured ? '*'.repeat(inputLine.length) : inputLine;
-                const promptEcho = `${document.getElementById('prompt-container').textContent} `;
+                const promptEcho = `${TerminalUI.getPromptText()} `;
                 void OutputManager.appendToOutput(`${promptEcho}${echoInput}`);
                 onInputReceivedCallback(inputLine);
             } else {
@@ -466,8 +475,8 @@ const ModalInputManager = (() => {
             isObscured: isObscured,
             currentInput: "",
         };
-        const inputLineContainer = document.querySelector('.terminal__input-line');
-        if (inputLineContainer) inputLineContainer.classList.remove('hidden');
+
+        TerminalUI.showInputLine();
 
         if (promptMessage) {
             void OutputManager.appendToOutput(promptMessage, {typeClass: 'text-subtle'});
@@ -475,9 +484,7 @@ const ModalInputManager = (() => {
         TerminalUI.clearInput();
         TerminalUI.setInputState(true, isObscured);
         TerminalUI.focusInput();
-
-        const outputDiv = document.getElementById('output');
-        if (outputDiv) outputDiv.scrollTop = outputDiv.scrollHeight;
+        TerminalUI.scrollOutputToEnd();
     }
 
     async function handleInput() {
@@ -519,7 +526,7 @@ const ModalInputManager = (() => {
         _inputContext.currentInput = inputArray.join("");
         const displayText = _inputContext.isObscured ? "*".repeat(_inputContext.currentInput.length) : _inputContext.currentInput;
         TerminalUI.setCurrentInputValue(displayText, false);
-        TerminalUI.setCaretPosition(document.getElementById('editable-input'), start);
+        TerminalUI.setCaretPosition(TerminalUI.elements.editableInputDiv, start);
     }
 
     function handlePaste(pastedText) {
@@ -535,7 +542,7 @@ const ModalInputManager = (() => {
         const displayText = _inputContext.isObscured ? "*".repeat(_inputContext.currentInput.length) : _inputContext.currentInput;
 
         TerminalUI.setCurrentInputValue(displayText, false);
-        TerminalUI.setCaretPosition(document.getElementById('editable-input'), start + pastedText.length);
+        TerminalUI.setCaretPosition(TerminalUI.elements.editableInputDiv, start + pastedText.length);
     }
 
     return {
@@ -548,189 +555,13 @@ const ModalInputManager = (() => {
     };
 })();
 
-const TabCompletionManager = (() => {
-    "use strict";
-    let suggestionsCache = [];
-    let cycleIndex = -1;
-    let lastCompletionInput = null;
-
-    function resetCycle() {
-        suggestionsCache = [];
-        cycleIndex = -1;
-        lastCompletionInput = null;
-    }
-
-    function findLongestCommonPrefix(strs) {
-        if (!strs || strs.length === 0) return "";
-        if (strs.length === 1) return strs[0];
-        let prefix = strs[0];
-        for (let i = 1; i < strs.length; i++) {
-            while (strs[i].indexOf(prefix) !== 0) {
-                prefix = prefix.substring(0, prefix.length - 1);
-                if (prefix === "") return "";
-            }
-        }
-        return prefix;
-    }
-
-    function _getCompletionContext(fullInput, cursorPos) {
-        const tokens = (fullInput.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || []);
-        const commandName = tokens.length > 0 ? tokens[0].replace(/["']/g, '') : "";
-        const textBeforeCursor = fullInput.substring(0, cursorPos);
-        let startOfWordIndex = 0;
-        let inQuote = null;
-        for (let i = 0; i < textBeforeCursor.length; i++) {
-            const char = textBeforeCursor[i];
-            if (inQuote && char === inQuote && textBeforeCursor[i - 1] !== '\\') {
-                inQuote = null;
-            } else if (!inQuote && (char === '"' || char === "'") && (i === 0 || textBeforeCursor[i - 1] === ' ' || textBeforeCursor[i - 1] === undefined)) {
-                inQuote = char;
-            }
-            if (char === ' ' && !inQuote) {
-                startOfWordIndex = i + 1;
-            }
-        }
-        const currentWordWithQuotes = fullInput.substring(startOfWordIndex, cursorPos);
-        const quoteChar = currentWordWithQuotes.startsWith("'") ? "'" : currentWordWithQuotes.startsWith('"') ? '"' : null;
-        const currentWordPrefix = quoteChar ? currentWordWithQuotes.substring(1) : currentWordWithQuotes;
-        const isQuoted = !!quoteChar;
-        const isCompletingCommand = tokens.length === 0 || (tokens.length === 1 && !fullInput.substring(0, tokens[0].length).includes(' '));
-        return {
-            commandName,
-            isCompletingCommand,
-            currentWordPrefix,
-            startOfWordIndex,
-            currentWordLength: currentWordWithQuotes.length,
-            isQuoted,
-            quoteChar
-        };
-    }
-
-    async function _getSuggestionsFromProvider(context) {
-        const {currentWordPrefix, isCompletingCommand, commandName} = context;
-        let suggestions = [];
-
-        if (isCompletingCommand) {
-            suggestions = Config.COMMANDS_MANIFEST
-                .filter((cmd) => cmd.toLowerCase().startsWith(currentWordPrefix.toLowerCase()))
-                .sort();
-        } else {
-            const commandLoaded = await CommandExecutor._ensureCommandLoaded(commandName);
-            if (!commandLoaded) return [];
-
-            const commandDefinition = CommandExecutor.getCommands()[commandName]?.handler.definition;
-            if (!commandDefinition) return [];
-
-            if (commandDefinition.completionType === "commands") {
-                suggestions = Config.COMMANDS_MANIFEST
-                    .filter((cmd) => cmd.toLowerCase().startsWith(currentWordPrefix.toLowerCase()))
-                    .sort();
-            } else if (commandDefinition.completionType === "users") {
-                const users = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
-                const userNames = Object.keys(users);
-                if (!userNames.includes(Config.USER.DEFAULT_NAME)) userNames.push(Config.USER.DEFAULT_NAME);
-                suggestions = userNames
-                    .filter((name) => name.toLowerCase().startsWith(currentWordPrefix.toLowerCase()))
-                    .sort();
-            } else if (commandDefinition.completionType === 'paths' || commandDefinition.pathValidation) { // THIS IS THE FIX
-                const lastSlashIndex = currentWordPrefix.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR);
-                const pathPrefixForFS = lastSlashIndex !== -1 ? currentWordPrefix.substring(0, lastSlashIndex + 1) : "";
-                const segmentToMatchForFS = lastSlashIndex !== -1 ? currentWordPrefix.substring(lastSlashIndex + 1) : currentWordPrefix;
-
-                const effectiveBasePathForFS = FileSystemManager.getAbsolutePath(pathPrefixForFS, FileSystemManager.getCurrentPath());
-                const baseNode = FileSystemManager.getNodeByPath(effectiveBasePathForFS);
-                const currentUser = UserManager.getCurrentUser().name;
-
-                if (baseNode && baseNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE && FileSystemManager.hasPermission(baseNode, currentUser, "read")) {
-                    suggestions = Object.keys(baseNode.children)
-                        .filter((name) => name.toLowerCase().startsWith(segmentToMatchForFS.toLowerCase()))
-                        .map((name) => pathPrefixForFS + name)
-                        .sort();
-                }
-            }
-        }
-        return suggestions;
-    }
-
-    async function handleTab(fullInput, cursorPos) {
-        if (fullInput !== lastCompletionInput) {
-            resetCycle();
-        }
-
-        const context = _getCompletionContext(fullInput, cursorPos);
-
-        if (suggestionsCache.length === 0) {
-            const suggestions = await _getSuggestionsFromProvider(context);
-            if (!suggestions || suggestions.length === 0) {
-                resetCycle();
-                return {textToInsert: null};
-            }
-            if (suggestions.length === 1) {
-                const completion = suggestions[0];
-                const completedNode = FileSystemManager.getNodeByPath(FileSystemManager.getAbsolutePath(completion));
-                const isDirectory = completedNode && completedNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE;
-
-                const finalCompletion = completion + (isDirectory ? '/' : ' ');
-                const textBefore = fullInput.substring(0, context.startOfWordIndex);
-                const textAfter = fullInput.substring(cursorPos);
-
-                let newText = textBefore + finalCompletion + textAfter;
-
-                resetCycle();
-                return {textToInsert: newText, newCursorPos: (textBefore + finalCompletion).length};
-            }
-
-            const lcp = findLongestCommonPrefix(suggestions);
-            if (lcp && lcp.length > context.currentWordPrefix.length) {
-                const textBefore = fullInput.substring(0, context.startOfWordIndex);
-                const textAfter = fullInput.substring(cursorPos);
-                let newText = textBefore + lcp + textAfter;
-
-                lastCompletionInput = newText;
-                return {textToInsert: newText, newCursorPos: (textBefore + lcp).length};
-            } else {
-                suggestionsCache = suggestions;
-                cycleIndex = -1;
-                lastCompletionInput = fullInput;
-                const promptText = `${document.getElementById('prompt-container').textContent} `;
-                void OutputManager.appendToOutput(`${promptText}${fullInput}`, {isCompletionSuggestion: true});
-                void OutputManager.appendToOutput(suggestionsCache.join("    "), {
-                    typeClass: 'text-subtle',
-                    isCompletionSuggestion: true
-                });
-                const outputDiv = document.getElementById('output');
-                if (outputDiv) outputDiv.scrollTop = outputDiv.scrollHeight;
-                return {textToInsert: null};
-            }
-        } else {
-            cycleIndex = (cycleIndex + 1) % suggestionsCache.length;
-            const nextSuggestion = suggestionsCache[cycleIndex];
-            const completedNode = FileSystemManager.getNodeByPath(FileSystemManager.getAbsolutePath(nextSuggestion));
-            const isDirectory = completedNode && completedNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE;
-
-            const textBefore = fullInput.substring(0, context.startOfWordIndex);
-            const textAfter = fullInput.substring(cursorPos);
-            const completionText = nextSuggestion + (isDirectory ? '/' : ' ');
-            let newText = textBefore + completionText + textAfter;
-
-            lastCompletionInput = newText;
-            return {textToInsert: newText, newCursorPos: (textBefore + completionText).length};
-        }
-    }
-
-    return {
-        handleTab,
-        resetCycle,
-    };
-})();
-
 const AppLayerManager = (() => {
     "use strict";
-    let appLayer = null;
+    let cachedAppLayer = null;
     let activeApp = null;
 
-    function _cacheDOM() {
-        if (!appLayer) appLayer = document.getElementById('app-layer');
+    function initialize(dom) {
+        cachedAppLayer = dom.appLayer;
     }
 
     function _handleGlobalKeyDown(event) {
@@ -749,13 +580,11 @@ const AppLayerManager = (() => {
             activeApp.exit();
         }
 
-        _cacheDOM();
         activeApp = appInstance;
 
-        // The app's enter method is responsible for building the UI and appending it
-        activeApp.enter(appLayer, options);
+        activeApp.enter(cachedAppLayer, options);
 
-        appLayer.classList.remove('hidden');
+        cachedAppLayer.classList.remove('hidden');
         document.addEventListener('keydown', _handleGlobalKeyDown, true);
 
         TerminalUI.setInputState(false);
@@ -770,26 +599,23 @@ const AppLayerManager = (() => {
         if (activeApp !== appInstance) {
             return;
         }
-        _cacheDOM();
-        if (appInstance.container && appInstance.container.parentNode === appLayer) {
-            appLayer.removeChild(appInstance.container);
+
+        if (appInstance.container && appInstance.container.parentNode === cachedAppLayer) {
+            cachedAppLayer.removeChild(appInstance.container);
         }
-        appLayer.classList.add('hidden');
+        cachedAppLayer.classList.add('hidden');
         document.removeEventListener('keydown', _handleGlobalKeyDown, true);
 
         activeApp = null;
 
-        // Restore terminal interactivity when the app layer is hidden
-        const inputLineContainer = document.querySelector('.terminal__input-line');
-        if (inputLineContainer) {
-            inputLineContainer.classList.remove('hidden');
-        }
+        TerminalUI.showInputLine();
         TerminalUI.setInputState(true);
         OutputManager.setEditorActive(false);
         TerminalUI.focusInput();
     }
 
     return {
+        initialize,
         show,
         hide,
         isActive: () => !!activeApp,

@@ -1,11 +1,19 @@
+// scripts/output_manager.js
 const OutputManager = (() => {
     "use strict";
 
     let isEditorActive = false;
+    let cachedOutputDiv = null;
+    let cachedInputLineContainerDiv = null;
 
     const originalConsoleLog = console.log;
     const originalConsoleWarn = console.warn;
     const originalConsoleError = console.error;
+
+    function initialize(dom) {
+        cachedOutputDiv = dom.outputDiv;
+        cachedInputLineContainerDiv = dom.inputLineContainerDiv;
+    }
 
     function setEditorActive(status) {
         isEditorActive = status;
@@ -18,9 +26,9 @@ const OutputManager = (() => {
             !options.isCompletionSuggestion
         )
             return;
-        if (!DOM.outputDiv) {
+        if (!cachedOutputDiv) {
             originalConsoleError(
-                "OutputManager.appendToOutput: DOM.outputDiv is not defined. Message:",
+                "OutputManager.appendToOutput: cachedOutputDiv is not defined. Message:",
                 text
             );
             return;
@@ -29,18 +37,18 @@ const OutputManager = (() => {
 
         if (
             isBackground &&
-            DOM.inputLineContainerDiv &&
-            !DOM.inputLineContainerDiv.classList.contains(Config.CSS_CLASSES.HIDDEN)
+            cachedInputLineContainerDiv &&
+            !cachedInputLineContainerDiv.classList.contains(Config.CSS_CLASSES.HIDDEN)
         ) {
 
-            const promptText = DOM.promptContainer ? DOM.promptContainer.textContent : '> ';
+            const promptText = TerminalUI.getPromptText() || '> ';
 
             const currentInputVal = TerminalUI.getCurrentInputValue();
             const echoLine = Utils.createElement("div", {
                 className: Config.CSS_CLASSES.OUTPUT_LINE,
                 textContent: `${promptText}${currentInputVal}`,
             });
-            DOM.outputDiv.appendChild(echoLine);
+            cachedOutputDiv.appendChild(echoLine);
         }
 
         const lines = String(text).split("\n");
@@ -62,17 +70,17 @@ const OutputManager = (() => {
             fragment.appendChild(Utils.createElement("div", lineAttributes));
         }
 
-        DOM.outputDiv.appendChild(fragment);
-        DOM.outputDiv.scrollTop = DOM.outputDiv.scrollHeight;
+        cachedOutputDiv.appendChild(fragment);
+        cachedOutputDiv.scrollTop = cachedOutputDiv.scrollHeight;
     }
 
     function clearOutput() {
-        if (!isEditorActive && DOM.outputDiv) DOM.outputDiv.innerHTML = "";
+        if (!isEditorActive && cachedOutputDiv) cachedOutputDiv.innerHTML = "";
     }
 
     function _consoleLogOverride(...args) {
         if (
-            DOM.outputDiv &&
+            cachedOutputDiv &&
             typeof Utils !== "undefined" &&
             typeof Utils.formatConsoleArgs === "function"
         )
@@ -84,7 +92,7 @@ const OutputManager = (() => {
 
     function _consoleWarnOverride(...args) {
         if (
-            DOM.outputDiv &&
+            cachedOutputDiv &&
             typeof Utils !== "undefined" &&
             typeof Utils.formatConsoleArgs === "function"
         )
@@ -96,7 +104,7 @@ const OutputManager = (() => {
 
     function _consoleErrorOverride(...args) {
         if (
-            DOM.outputDiv &&
+            cachedOutputDiv &&
             typeof Utils !== "undefined" &&
             typeof Utils.formatConsoleArgs === "function"
         )
@@ -122,6 +130,7 @@ const OutputManager = (() => {
     }
 
     return {
+        initialize,
         setEditorActive,
         appendToOutput,
         clearOutput,
