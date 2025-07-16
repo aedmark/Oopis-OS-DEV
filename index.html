@@ -96,9 +96,24 @@
 <script src="./scripts/lexpar.js"></script>
 <script src="./scripts/commexec.js"></script>
 <script src="./scripts/commands/registry.js"></script>
-<script type="module" src="./scripts/commands/backup.js"></script>
-<script type="module" src="./scripts/commands/restore.js"></script>
 <script src="./scripts/main.js"></script>
+
+<script>
+  // This will be true only when running in a Tauri container
+  if (window.__TAURI__) {
+    const backupScript = document.createElement('script');
+    backupScript.type = 'module';
+    backupScript.src = './scripts/commands/backup.js';
+    document.body.appendChild(backupScript);
+
+    const restoreScript = document.createElement('script');
+    restoreScript.type = 'module';
+    restoreScript.src = './scripts/commands/restore.js';
+    document.body.appendChild(restoreScript);
+  } else {
+    console.warn('Tauri-specific commands (backup, restore) are not available in the web environment.');
+  }
+</script>
 
 </body>
 </html>

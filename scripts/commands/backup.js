@@ -19,6 +19,7 @@ import { writeTextFile } from '@tauri-apps/api/fs';
         }
 
         const currentUser = UserManager.getCurrentUser();
+        // ... (rest of the data gathering logic from the original file remains the same)
         const allKeys = StorageManager.getAllLocalStorageKeys();
         const automaticSessionStates = {};
         const manualSaveStates = {};
@@ -53,20 +54,38 @@ import { writeTextFile } from '@tauri-apps/api/fs';
         const backupJsonString = JSON.stringify(backupData, null, 2);
         const defaultFileName = `OopisOS_System_Backup_${currentUser.name}_${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
 
-        // --- TAURI REFACTOR ---
-        const filePath = await save({
-          title: 'Save OopisOS Backup',
-          defaultPath: defaultFileName,
-          filters: [{ name: 'OopisOS Backup', extensions: ['json'] }]
-        });
+        // --- Environment-Specific Logic ---
+        if (window.__TAURI__) {
+          // Tauri Environment: Use native file save dialog
+          const { save } = await import('@tauri-apps/api/dialog');
+          const { writeTextFile } = await import('@tauri-apps/api/fs');
 
-        if (filePath) {
-          await writeTextFile(filePath, backupJsonString);
-          return { success: true, output: `Backup saved successfully to ${filePath}.` };
+          const filePath = await save({
+            title: 'Save OopisOS Backup',
+            defaultPath: defaultFileName,
+            filters: [{ name: 'OopisOS Backup', extensions: ['json'] }]
+          });
+
+          if (filePath) {
+            await writeTextFile(filePath, backupJsonString);
+            return { success: true, output: `Backup saved successfully to ${filePath}.` };
+          } else {
+            return { success: true, output: "Backup cancelled." };
+          }
         } else {
-          return { success: true, output: "Backup cancelled." };
+          // Web Browser Environment: Use blob to trigger download
+          const blob = new Blob([backupJsonString], { type: "application/json;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const a = Utils.createElement("a", {
+            href: url,
+            download: defaultFileName,
+          });
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          return { success: true, output: `Backup file '${defaultFileName}' is being downloaded.` };
         }
-        // --- END REFACTOR ---
 
       } catch (e) {
         return { success: false, error: `backup: An unexpected error occurred: ${e.message}` };

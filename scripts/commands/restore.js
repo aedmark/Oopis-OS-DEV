@@ -18,24 +18,62 @@ import { readTextFile } from '@tauri-apps/api/fs';
                     return { success: false, error: "restore: Can only be run in interactive mode." };
                 }
 
-                let fileContent;
-                let fileName;
+                // --- Environment-Agnostic File Getter ---
+                const getFileContent = async () => {
+                    if (window.__TAURI__) {
+                        // Tauri Environment
+                        const { open } = await import('@tauri-apps/api/dialog');
+                        const { readTextFile } = await import('@tauri-apps/api/fs');
+                        const filePath = await open({
+                            title: 'Select OopisOS Backup File',
+                            multiple: false,
+                            filters: [{ name: 'OopisOS Backups', extensions: ['json'] }]
+                        });
 
-                // --- TAURI REFACTOR ---
-                const filePath = await open({
-                    title: 'Select OopisOS Backup File',
-                    multiple: false,
-                    filters: [{ name: 'OopisOS Backups', extensions: ['json'] }]
-                });
+                        if (filePath) {
+                            const content = await readTextFile(filePath);
+                            const name = filePath.split(/[\\/]/).pop();
+                            return { content, name };
+                        }
+                        return null; // User cancelled
+                    } else {
+                        // Web Browser Environment
+                        return new Promise(resolve => {
+                            const input = Utils.createElement("input", { type: "file", accept: ".json" });
+                            input.style.display = "none";
+                            document.body.appendChild(input);
 
-                if (filePath) {
-                    fileContent = await readTextFile(filePath);
-                    fileName = filePath.split(/[\\/]/).pop();
-                } else {
+                            input.onchange = (e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (readEvent) => {
+                                        resolve({ content: readEvent.target.result, name: file.name });
+                                    };
+                                    reader.readAsText(file);
+                                } else {
+                                    resolve(null); // User cancelled
+                                }
+                                document.body.removeChild(input);
+                            };
+                            input.addEventListener('cancel', () => {
+                                resolve(null);
+                                document.body.removeChild(input);
+                            });
+                            input.click();
+                        });
+                    }
+                };
+
+                const fileData = await getFileContent();
+
+                if (!fileData) {
                     return { success: true, output: Config.MESSAGES.RESTORE_CANCELLED_NO_FILE };
                 }
-                // --- END REFACTOR ---
 
+                const { content: fileContent, name: fileName } = fileData;
+
+                // ... (The rest of the logic for parsing, checksum, confirmation, and applying the backup remains the same)
                 let backupData;
                 try {
                     backupData = JSON.parse(fileContent);
