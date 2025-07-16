@@ -5,15 +5,63 @@ const CommandExecutor = (() => {
   let backgroundProcessIdCounter = 0;
   let activeJobs = {};
   const commands = {};
-  const loadingPromises = {};
+  const loadingPromises = {}; // Cache for script loading promises
 
-  async function precacheCommonCommands() {
-    await _ensureCommandLoaded('ls');
-    await _ensureCommandLoaded('cd');
-    await _ensureCommandLoaded('cat');
-    await _ensureCommandLoaded('rm');
+  // Helper to load a single script and return a promise
+  function _loadScript(scriptPath) {
+    if (loadingPromises[scriptPath]) {
+      return loadingPromises[scriptPath];
+    }
+    loadingPromises[scriptPath] = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `./scripts/${scriptPath}`;
+      script.onload = () => resolve(true);
+      script.onerror = () => reject(new Error(`Failed to load script: ${scriptPath}`));
+      document.head.appendChild(script);
+    });
+    return loadingPromises[scriptPath];
   }
 
+  // The new dependency-aware command loader
+  async function _ensureCommandLoaded(commandName) {
+    if (!commandName || typeof commandName !== 'string') return false;
+    if (commands[commandName]) return true;
+
+    // 1. Load Dependencies First
+    const dependencies = Config.COMMAND_DEPENDENCIES[commandName];
+    if (dependencies && Array.isArray(dependencies)) {
+      try {
+        await Promise.all(dependencies.map(dep => _loadScript(dep)));
+      } catch (error) {
+        console.error(`Failed to load dependencies for command '${commandName}':`, error);
+        return false;
+      }
+    }
+
+    // 2. Load the Command Script Itself
+    try {
+      await _loadScript(`commands/${commandName}.js`);
+    } catch (error) {
+      // If the command script itself fails, that's okay, it just means it's not a valid command.
+      return false;
+    }
+
+    // 3. Populate the command cache from the registry
+    const definition = CommandRegistry.getDefinitions()[commandName];
+    if (definition) {
+      commands[commandName] = {
+        handler: createCommandHandler(definition.definition),
+        description: definition.description,
+        helpText: definition.helpText,
+      };
+      return true;
+    }
+
+    return false; // Command script loaded but didn't register itself
+  }
+
+  // The rest of the CommandExecutor file remains unchanged...
+  // ... (all other functions: _generateInputContent, createCommandHandler, getActiveJobs, etc.)
   async function* _generateInputContent(context, firstFileArgIndex = 0) {
     const {args, options, currentUser} = context;
 
@@ -113,40 +161,6 @@ const CommandExecutor = (() => {
     };
     handler.definition = definition;
     return handler;
-  }
-
-  async function _ensureCommandLoaded(commandName) {
-    if (!commandName) return false;
-    if (commands[commandName]) return true;
-    if (loadingPromises[commandName]) return await loadingPromises[commandName];
-
-    const promise = new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = `./scripts/commands/${commandName}.js`;
-      script.onload = () => {
-        const definition = CommandRegistry.getDefinitions()[commandName];
-        if (definition) {
-          commands[commandName] = {
-            handler: createCommandHandler(definition.definition),
-            description: definition.description,
-            helpText: definition.helpText,
-          };
-          resolve(true);
-        } else {
-          console.error(`Script for '${commandName}' loaded, but command not found in registry.`);
-          resolve(false);
-        }
-        delete loadingPromises[commandName];
-      };
-      script.onerror = () => {
-        resolve(false);
-        delete loadingPromises[commandName];
-      };
-      document.head.appendChild(script);
-    });
-
-    loadingPromises[commandName] = promise;
-    return await loadingPromises[commandName];
   }
 
   function getActiveJobs() {
@@ -541,7 +555,6 @@ const CommandExecutor = (() => {
       return { success: true, output: "" };
     }
 
-    // CORRECTED LINE: Replace specific manager checks with the general AppLayerManager check.
     if (AppLayerManager.isActive()) return { success: true, output: "" };
 
     let commandToParse;
@@ -649,6 +662,5 @@ const CommandExecutor = (() => {
     getActiveJobs,
     killJob,
     _ensureCommandLoaded,
-    precacheCommonCommands
   };
 })();
