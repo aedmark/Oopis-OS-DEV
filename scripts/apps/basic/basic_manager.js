@@ -1,11 +1,12 @@
 // scripts/apps/basic/basic_manager.js
+
 class BasicManager extends App {
     constructor() {
         super();
         this.interpreter = new Basic_interp();
         this.programBuffer = new Map();
         this.onInputPromiseResolver = null;
-        this.loadOptions = {};
+        this.loadOptions = {}; // To store the initial file path and content
     }
 
     enter(appLayer, options = {}) {
@@ -17,14 +18,20 @@ class BasicManager extends App {
             onExit: this.exit.bind(this)
         });
 
+        // The manager now handles appending to the app layer
         appLayer.appendChild(this.container);
+
         this._init();
     }
 
     exit() {
         if (!this.isActive) return;
-        BasicUI.reset();
-        AppLayerManager.hide(this);
+
+        BasicUI.reset(); // UI cleanup
+        AppLayerManager.hide(this); // Manager tells AppLayerManager to hide
+
+        // Reset state
+        this.isActive = false;
         this.interpreter = new Basic_interp();
         this.programBuffer.clear();
         this.onInputPromiseResolver = null;
@@ -144,7 +151,10 @@ class BasicManager extends App {
                 },
                 inputCallback: async () => new Promise(resolve => {
                     this.onInputPromiseResolver = resolve;
-                })
+                }),
+                pokeCallback: (x, y, char, color) => {
+                    // This could be implemented to draw directly on the BASIC UI's output div
+                }
             });
         } catch (error) {
             BasicUI.writeln(`\nRUNTIME ERROR: ${error.message}`);
@@ -180,13 +190,9 @@ class BasicManager extends App {
             return;
         }
         const path = filePathArg.replace(/["']/g, '');
-        const pathValidation = FileSystemManager.validatePath(path, {expectedType: 'file'});
+        const pathValidation = FileSystemManager.validatePath(path, {expectedType: 'file', permissions: ['read']});
         if (pathValidation.error) {
             BasicUI.writeln(`?ERROR: ${pathValidation.error}`);
-            return;
-        }
-        if (!FileSystemManager.hasPermission(pathValidation.node, UserManager.getCurrentUser().name, 'read')) {
-            BasicUI.writeln("?PERMISSION DENIED");
             return;
         }
         this._loadContentIntoBuffer(pathValidation.node.content);
@@ -195,4 +201,5 @@ class BasicManager extends App {
     }
 }
 
+// Create the singleton that the 'basic' command will use
 const Basic = new BasicManager();
