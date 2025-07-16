@@ -4,15 +4,18 @@
 
     const chownCommandDefinition = {
         commandName: "chown",
-        completionType: "users", // Preserved for tab completion
+        completionType: "users",
         argValidation: {
             exact: 2,
             error: "Usage: chown <new_owner> <path>",
         },
+        pathValidation: { // Added contract for the executor
+            argIndex: 1
+        },
         coreLogic: async (context) => {
-            const { args, currentUser } = context;
+            const { args, currentUser, node } = context;
             const newOwnerArg = args[0];
-            const pathArg = args[1];
+            const pathArg = args[1]; // For messaging
             const nowISO = new Date().toISOString();
 
             try {
@@ -22,8 +25,6 @@
                         error: `chown: user '${newOwnerArg}' does not exist.`,
                     };
                 }
-
-                const node = context.node; // Assumes node is passed in context.
 
                 if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
                     return {

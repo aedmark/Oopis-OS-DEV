@@ -4,7 +4,7 @@
 
     const curlCommandDefinition = {
         commandName: "curl",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         flagDefinitions: [{
             name: "output",
             short: "-o",
@@ -25,11 +25,7 @@
         },
 
         coreLogic: async (context) => {
-            const {
-                args,
-                flags,
-                currentUser
-            } = context;
+            const { args, flags, currentUser } = context;
             let currentUrl = args[0];
             const maxRedirects = 10;
 
@@ -62,8 +58,17 @@
                     outputString += content;
 
                     if (flags.output) {
-                        // The CommandExecutor handles path validation for the output file.
-                        const resolvedPath = context.resolvedPath; // Assumes resolvedPath for output file is passed
+                        const pathValidation = FileSystemManager.validatePath(flags.output, {
+                            allowMissing: true,
+                            expectedType: 'file'
+                        });
+
+                        if (pathValidation.error && !(pathValidation.node === null && pathValidation.error.includes("No such file or directory"))) {
+                            return { success: false, error: `curl: ${pathValidation.error}` };
+                        }
+                        if (pathValidation.node && pathValidation.node.type === 'directory') {
+                            return { success: false, error: `curl: output file '${flags.output}' is a directory` };
+                        }
 
                         const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
                         if (!primaryGroup) {
@@ -74,7 +79,7 @@
                         }
 
                         const saveResult = await FileSystemManager.createOrUpdateFile(
-                            resolvedPath,
+                            pathValidation.resolvedPath,
                             outputString, {
                                 currentUser,
                                 primaryGroup

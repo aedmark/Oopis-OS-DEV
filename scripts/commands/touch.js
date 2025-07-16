@@ -4,13 +4,15 @@
 
     const touchCommandDefinition = {
         commandName: "touch",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         flagDefinitions: [
             { name: "noCreate", short: "-c", long: "--no-create" },
             { name: "dateString", short: "-d", long: "--date", takesValue: true },
             { name: "stamp", short: "-t", takesValue: true },
         ],
         argValidation: { min: 1 },
+        // Touch is special, it needs to validate but allow missing files.
+        // This is handled in coreLogic.
         coreLogic: async (context) => {
             const { args, flags, currentUser } = context;
 
@@ -30,8 +32,14 @@
                 const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
 
                 for (const pathArg of args) {
-                    const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
-                    const node = context.node; // Assumes node is passed in context.
+                    const pathValidation = FileSystemManager.validatePath(pathArg, { allowMissing: true });
+                    const { node, resolvedPath, error } = pathValidation;
+
+                    if (error && !(node === null && error.includes("No such file or directory"))) {
+                        messages.push(`touch: ${error}`);
+                        allSuccess = false;
+                        continue;
+                    }
 
                     if (resolvedPath === '/') {
                         messages.push(`touch: cannot touch root directory`);
@@ -40,6 +48,11 @@
                     }
 
                     if (node) {
+                        if (!FileSystemManager.hasPermission(node, currentUser, "write")) {
+                            messages.push(`touch: cannot update timestamp of '${pathArg}': Permission denied`);
+                            allSuccess = false;
+                            continue;
+                        }
                         node.mtime = timestampToUse;
                         changesMade = true;
                     } else {
@@ -51,14 +64,20 @@
                             continue;
                         }
 
+                        const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
+                        const parentNode = FileSystemManager.getNodeByPath(parentPath);
+
+                        if (!parentNode || parentNode.type !== 'directory' || !FileSystemManager.hasPermission(parentNode, currentUser, "write")) {
+                            messages.push(`touch: cannot create '${pathArg}': Parent directory not found or permission denied.`);
+                            allSuccess = false;
+                            continue;
+                        }
+
                         if (!primaryGroup) {
                             messages.push(`touch: could not determine primary group for user '${currentUser}'`);
                             allSuccess = false;
                             continue;
                         }
-
-                        const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
-                        const parentNode = FileSystemManager.getNodeByPath(parentPath);
 
                         const fileName = resolvedPath.substring(resolvedPath.lastIndexOf('/') + 1);
                         const newFileNode = FileSystemManager._createNewFileNode(fileName, "", currentUser, primaryGroup);

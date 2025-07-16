@@ -4,55 +4,39 @@
 
     const rmdirCommandDefinition = {
         commandName: "rmdir",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         argValidation: {
             min: 1,
             error: "missing operand"
         },
+        pathValidation: { // Added contract for the executor
+            argIndex: 0,
+            options: { expectedType: 'directory' },
+            permissions: [] // write permission is checked on parent
+        },
         coreLogic: async (context) => {
-            const { args, currentUser } = context;
-            const outputMessages = [];
-            let allSuccess = true;
-            let changesMade = false;
+            const { args, currentUser, node, resolvedPath } = context;
+            const pathArg = args[0]; // For messages
 
             try {
-                for (const pathArg of args) {
-                    const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
-                    const node = context.node; // Assumes node is passed in context.
-
-                    // The executor's contract ensures the node exists and is a directory.
-                    // The core logic now only needs to check if it's empty.
-
-                    const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
-                    const parentNode = FileSystemManager.getNodeByPath(parentPath);
-
-                    if (Object.keys(node.children).length > 0) {
-                        outputMessages.push(`rmdir: failed to remove '${pathArg}': Directory not empty`);
-                        allSuccess = false;
-                        continue;
-                    }
-
-                    if (!FileSystemManager.hasPermission(parentNode, currentUser, "write")) {
-                        outputMessages.push(`rmdir: failed to remove '${pathArg}': Permission denied`);
-                        allSuccess = false;
-                        continue;
-                    }
-
-                    const dirName = resolvedPath.split('/').pop();
-                    delete parentNode.children[dirName];
-                    parentNode.mtime = new Date().toISOString();
-                    changesMade = true;
+                if (Object.keys(node.children).length > 0) {
+                    return { success: false, error: `rmdir: failed to remove '${pathArg}': Directory not empty` };
                 }
 
-                if (changesMade) {
-                    await FileSystemManager.save();
+                const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
+                const parentNode = FileSystemManager.getNodeByPath(parentPath);
+
+                if (!FileSystemManager.hasPermission(parentNode, currentUser, "write")) {
+                    return { success: false, error: `rmdir: failed to remove '${pathArg}': Permission denied` };
                 }
 
-                if (allSuccess) {
-                    return { success: true, output: "" };
-                } else {
-                    return { success: false, error: outputMessages.join('\\n') };
-                }
+                const dirName = resolvedPath.split('/').pop();
+                delete parentNode.children[dirName];
+                parentNode.mtime = new Date().toISOString();
+
+                await FileSystemManager.save();
+
+                return { success: true, output: "" };
             } catch (e) {
                 return { success: false, error: `rmdir: An unexpected error occurred: ${e.message}` };
             }

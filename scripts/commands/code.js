@@ -4,13 +4,19 @@
 
     const codeCommandDefinition = {
         commandName: "code",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         argValidation: {
             max: 1,
             error: "Usage: code [filepath]"
         },
+        pathValidation: { // Added contract for the executor
+            argIndex: 0,
+            options: { allowMissing: true, expectedType: 'file' },
+            permissions: ['read'],
+            required: false // path is optional
+        },
         coreLogic: async (context) => {
-            const { options } = context;
+            const { options, resolvedPath, node } = context;
 
             try {
                 if (!options.isInteractive) {
@@ -21,9 +27,7 @@
                     return { success: false, error: "code: The code editor application modules are not loaded." };
                 }
 
-                // The CommandExecutor handles path validation. We receive the content directly.
-                const resolvedPath = context.resolvedPath; // Assumes resolvedPath is passed
-                const fileContent = context.node ? context.node.content : ""; // Assumes node is passed
+                const fileContent = node ? node.content || "" : "";
 
                 CodeManager.enter(resolvedPath, fileContent);
 

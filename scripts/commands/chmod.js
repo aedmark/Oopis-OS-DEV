@@ -4,15 +4,18 @@
 
     const chmodCommandDefinition = {
         commandName: "chmod",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         argValidation: {
             exact: 2,
             error: "Usage: chmod <mode> <path>",
         },
+        pathValidation: { // Added contract for the executor
+            argIndex: 1
+        },
         coreLogic: async (context) => {
-            const { args, currentUser } = context;
+            const { args, currentUser, node } = context;
             const modeArg = args[0];
-            const pathArg = args[1];
+            const pathArg = args[1]; // For messaging
             const nowISO = new Date().toISOString();
 
             try {
@@ -22,8 +25,6 @@
                         error: `chmod: invalid mode: ‘${modeArg}’ (must be 3 or 4 octal digits)`,
                     };
                 }
-
-                const node = context.node; // Assumes node is passed in context.
 
                 if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
                     return {

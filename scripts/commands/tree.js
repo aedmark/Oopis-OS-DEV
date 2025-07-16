@@ -4,25 +4,21 @@
 
     const treeCommandDefinition = {
         commandName: "tree",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         flagDefinitions: [
-            {
-                name: "level",
-                short: "-L",
-                long: "--level",
-                takesValue: true,
-            },
-            {
-                name: "dirsOnly",
-                short: "-d",
-                long: "--dirs-only",
-            },
+            { name: "level", short: "-L", long: "--level", takesValue: true, },
+            { name: "dirsOnly", short: "-d", long: "--dirs-only" },
         ],
         argValidation: {
             max: 1,
         },
+        pathValidation: { // Added contract for the executor
+            argIndex: 0,
+            options: { expectedType: 'directory' },
+            permissions: ['read']
+        },
         coreLogic: async (context) => {
-            const { args, flags, currentUser } = context;
+            const { args, flags, currentUser, node, resolvedPath } = context;
 
             try {
                 const maxDepth = flags.level
@@ -34,15 +30,6 @@
                         success: false,
                         error: `tree: invalid level value for -L: '${flags.level}' ${maxDepth.error || ""}`,
                     };
-
-                // The CommandExecutor has validated the path.
-                const node = context.node;
-                const resolvedPath = context.resolvedPath;
-                const pathArg = args.length > 0 ? args[0] : ".";
-
-                if (node.type !== 'directory') {
-                    return { success: false, error: `tree: '${pathArg}' is not a directory` };
-                }
 
                 const outputLines = [resolvedPath];
                 let dirCount = 0;

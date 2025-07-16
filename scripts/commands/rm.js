@@ -4,29 +4,21 @@
 
     const rmCommandDefinition = {
         commandName: "rm",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         flagDefinitions: [
-            {
-                name: "recursive",
-                short: "-r",
-                long: "--recursive",
-                aliases: ["-R"],
-            },
-            {
-                name: "force",
-                short: "-f",
-                long: "--force",
-            },
-            {
-                name: "interactive",
-                short: "-i",
-                long: "--interactive",
-            },
+            { name: "recursive", short: "-r", long: "--recursive", aliases: ["-R"] },
+            { name: "force", short: "-f", long: "--force" },
+            { name: "interactive", short: "-i", long: "--interactive" },
         ],
         argValidation: {
             min: 1,
             error: "missing operand",
         },
+        // The executor will now validate the path for each argument.
+        // Since rm can take multiple paths, we'll handle this in the coreLogic
+        // and assume the executor might pre-validate or we do it iteratively.
+        // For this fix, we'll keep the iterative logic inside coreLogic
+        // but it's now streamlined.
         coreLogic: async (context) => {
             const { args, flags, currentUser, options } = context;
             let allSuccess = true;
@@ -35,22 +27,20 @@
 
             try {
                 for (const pathArg of args) {
-                    // Path validation is now handled by CommandExecutor.
-                    // We receive the validated node in the context.
-                    const node = context.node; // Assumes node is passed in context.
-                    const resolvedPath = context.resolvedPath; // Assumes resolvedPath is passed in context.
+                    const pathValidation = FileSystemManager.validatePath(pathArg);
 
+                    if (flags.force && !pathValidation.node) continue;
 
-                    if (resolvedPath === '/') {
-                        messages.push(`rm: cannot remove root directory`);
+                    if (pathValidation.error) {
+                        messages.push(`rm: cannot remove '${pathArg}': ${pathValidation.error.replace(pathArg + ':', '').trim()}`);
                         allSuccess = false;
                         continue;
                     }
 
-                    if (flags.force && !node) continue;
+                    const { node, resolvedPath } = pathValidation;
 
-                    if (!node) {
-                        messages.push(`rm: cannot remove '${pathArg}': No such file or directory`);
+                    if (resolvedPath === '/') {
+                        messages.push(`rm: cannot remove root directory`);
                         allSuccess = false;
                         continue;
                     }
@@ -84,7 +74,6 @@
                     const deleteResult = await FileSystemManager.deleteNodeRecursive(resolvedPath, { force: true, currentUser });
                     if (deleteResult.success) {
                         if (deleteResult.anyChangeMade) anyChangeMade = true;
-                        messages.push(`removed '${pathArg}'`);
                     } else {
                         allSuccess = false;
                         messages.push(...deleteResult.messages);
@@ -95,7 +84,7 @@
                 const finalOutput = messages.filter((m) => m).join("\\n");
                 return {
                     success: allSuccess,
-                    output: allSuccess ? finalOutput : null,
+                    output: allSuccess ? "" : null,
                     error: allSuccess ? null : finalOutput || "Unknown error during rm operation.",
                 };
             } catch (e) {

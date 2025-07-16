@@ -4,16 +4,17 @@
 
     const chgrpCommandDefinition = {
         commandName: "chgrp",
-        completionType: "groups", // Preserved for tab completion
+        completionType: "groups",
         argValidation: { exact: 2, error: "Usage: chgrp <groupname> <path>" },
+        pathValidation: { // Added contract for the executor
+            argIndex: 1
+        },
         coreLogic: async (context) => {
-            const { args, currentUser } = context;
+            const { args, currentUser, node } = context;
             const groupName = args[0];
-            const pathArg = args[1];
+            const pathArg = args[1]; // For messaging
 
             try {
-                const node = context.node; // Assumes node is passed in context.
-
                 if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
                     return {
                         success: false,

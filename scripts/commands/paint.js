@@ -4,13 +4,19 @@
 
     const paintCommandDefinition = {
         commandName: "paint",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         argValidation: {
             max: 1,
             error: "Usage: paint [filename.oopic]"
         },
+        pathValidation: { // Added contract for the executor
+            argIndex: 0,
+            options: { allowMissing: true, expectedType: 'file' },
+            permissions: ['read'],
+            required: false // path is optional
+        },
         coreLogic: async (context) => {
-            const { args, options } = context;
+            const { args, options, node, resolvedPath } = context;
 
             try {
                 if (!options.isInteractive) {
@@ -25,14 +31,13 @@
                 }
 
                 const pathArg = args.length > 0 ? args[0] : `untitled-${new Date().getTime()}.oopic`;
-                let filePath = FileSystemManager.getAbsolutePath(pathArg);
+                const filePath = resolvedPath || FileSystemManager.getAbsolutePath(pathArg);
 
                 if (Utils.getFileExtension(filePath) !== 'oopic') {
                     return { success: false, error: `paint: can only edit .oopic files.` };
                 }
 
-                // The CommandExecutor handles path validation. We receive the content directly.
-                const fileContent = context.node ? context.node.content : ""; // Assumes node is passed
+                const fileContent = node ? node.content || "" : "";
 
                 PaintManager.enter(filePath, fileContent);
 

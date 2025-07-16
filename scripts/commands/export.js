@@ -4,24 +4,25 @@
 
     const exportCommandDefinition = {
         commandName: "export",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         argValidation: {
             exact: 1,
             error: "expects exactly one file path.",
         },
+        pathValidation: { // Added contract for the executor
+            argIndex: 0,
+            options: { expectedType: 'file' },
+            permissions: ['read']
+        },
         coreLogic: async (context) => {
-            const { args } = context;
+            const { node, resolvedPath } = context;
 
             try {
-                // The CommandExecutor has already validated the path and permissions.
-                const fileNode = context.node; // Assumes node is passed in context
-                const resolvedPath = context.resolvedPath; // Assumes resolvedPath is passed
-
                 const fileName = resolvedPath.substring(
                     resolvedPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR) + 1
                 );
 
-                const blob = new Blob([fileNode.content || ""], {
+                const blob = new Blob([node.content || ""], {
                     type: "text/plain;charset=utf-8",
                 });
                 const url = URL.createObjectURL(blob);
