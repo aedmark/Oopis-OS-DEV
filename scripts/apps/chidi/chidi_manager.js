@@ -4,7 +4,7 @@ const ChidiManager = (() => {
     "use strict";
 
     // Define the core system prompt at the top for easy maintenance.
-    const CHIDI_SYSTEM_PROMPT = `You are Chidi, an AI-powered document analyst. You are having a conversation with a user about a specific set of documents they have loaded.
+    const CHIDI_SYSTEM_PROMPT = `You are Chidi, an AI-powered document analyst.
 
 **Rules:**
 - Your answers MUST be based *only* on the provided document context and the ongoing conversation history.
