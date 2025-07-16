@@ -11,13 +11,28 @@ const EditorManager = (() => {
         originalContent: "",
         currentContent: "",
         isDirty: false,
-        fileMode: 'text', // 'text', 'markdown', 'html'
-        viewMode: 'split', // 'edit', 'split', 'preview'
+        fileType: 'text', // 'text', 'markdown', 'html', 'code'
+        viewMode: 'edit', // 'edit', 'split', 'preview' for md/html; 'edit' for text/code
         undoStack: [],
         redoStack: [],
         wordWrap: false,
-        onSaveCallback: null, // Task 3.3: Add onSaveCallback
+        onSaveCallback: null,
     };
+
+    // --- Highlighter (from the old code_manager) ---
+    const jsHighlighter = (text) => {
+        const escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return escapedText
+            .replace(/(\/\/. *)/g, '<em>$1</em>') // Comments
+            .replace(/\b(new|if|else|do|while|switch|for|in|of|continue|break|return|typeof|function|var|const|let|async|await|class|extends|true|false|null)(?=[^\w])/g, '<strong>$1</strong>') // Keywords
+            .replace(/(".*?"|'.*?'|`.*?`)/g, '<strong><em>$1</em></strong>') // Strings
+            .replace(/\b(\d+)/g, '<em><strong>$1</strong></em>'); // Numbers
+    };
+
+    const debouncedHighlight = Utils.debounce((content) => {
+        EditorUI.renderPreview(content, state.fileType, jsHighlighter);
+    }, 100);
+
 
     function enter(filePath, fileContent, onSaveCallback = null) {
         if (state.isActive) return;
@@ -31,7 +46,10 @@ const EditorManager = (() => {
         state.originalContent = normalizedContent;
         state.currentContent = normalizedContent;
 
-        state.fileMode = _getFileMode(filePath);
+        state.fileType = _getFileType(filePath);
+        // Default view mode based on file type
+        state.viewMode = (state.fileType === 'markdown' || state.fileType === 'html') ? 'split' : 'edit';
+
 
         state.undoStack.push(state.currentContent);
 
@@ -61,7 +79,7 @@ const EditorManager = (() => {
 
     function _performExit() {
         EditorUI.hideAndReset();
-        state = {}; // Reset state
+        state = {};
     }
 
     const callbacks = {
@@ -72,10 +90,7 @@ const EditorManager = (() => {
             EditorUI.updateDirtyStatus(state.isDirty);
 
             _debouncedPushUndo(newContent);
-
-            if (state.viewMode !== 'edit') {
-                EditorUI.renderPreview(state.currentContent, state.fileMode);
-            }
+            debouncedHighlight(state.currentContent);
         },
         onSaveRequest: async () => {
             if (!state.isActive) return;
@@ -100,7 +115,7 @@ const EditorManager = (() => {
                 }
                 savePath = newName;
                 state.currentFilePath = savePath;
-                state.fileMode = _getFileMode(savePath);
+                state.fileType = _getFileType(savePath);
                 EditorUI.updateWindowTitle(savePath);
             }
 
@@ -126,14 +141,14 @@ const EditorManager = (() => {
         },
         onExitRequest: exit,
         onTogglePreview: () => {
-            if (state.fileMode === 'text') {
+            if (state.fileType === 'text' || state.fileType === 'code') {
                 state.viewMode = 'edit';
             } else {
                 const modes = ['split', 'edit', 'preview'];
                 const currentIndex = modes.indexOf(state.viewMode);
                 state.viewMode = modes[(currentIndex + 1) % modes.length];
             }
-            EditorUI.setViewMode(state.viewMode, state.fileMode, state.currentContent);
+            EditorUI.setViewMode(state.viewMode, state.fileType, state.currentContent, jsHighlighter);
         },
         onUndo: () => {
             if (state.undoStack.length > 1) {
@@ -141,9 +156,7 @@ const EditorManager = (() => {
                 state.redoStack.push(currentState);
                 state.currentContent = state.undoStack[state.undoStack.length - 1];
                 EditorUI.setContent(state.currentContent);
-                if (state.viewMode !== 'edit') {
-                    EditorUI.renderPreview(state.currentContent, state.fileMode);
-                }
+                debouncedHighlight(state.currentContent);
             }
         },
         onRedo: () => {
@@ -152,9 +165,7 @@ const EditorManager = (() => {
                 state.undoStack.push(nextState);
                 state.currentContent = nextState;
                 EditorUI.setContent(state.currentContent);
-                if (state.viewMode !== 'edit') {
-                    EditorUI.renderPreview(state.currentContent, state.fileMode);
-                }
+                debouncedHighlight(state.currentContent);
             }
         },
         onWordWrapToggle: () => {
@@ -166,18 +177,25 @@ const EditorManager = (() => {
 
     const _debouncedPushUndo = Utils.debounce((content) => {
         state.undoStack.push(content);
-        if (state.undoStack.length > 50) { // Limit undo history
+        if (state.undoStack.length > 50) {
             state.undoStack.shift();
         }
-        state.redoStack = []; // Clear redo on new action
+        state.redoStack = [];
     }, 500);
 
-    function _getFileMode(filePath) {
+    function _getFileType(filePath) {
         if (!filePath) return 'text';
         const extension = Utils.getFileExtension(filePath);
-        if (extension === 'md') return 'markdown';
-        if (extension === 'html') return 'html';
-        return 'text';
+        switch(extension) {
+            case 'md': return 'markdown';
+            case 'html': return 'html';
+            case 'js':
+            case 'sh':
+            case 'css':
+            case 'json':
+                return 'code';
+            default: return 'text';
+        }
     }
 
     return {enter, exit, isActive: () => state.isActive};

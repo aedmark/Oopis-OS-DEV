@@ -61,13 +61,11 @@
     gap: var(--spacing-md);
 }
 
-/* Corrected CSS for view modes */
 .editor-main--split .editor-textarea,
 .editor-main--split .editor-preview {
+    flex-basis: 0;
     flex-grow: 1;
     flex-shrink: 1;
-    flex-basis: 0;
-    /* width: 50%; /* This is now redundant and can be removed for a pure flex solution */
 }
 
 .editor-main--full .editor-textarea,
@@ -92,6 +90,7 @@
 
 .editor-textarea {
     resize: none;
+    font-family: var(--font-family-mono), monospace;
 }
 
 .editor-textarea:focus, .editor-preview:focus {
@@ -99,7 +98,16 @@
     box-shadow: 0 0 5px var(--color-info);
 }
 
-/* Preview pane specific styles */
+.editor-preview {
+    font-family: var(--font-family-sans), sans-serif;
+}
+
+.editor-preview.code-highlighter {
+    font-family: var(--font-family-mono), monospace;
+    white-space: pre-wrap;
+}
+
+/* Markdown Preview Styles */
 .editor-preview h1,
 .editor-preview h2,
 .editor-preview h3 {
@@ -110,9 +118,7 @@
     color: var(--color-info);
 }
 
-.editor-preview p {
-    margin-bottom: 1em;
-}
+.editor-preview p { margin-bottom: 1em; }
 
 .editor-preview code:not(pre > code) {
     background-color: var(--color-background-light);
@@ -126,7 +132,7 @@
     padding: 1em;
     border-radius: 4px;
     overflow-x: auto;
-    color: #fff; /* Ensure code in pre is visible on black background */
+    color: #fff;
 }
 
 .editor-preview blockquote {
@@ -141,6 +147,24 @@
     padding-left: 2em;
     margin-bottom: 1em;
 }
+
+/* Code Syntax Highlighting Styles */
+.code-highlighter em {
+    color: #9cdcfe; /* Light blue */
+    font-style: italic;
+}
+
+.code-highlighter strong {
+    color: #c586c0; /* Purple */
+    font-weight: normal;
+}
+
+.code-highlighter em strong,
+.code-highlighter strong em {
+    color: #ce9178; /* Orange */
+    font-style: italic;
+}
+
 
 .editor-footer {
     flex-shrink: 0;
