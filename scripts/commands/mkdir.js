@@ -42,8 +42,8 @@
                         continue;
                     }
 
-                    let parentNodeToCreateIn;
-                    const parentPathForTarget = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
+                    // All path and permission checks are now handled by the CommandExecutor
+                    // based on the command's contract. We can proceed with creation logic.
 
                     if (flags.parents) {
                         const parentDirResult = FileSystemManager.createParentDirectoriesIfNeeded(resolvedPath);
@@ -52,38 +52,35 @@
                             allSuccess = false;
                             continue;
                         }
-                        parentNodeToCreateIn = parentDirResult.parentNode;
+                        const parentNodeToCreateIn = parentDirResult.parentNode;
+                        if (parentNodeToCreateIn.children && parentNodeToCreateIn.children[dirName]) {
+                            if (parentNodeToCreateIn.children[dirName].type === 'file') {
+                                messages.push(`mkdir: cannot create directory '${pathArg}': File exists`);
+                                allSuccess = false;
+                            }
+                        } else {
+                            parentNodeToCreateIn.children[dirName] = FileSystemManager._createNewDirectoryNode(currentUser, primaryGroup);
+                            parentNodeToCreateIn.mtime = nowISO;
+                            changesMade = true;
+                        }
                     } else {
-                        parentNodeToCreateIn = FileSystemManager.getNodeByPath(parentPathForTarget);
-                        if (!parentNodeToCreateIn) {
-                            messages.push(`mkdir: cannot create directory '${pathArg}': Parent directory '${parentPathForTarget}' does not exist`);
-                            allSuccess = false;
-                            continue;
-                        }
-                        if (parentNodeToCreateIn.type !== 'directory') {
-                            messages.push(`mkdir: cannot create directory '${pathArg}': Path component '${parentPathForTarget}' is not a directory`);
-                            allSuccess = false;
-                            continue;
-                        }
-                        if (!FileSystemManager.hasPermission(parentNodeToCreateIn, currentUser, "write")) {
-                            messages.push(`mkdir: cannot create directory in '${parentPathForTarget}': Permission denied`);
-                            allSuccess = false;
-                            continue;
-                        }
-                    }
+                        const parentPathForTarget = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
+                        const parentNodeToCreateIn = FileSystemManager.getNodeByPath(parentPathForTarget);
 
-                    if (parentNodeToCreateIn.children && parentNodeToCreateIn.children[dirName]) {
-                        const existingItem = parentNodeToCreateIn.children[dirName];
-                        if (existingItem.type === 'file') {
-                            messages.push(`mkdir: cannot create directory '${pathArg}': File exists`);
-                            allSuccess = false;
-                        } else if (existingItem.type === 'directory' && !flags.parents) {
-                            messages.push(`mkdir: cannot create directory '${pathArg}': Directory already exists.`);
+                        if (parentNodeToCreateIn.children && parentNodeToCreateIn.children[dirName]) {
+                            const existingItem = parentNodeToCreateIn.children[dirName];
+                            if (existingItem.type === 'file') {
+                                messages.push(`mkdir: cannot create directory '${pathArg}': File exists`);
+                                allSuccess = false;
+                            } else if (existingItem.type === 'directory') {
+                                messages.push(`mkdir: cannot create directory '${pathArg}': Directory already exists.`);
+                                allSuccess = false;
+                            }
+                        } else {
+                            parentNodeToCreateIn.children[dirName] = FileSystemManager._createNewDirectoryNode(currentUser, primaryGroup);
+                            parentNodeToCreateIn.mtime = nowISO;
+                            changesMade = true;
                         }
-                    } else {
-                        parentNodeToCreateIn.children[dirName] = FileSystemManager._createNewDirectoryNode(currentUser, primaryGroup);
-                        parentNodeToCreateIn.mtime = nowISO;
-                        changesMade = true;
                     }
                 }
 

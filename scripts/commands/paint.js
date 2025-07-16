@@ -10,7 +10,7 @@
             error: "Usage: paint [filename.oopic]"
         },
         coreLogic: async (context) => {
-            const { args, options, currentUser } = context;
+            const { args, options } = context;
 
             try {
                 if (!options.isInteractive) {
@@ -25,28 +25,14 @@
                 }
 
                 const pathArg = args.length > 0 ? args[0] : `untitled-${new Date().getTime()}.oopic`;
-                let fileContent = "";
                 let filePath = FileSystemManager.getAbsolutePath(pathArg);
 
                 if (Utils.getFileExtension(filePath) !== 'oopic') {
                     return { success: false, error: `paint: can only edit .oopic files.` };
                 }
 
-                const pathValidation = FileSystemManager.validatePath(filePath, {
-                    allowMissing: true,
-                    expectedType: 'file'
-                });
-
-                if (pathValidation.error && !(pathValidation.node === null && pathValidation.error.includes("No such file or directory"))) {
-                    return { success: false, error: `paint: ${pathValidation.error}` };
-                }
-
-                if(pathValidation.node) {
-                    if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
-                        return { success: false, error: `paint: '${filePath}': Permission denied` };
-                    }
-                    fileContent = pathValidation.node.content || "";
-                }
+                // The CommandExecutor handles path validation. We receive the content directly.
+                const fileContent = context.node ? context.node.content : ""; // Assumes node is passed
 
                 PaintManager.enter(filePath, fileContent);
 

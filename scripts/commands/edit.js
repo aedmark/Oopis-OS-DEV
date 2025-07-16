@@ -10,7 +10,7 @@
             error: "Usage: edit [filepath]"
         },
         coreLogic: async (context) => {
-            const { args, options, currentUser } = context;
+            const { args, options } = context;
 
             try {
                 if (!options.isInteractive) {
@@ -21,30 +21,9 @@
                     return { success: false, error: "edit: The editor application modules are not loaded." };
                 }
 
-                const pathArg = args.length > 0 ? args[0] : null;
-                let fileNode = null;
-                let resolvedPath = null;
-                let fileContent = "";
-
-                if (pathArg) {
-                    const pathValidation = FileSystemManager.validatePath(pathArg, {
-                        allowMissing: true,
-                        expectedType: 'file'
-                    });
-
-                    if (pathValidation.error && !(pathValidation.node === null && pathValidation.error.includes("No such file or directory"))) {
-                        return { success: false, error: `edit: ${pathValidation.error}` };
-                    }
-
-                    if (pathValidation.node) {
-                        if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
-                            return { success: false, error: `edit: cannot read file '${pathArg}': Permission denied` };
-                        }
-                        fileNode = pathValidation.node;
-                        fileContent = fileNode.content || "";
-                    }
-                    resolvedPath = pathValidation.resolvedPath;
-                }
+                // The CommandExecutor handles path validation. We receive the content directly.
+                const resolvedPath = context.resolvedPath; // Assumes resolvedPath is passed
+                const fileContent = context.node ? context.node.content : ""; // Assumes node is passed
 
                 EditorManager.enter(resolvedPath, fileContent);
 

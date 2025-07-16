@@ -31,20 +31,15 @@
 
                 for (const pathArg of args) {
                     const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+                    const node = context.node; // Assumes node is passed in context.
+
                     if (resolvedPath === '/') {
                         messages.push(`touch: cannot touch root directory`);
                         allSuccess = false;
                         continue;
                     }
 
-                    const node = FileSystemManager.getNodeByPath(resolvedPath);
-
                     if (node) {
-                        if (!FileSystemManager.hasPermission(node, currentUser, "write")) {
-                            messages.push(`touch: cannot update timestamp of '${pathArg}': Permission denied`);
-                            allSuccess = false;
-                            continue;
-                        }
                         node.mtime = timestampToUse;
                         changesMade = true;
                     } else {
@@ -56,26 +51,14 @@
                             continue;
                         }
 
-                        const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
-                        const parentNode = FileSystemManager.getNodeByPath(parentPath);
-
-                        if (!parentNode || parentNode.type !== 'directory') {
-                            messages.push(`touch: cannot create '${pathArg}': Parent directory not found or is not a directory.`);
-                            allSuccess = false;
-                            continue;
-                        }
-
-                        if (!FileSystemManager.hasPermission(parentNode, currentUser, "write")) {
-                            messages.push(`touch: cannot create '${pathArg}': Permission denied in parent directory.`);
-                            allSuccess = false;
-                            continue;
-                        }
-
                         if (!primaryGroup) {
                             messages.push(`touch: could not determine primary group for user '${currentUser}'`);
                             allSuccess = false;
                             continue;
                         }
+
+                        const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
+                        const parentNode = FileSystemManager.getNodeByPath(parentPath);
 
                         const fileName = resolvedPath.substring(resolvedPath.lastIndexOf('/') + 1);
                         const newFileNode = FileSystemManager._createNewFileNode(fileName, "", currentUser, primaryGroup);

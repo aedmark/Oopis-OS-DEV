@@ -18,19 +18,10 @@
             try {
                 for (const pathArg of args) {
                     const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
-                    const node = FileSystemManager.getNodeByPath(resolvedPath);
+                    const node = context.node; // Assumes node is passed in context.
 
-                    if (!node) {
-                        outputMessages.push(`rmdir: failed to remove '${pathArg}': No such file or directory`);
-                        allSuccess = false;
-                        continue;
-                    }
-
-                    if (node.type !== 'directory') {
-                        outputMessages.push(`rmdir: failed to remove '${pathArg}': Not a directory`);
-                        allSuccess = false;
-                        continue;
-                    }
+                    // The executor's contract ensures the node exists and is a directory.
+                    // The core logic now only needs to check if it's empty.
 
                     const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
                     const parentNode = FileSystemManager.getNodeByPath(parentPath);

@@ -87,30 +87,26 @@ class Lexer {
         continue;
       }
 
-      // *** CORRECTED WORD TOKENIZATION LOGIC ***
       let value = "";
       const startPos = this.position;
       while (this.position < this.input.length) {
         let innerChar = this.input[this.position];
 
         if (innerChar === '\\') {
-          // Handle escaped characters
-          this.position++; // Move past the backslash
+          this.position++;
           if (this.position < this.input.length) {
-            value += this.input[this.position]; // Add the escaped character literally
+            value += this.input[this.position];
             this.position++;
           } else {
-            value += '\\'; // Dangling backslash at the end
+            value += '\\';
           }
-          continue; // Continue the loop to process the next character
+          continue;
         }
 
-        // Check for terminators for an unquoted word
         if (/\s/.test(innerChar) || specialChars.includes(innerChar)) {
-          break; // End of the word
+          break;
         }
 
-        // Regular character
         value += innerChar;
         this.position++;
       }
@@ -128,16 +124,16 @@ class Lexer {
   _tokenizeString(quoteChar) {
     const startPos = this.position;
     let value = "";
-    this.position++; // Move past the opening quote
+    this.position++;
     while (this.position < this.input.length) {
       let char = this.input[this.position];
       if (char === '\\') {
-        this.position++; // Consume the backslash
+        this.position++;
         if (this.position < this.input.length) {
           value += this.input[this.position];
           this.position++;
         } else {
-          value += '\\'; // Append dangling backslash at the end of input
+          value += '\\';
         }
       } else if (char === quoteChar) {
         this.position++;
@@ -147,7 +143,6 @@ class Lexer {
         this.position++;
       }
     }
-    // If the loop finishes, the string was not closed.
     throw new Error(`Lexer Error: Unclosed string literal starting at position ${startPos}. Expected closing ${quoteChar}.`);
   }
 }
@@ -161,8 +156,8 @@ class ParsedCommandSegment {
 class ParsedPipeline {
   constructor() {
     this.segments = [];
-    this.redirection = null; // Output redirection (>, >>)
-    this.inputRedirectFile = null; // NEW: Input redirection (<)
+    this.redirection = null;
+    this.inputRedirectFile = null;
     this.isBackground = false;
     this.jobId = null;
   }
@@ -211,8 +206,42 @@ class Parser {
     const args = [];
     while (!terminators.includes(this._currentToken().type)) {
       const argToken = this._currentToken();
-      if (argToken.type === TokenType.WORD || argToken.type === TokenType.STRING_DQ || argToken.type === TokenType.STRING_SQ) {
-        args.push(argToken.value);
+      if (argToken.type === TokenType.WORD) {
+        const globPattern = argToken.value;
+        // Check for glob characters ONLY in WORD tokens (not strings)
+        if (globPattern.includes('*') || globPattern.includes('?')) {
+          const lastSlashIndex = globPattern.lastIndexOf('/');
+          const pathPrefix = lastSlashIndex > -1 ? globPattern.substring(0, lastSlashIndex + 1) : '.';
+          const patternPart = lastSlashIndex > -1 ? globPattern.substring(lastSlashIndex + 1) : globPattern;
+
+          const searchDir = (pathPrefix === '/') ? '/' : FileSystemManager.getAbsolutePath(pathPrefix, FileSystemManager.getCurrentPath());
+          const dirNode = FileSystemManager.getNodeByPath(searchDir);
+
+          if (dirNode && dirNode.type === 'directory') {
+            const regex = Utils.globToRegex(patternPart);
+            if (regex) {
+              const matches = Object.keys(dirNode.children).filter(name => regex.test(name));
+              if (matches.length > 0) {
+                args.push(...matches.map(name => (pathPrefix === '.' ? name : `${pathPrefix}${name}`)));
+              } else {
+                // No match found, push the original glob pattern
+                args.push(globPattern);
+              }
+            } else {
+              // Invalid glob pattern, treat as literal
+              args.push(globPattern);
+            }
+          } else {
+            // Path doesn't exist or isn't a directory, pass the literal glob pattern
+            args.push(globPattern);
+          }
+        } else {
+          // Not a glob pattern, just a regular word
+          args.push(globPattern);
+        }
+        this._nextToken();
+      } else if (argToken.type === TokenType.STRING_DQ || argToken.type === TokenType.STRING_SQ) {
+        args.push(argToken.value); // Push string literals directly
         this._nextToken();
       } else {
         throw new Error(`Parser Error: Unexpected token ${argToken.type} ('${argToken.value}') in arguments at position ${argToken.position}. Expected WORD or STRING.`);

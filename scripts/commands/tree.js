@@ -25,8 +25,6 @@
             const { args, flags, currentUser } = context;
 
             try {
-                const pathArg = args.length > 0 ? args[0] : ".";
-
                 const maxDepth = flags.level
                     ? Utils.parseNumericArg(flags.level, { min: 0 })
                     : { value: Infinity };
@@ -37,35 +35,34 @@
                         error: `tree: invalid level value for -L: '${flags.level}' ${maxDepth.error || ""}`,
                     };
 
-                const pathValidation = FileSystemManager.validatePath(pathArg, { permissions: ['read'] });
+                // The CommandExecutor has validated the path.
+                const node = context.node;
+                const resolvedPath = context.resolvedPath;
+                const pathArg = args.length > 0 ? args[0] : ".";
 
-                if(pathValidation.error) {
-                    return { success: false, error: `tree: ${pathValidation.error}` };
-                }
-
-                if (pathValidation.node.type !== 'directory') {
+                if (node.type !== 'directory') {
                     return { success: false, error: `tree: '${pathArg}' is not a directory` };
                 }
 
-                const outputLines = [pathValidation.resolvedPath];
+                const outputLines = [resolvedPath];
                 let dirCount = 0;
                 let fileCount = 0;
 
                 function buildTreeRecursive(currentDirPath, currentDepth, indentPrefix) {
                     if (currentDepth > maxDepth.value) return;
 
-                    const node = FileSystemManager.getNodeByPath(currentDirPath);
-                    if (!node || node.type !== Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) return;
+                    const currentNode = FileSystemManager.getNodeByPath(currentDirPath);
+                    if (!currentNode || currentNode.type !== Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) return;
 
-                    if (currentDepth > 1 && !FileSystemManager.hasPermission(node, currentUser, "read")) {
+                    if (currentDepth > 1 && !FileSystemManager.hasPermission(currentNode, currentUser, "read")) {
                         outputLines.push(indentPrefix + "└── [Permission Denied]");
                         return;
                     }
 
-                    const childrenNames = Object.keys(node.children).sort();
+                    const childrenNames = Object.keys(currentNode.children).sort();
 
                     childrenNames.forEach((childName, index) => {
-                        const childNode = node.children[childName];
+                        const childNode = currentNode.children[childName];
                         const branchPrefix = index === childrenNames.length - 1 ? "└── " : "├── ";
 
                         if (childNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
@@ -83,7 +80,7 @@
                         }
                     });
                 }
-                buildTreeRecursive(pathValidation.resolvedPath, 1, "");
+                buildTreeRecursive(resolvedPath, 1, "");
 
                 outputLines.push("");
                 let report = `${dirCount} director${dirCount === 1 ? "y" : "ies"}`;

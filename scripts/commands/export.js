@@ -11,21 +11,14 @@
         },
         coreLogic: async (context) => {
             const { args } = context;
-            const pathArg = args[0];
 
             try {
-                const pathValidation = FileSystemManager.validatePath(pathArg, {
-                    expectedType: 'file',
-                    permissions: ['read']
-                });
+                // The CommandExecutor has already validated the path and permissions.
+                const fileNode = context.node; // Assumes node is passed in context
+                const resolvedPath = context.resolvedPath; // Assumes resolvedPath is passed
 
-                if (pathValidation.error) {
-                    return { success: false, error: `export: ${pathValidation.error.replace(pathArg + ':', '').trim()}` };
-                }
-
-                const fileNode = pathValidation.node;
-                const fileName = pathValidation.resolvedPath.substring(
-                    pathValidation.resolvedPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR) + 1
+                const fileName = resolvedPath.substring(
+                    resolvedPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR) + 1
                 );
 
                 const blob = new Blob([fileNode.content || ""], {

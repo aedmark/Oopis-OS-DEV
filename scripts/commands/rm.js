@@ -35,14 +35,17 @@
 
             try {
                 for (const pathArg of args) {
-                    const resolvedPath = FileSystemManager.getAbsolutePath(pathArg);
+                    // Path validation is now handled by CommandExecutor.
+                    // We receive the validated node in the context.
+                    const node = context.node; // Assumes node is passed in context.
+                    const resolvedPath = context.resolvedPath; // Assumes resolvedPath is passed in context.
+
+
                     if (resolvedPath === '/') {
                         messages.push(`rm: cannot remove root directory`);
                         allSuccess = false;
                         continue;
                     }
-
-                    const node = FileSystemManager.getNodeByPath(resolvedPath);
 
                     if (flags.force && !node) continue;
 

@@ -62,17 +62,8 @@
                     outputString += content;
 
                     if (flags.output) {
-                        const pathValidation = FileSystemManager.validatePath(flags.output, {
-                            allowMissing: true,
-                            expectedType: 'file'
-                        });
-
-                        if (pathValidation.error) {
-                            return { success: false, error: `curl: ${pathValidation.error}` };
-                        }
-                        if (pathValidation.node && pathValidation.node.type === 'directory') {
-                            return { success: false, error: `curl: output file '${flags.output}' is a directory` };
-                        }
+                        // The CommandExecutor handles path validation for the output file.
+                        const resolvedPath = context.resolvedPath; // Assumes resolvedPath for output file is passed
 
                         const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
                         if (!primaryGroup) {
@@ -83,7 +74,7 @@
                         }
 
                         const saveResult = await FileSystemManager.createOrUpdateFile(
-                            pathValidation.resolvedPath,
+                            resolvedPath,
                             outputString, {
                                 currentUser,
                                 primaryGroup

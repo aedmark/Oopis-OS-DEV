@@ -23,12 +23,7 @@
                     };
                 }
 
-                const pathValidation = FileSystemManager.validatePath(pathArg);
-
-                if (pathValidation.error) {
-                    return { success: false, error: `chmod: cannot access '${pathArg}': No such file or directory` };
-                }
-                const node = pathValidation.node;
+                const node = context.node; // Assumes node is passed in context.
 
                 if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
                     return {

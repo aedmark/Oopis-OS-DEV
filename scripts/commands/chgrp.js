@@ -12,12 +12,7 @@
             const pathArg = args[1];
 
             try {
-                const pathValidation = FileSystemManager.validatePath(pathArg);
-
-                if (pathValidation.error) {
-                    return { success: false, error: `chgrp: cannot access '${pathArg}': ${pathValidation.error}` };
-                }
-                const node = pathValidation.node;
+                const node = context.node; // Assumes node is passed in context.
 
                 if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
                     return {
