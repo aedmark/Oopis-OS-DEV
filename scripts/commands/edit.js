@@ -17,20 +17,15 @@
         },
         coreLogic: async (context) => {
             const { options, resolvedPath, node } = context;
-
             try {
                 if (!options.isInteractive) {
                     return { success: false, error: "edit: Can only be run in interactive mode." };
                 }
-
                 if (typeof EditorManager === 'undefined' || typeof EditorUI === 'undefined') {
                     return { success: false, error: "edit: The editor application modules are not loaded." };
                 }
-
                 const fileContent = node ? node.content || "" : "";
-
-                EditorManager.enter(resolvedPath, fileContent);
-
+                AppLayerManager.show(Editor, { filePath: resolvedPath, fileContent: fileContent });
                 return { success: true, output: "" };
             } catch (e) {
                 return { success: false, error: `edit: An unexpected error occurred: ${e.message}` };

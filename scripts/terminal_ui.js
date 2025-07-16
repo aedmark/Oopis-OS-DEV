@@ -727,67 +727,69 @@ const TabCompletionManager = (() => {
 const AppLayerManager = (() => {
     "use strict";
     let appLayer = null;
-    let terminalOutput = null;
-    let terminalInputContainer = null;
-    let modalStack = [];
+    let activeApp = null; // Replaces modalStack
 
     function _cacheDOM() {
         if (!appLayer) appLayer = document.getElementById('app-layer');
-        if (!terminalOutput) terminalOutput = document.getElementById('output');
-        if (!terminalInputContainer) terminalInputContainer = document.querySelector('.terminal__input-line');
     }
 
-    function _updateVisibility() {
+    function _handleGlobalKeyDown(event) {
+        if (activeApp && typeof activeApp.handleKeyDown === 'function') {
+            activeApp.handleKeyDown(event);
+        }
+    }
+
+    // The new, simplified 'show' method.
+    function show(appInstance, options = {}) {
+        if (!(appInstance instanceof App)) {
+            console.error("AppLayerManager: Attempted to show an object that is not an instance of App.");
+            return;
+        }
+
+        if (activeApp) {
+            activeApp.exit(); // Ensure the previous app is cleanly exited.
+        }
+
         _cacheDOM();
+        activeApp = appInstance;
 
-        if (modalStack.length === 0) {
-            if(appLayer) appLayer.classList.add('hidden');
-            if(terminalOutput) terminalOutput.classList.remove('hidden');
-            if(terminalInputContainer) terminalInputContainer.classList.remove('hidden');
-            TerminalUI.setInputState(true);
-            OutputManager.setEditorActive(false);
-            TerminalUI.focusInput();
-        } else {
-            if (terminalOutput) terminalOutput.classList.add('hidden');
-            if (terminalInputContainer) terminalInputContainer.classList.add('hidden');
-            TerminalUI.setInputState(false);
-            OutputManager.setEditorActive(true);
+        // The app itself will build its UI and set its state in the enter method
+        activeApp.enter(appLayer, options);
 
-            modalStack.forEach((container, index) => {
-                const isTop = index === modalStack.length - 1;
-                container.classList.toggle('hidden', !isTop);
-            });
+        appLayer.classList.remove('hidden');
+        document.addEventListener('keydown', _handleGlobalKeyDown, true);
 
-            if(appLayer) appLayer.classList.remove('hidden');
+        TerminalUI.setInputState(false);
+        OutputManager.setEditorActive(true);
+
+        if (activeApp.container && typeof activeApp.container.focus === 'function') {
+            activeApp.container.focus();
         }
     }
 
-    function show(appContainerElement) {
+    // The new, simplified 'hide' method. Called by the app's exit() method.
+    function hide(appInstance) {
+        if (activeApp !== appInstance) {
+            return; // Only the active app can hide itself.
+        }
         _cacheDOM();
-        if (!appLayer || !appContainerElement) return;
-
-        if (!modalStack.includes(appContainerElement)) {
-            modalStack.push(appContainerElement);
-            appLayer.appendChild(appContainerElement);
+        if (appInstance.container && appInstance.container.parentNode === appLayer) {
+            appLayer.removeChild(appInstance.container);
         }
+        appLayer.classList.add('hidden');
+        document.removeEventListener('keydown', _handleGlobalKeyDown, true);
 
-        _updateVisibility();
-    }
+        activeApp.isActive = false;
+        activeApp = null;
 
-    function hide() {
-        if (modalStack.length === 0) return;
-
-        const lastApp = modalStack.pop();
-        if (lastApp && lastApp.parentNode) {
-            lastApp.remove();
-        }
-
-        _updateVisibility();
+        TerminalUI.setInputState(true);
+        OutputManager.setEditorActive(false);
+        TerminalUI.focusInput();
     }
 
     return {
         show,
         hide,
-        isActive: () => modalStack.length > 0,
+        isActive: () => !!activeApp,
     };
 })();
