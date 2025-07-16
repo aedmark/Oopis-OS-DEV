@@ -3,7 +3,7 @@ const CodeManager = (() => {
     "use strict";
 
     let state = {};
-    let editorInstance; // Will be initialized in enter()
+    let uiElements = {}; // To hold references to the textarea and highlighter
 
     const defaultState = {
         isActive: false,
@@ -11,86 +11,38 @@ const CodeManager = (() => {
         originalContent: "",
     };
 
-    // This is the syntax highlighter, with corrected regex.
-    const jsHighlighter = el => {
-        for (const node of el.children) {
-            const s = (node.innerText || ' ')
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // Basic HTML escaping
-                .replace(/(\/\/. *)/g, '<em>$1</em>') // Comments
-                .replace(/\b(new|if|else|do|while|switch|for|in|of|continue|break|return|typeof|function|var|const|let|async|await|class|extends|true|false|null)(?=[^\w])/g, '<strong>$1</strong>') // Keywords
-                .replace(/(".*?"|'.*?'|`.*?`)/g, '<strong><em>$1</em></strong>') // Strings
-                .replace(/\b(\d+)/g, '<em><strong>$1</strong></em>'); // Numbers
-            node.innerHTML = s.split('\n').join('<br/>');
-        }
+    // --- PHASE 3: Refactoring the Highlighter ---
+    const jsHighlighter = (text) => {
+        // Basic HTML escaping
+        const escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        // Highlighting rules
+        return escapedText
+            .replace(/(\/\/. *)/g, '<em>$1</em>') // Comments
+            .replace(/\b(new|if|else|do|while|switch|for|in|of|continue|break|return|typeof|function|var|const|let|async|await|class|extends|true|false|null)(?=[^\w])/g, '<strong>$1</strong>') // Keywords
+            .replace(/(".*?"|'.*?'|`.*?`)/g, '<strong><em>$1</em></strong>') // Strings
+            .replace(/\b(\d+)/g, '<em><strong>$1</strong></em>'); // Numbers
     };
+    // --- END PHASE 3 ---
 
-    const editorHandler = (el, highlight, tab) => {
-        const caret = () => {
-            if (!window.getSelection().rangeCount) return 0;
-            const range = window.getSelection().getRangeAt(0);
-            const prefix = range.cloneRange();
-            prefix.selectNodeContents(el);
-            prefix.setEnd(range.endContainer, range.endOffset);
-            return prefix.toString().length;
-        };
 
-        const setCaret = (pos, parent = el) => {
-            for (const node of parent.childNodes) {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    if (node.length >= pos) {
-                        const range = document.createRange();
-                        const sel = window.getSelection();
-                        range.setStart(node, pos);
-                        range.collapse(true);
-                        sel.removeAllRanges();
-                        sel.addRange(range);
-                        return -1;
-                    } else {
-                        pos -= node.length;
-                    }
-                } else {
-                    pos = setCaret(pos, node);
-                    if (pos < 0) return pos;
-                }
-            }
-            return pos;
-        };
-
-        const handleTab = () => {
-            const pos = caret() + tab.length;
-            const range = window.getSelection().getRangeAt(0);
-            range.deleteContents();
-            range.insertNode(document.createTextNode(tab));
-            highlight(el);
-            setCaret(pos);
-        };
-
-        const highlightWithCaret = () => {
-            const pos = caret();
-            highlight(el);
-            setCaret(pos);
-        };
-
-        return {handleTab, highlightWithCaret, highlight};
-    };
-
-    const debouncedHighlight = Utils.debounce((editorEl) => {
-        if (editorInstance) {
-            editorInstance.highlightWithCaret(editorEl);
+    const debouncedHighlight = Utils.debounce((content) => {
+        if (uiElements.highlighter) {
+            uiElements.highlighter.innerHTML = jsHighlighter(content);
         }
-    }, 500);
+    }, 100); // Reduced delay for better responsiveness
 
     function enter(filePath, fileContent) {
         if (state.isActive) return;
         state = {...defaultState, isActive: true, filePath, originalContent: fileContent || ""};
 
-        // Initialize editorInstance here so it has access to the correct element
-        editorInstance = null; // Clear previous instance
+        uiElements = {}; // Clear previous UI element references
 
-        CodeUI.buildAndShow({filePath, fileContent: fileContent || ""}, (editorEl) => {
-            // This callback is invoked by CodeUI once the element is created
-            editorInstance = editorHandler(editorEl, jsHighlighter, '  ');
-            callbacks.onHighlight(editorEl); // Initial highlight
+        CodeUI.buildAndShow({filePath, fileContent: fileContent || ""}, (textarea, highlighter) => {
+            // This callback is invoked by CodeUI once the elements are created
+            uiElements.textarea = textarea;
+            uiElements.highlighter = highlighter;
+            // Initial highlight
+            callbacks.onInput(fileContent || "");
         }, callbacks);
     }
 
@@ -102,13 +54,12 @@ const CodeManager = (() => {
     function _performExit() {
         CodeUI.hideAndReset();
         state = {};
-        editorInstance = null;
+        uiElements = {};
     }
 
     const callbacks = {
         onSave: async (filePath, content) => {
             if (!filePath) {
-                // This should be handled by a proper status bar in the UI, but for now, an OS-level message will suffice.
                 await OutputManager.appendToOutput("Error: Filename cannot be empty.", {typeClass: 'text-error'});
                 return;
             }
@@ -126,14 +77,25 @@ const CodeManager = (() => {
             }
         },
         onExit: exit,
-        onTab: () => {
-            if (editorInstance) editorInstance.handleTab();
+        // --- PHASE 4: Implement Indentation ---
+        onTab: (textarea) => {
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const value = textarea.value;
+
+            // Insert two spaces at the caret position
+            textarea.value = value.substring(0, start) + '  ' + value.substring(end);
+
+            // Move the caret
+            textarea.selectionStart = textarea.selectionEnd = start + 2;
+
+            // Trigger the input event to re-highlight
+            callbacks.onInput(textarea.value);
         },
-        onHighlight: (el) => {
-            if (editorInstance) editorInstance.highlight(el);
-        },
-        onInput: (editorEl) => {
-            debouncedHighlight(editorEl);
+        // --- END PHASE 4 ---
+
+        onInput: (content) => {
+            debouncedHighlight(content);
         }
     };
 

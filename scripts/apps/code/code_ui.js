@@ -19,28 +19,50 @@ const CodeUI = (() => {
 
         const saveBtn = Utils.createElement('button', {className: 'btn btn--confirm', textContent: 'Save & Exit'});
         const exitBtn = Utils.createElement('button', {className: 'btn btn--cancel', textContent: 'Exit'});
-        saveBtn.addEventListener('click', () => callbacks.onSave(elements.titleInput.value, elements.editor.innerText));
+        saveBtn.addEventListener('click', () => callbacks.onSave(elements.titleInput.value, elements.textarea.value));
         exitBtn.addEventListener('click', () => callbacks.onExit());
-        const header = Utils.createElement('header', {className: 'code-editor-header'}, [elements.titleInput, Utils.createElement('div', {className: 'editor-toolbar-group'}, [saveBtn, exitBtn])]);
 
-        elements.editor = Utils.createElement('div', {
-            className: 'code-editor',
-            contentEditable: 'true',
-            spellcheck: 'false'
+        const header = Utils.createElement('header', {className: 'code-editor-header'}, [
+            elements.titleInput,
+            Utils.createElement('div', {className: 'editor-toolbar-group'}, [saveBtn, exitBtn])
+        ]);
+
+        // --- PHASE 1: Structural Realignment ---
+        elements.textarea = Utils.createElement('textarea', {
+            id: 'code-editor-textarea',
+            className: 'code-editor-textarea', // New class for styling
+            spellcheck: 'false',
+            autocapitalize: 'none',
+            textContent: initialState.fileContent || ""
         });
 
-        const main = Utils.createElement('main', {className: 'code-editor-main'}, elements.editor);
+        elements.highlighter = Utils.createElement('pre', { // Using <pre> for better code formatting
+            id: 'code-editor-highlighter',
+            className: 'code-editor-highlighter', // New class for styling
+            'aria-hidden': 'true' // Hide from screen readers
+        });
+
+        const editorWrapper = Utils.createElement('div', {
+            className: 'code-editor-wrapper' // New wrapper for positioning
+        }, [elements.highlighter, elements.textarea]);
+        // --- END PHASE 1 ---
+
+        const main = Utils.createElement('main', {className: 'code-editor-main'}, editorWrapper);
         elements.container = Utils.createElement('div', {
             id: 'code-editor-container',
             className: 'code-editor-container'
         }, [header, main]);
 
         // Defer setup that depends on the editor element
-        _setupEditor(initialState.fileContent);
         _addEventListeners();
-
         AppLayerManager.show(elements.container);
-        elements.editor.focus();
+
+        // Notify the manager that the editor element is ready and do initial highlight
+        if (typeof onReadyCallback === 'function') {
+            onReadyCallback(elements.textarea, elements.highlighter);
+        }
+
+        elements.textarea.focus();
     }
 
     function hideAndReset() {
@@ -50,44 +72,27 @@ const CodeUI = (() => {
         onReadyCallback = null;
     }
 
-    function _setupEditor(content) {
-        const lines = content.split('\n');
-        elements.editor.innerHTML = ''; // Clear previous content
-        if (lines.length === 0 || (lines.length === 1 && lines[0] === '')) {
-            elements.editor.appendChild(Utils.createElement('div'));
-        } else {
-            lines.forEach(line => {
-                // Use a non-breaking space for empty lines to ensure the div has height
-                elements.editor.appendChild(Utils.createElement('div', {textContent: line || '\u00A0'}));
-            });
-        }
-        // Notify the manager that the editor element is ready
-        if (typeof onReadyCallback === 'function') {
-            onReadyCallback(elements.editor);
-        }
-    }
-
     function _addEventListeners() {
-        elements.editor.addEventListener('keydown', e => {
+        // --- PHASE 4: Restoring Functionality (Tab Key) ---
+        elements.textarea.addEventListener('keydown', e => {
             if (e.key === 'Tab') {
                 e.preventDefault();
-                callbacks.onTab();
+                callbacks.onTab(e.target);
             }
+        });
+        // --- END PHASE 4 ---
+
+        // Centralized content handling
+        elements.textarea.addEventListener('input', (e) => {
+            callbacks.onInput(e.target.value);
         });
 
-        // Use the 'input' event as it's more comprehensive for content changes.
-        elements.editor.addEventListener('input', () => {
-            // Ensure empty lines are handled correctly for display
-            for (const child of elements.editor.children) {
-                if (child.innerHTML === '<br>') {
-                    child.innerHTML = '';
-                }
-                if (child.textContent.length === 0) {
-                    child.innerHTML = '&nbsp;';
-                }
-            }
-            callbacks.onInput(elements.editor);
+        // --- PHASE 2: The Dance of Synchronization ---
+        elements.textarea.addEventListener('scroll', () => {
+            elements.highlighter.scrollTop = elements.textarea.scrollTop;
+            elements.highlighter.scrollLeft = elements.textarea.scrollLeft;
         });
+        // --- END PHASE 2 ---
     }
 
     return {buildAndShow, hideAndReset};

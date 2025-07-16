@@ -67,6 +67,21 @@ const CommandExecutor = (() => {
         signal: options.signal,
       };
 
+      if (definition.pathValidation) {
+        const pathArgIndex = definition.pathValidation.argIndex || 0;
+        if (remainingArgs.length > pathArgIndex) {
+          const pathArg = remainingArgs[pathArgIndex];
+          const pathValidationResult = FileSystemManager.validatePath(pathArg, definition.pathValidation.options || {});
+          if (pathValidationResult.error) {
+            return { success: false, error: `${definition.commandName}: ${pathValidationResult.error}` };
+          }
+          context.node = pathValidationResult.node;
+          context.resolvedPath = pathValidationResult.resolvedPath;
+        } else if (definition.pathValidation.required !== false) {
+          return { success: false, error: `${definition.commandName}: missing path argument.` };
+        }
+      }
+
       if (definition.isInputStream) {
         const inputParts = [];
         let hadError = false;
