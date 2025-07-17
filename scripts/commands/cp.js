@@ -4,7 +4,7 @@
 
     const cpCommandDefinition = {
         commandName: "cp",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         flagDefinitions: [
             { name: "recursive", short: "-r", long: "--recursive", aliases: ["-R"] },
             { name: "force", short: "-f", long: "--force" },
@@ -29,64 +29,52 @@
                     return { success: false, error: "cp: critical - could not determine primary group for current user." };
                 }
 
-                const destAbsPath = FileSystemManager.getAbsolutePath(destPathArg);
-                let destNode = FileSystemManager.getNodeByPath(destAbsPath);
-
-                let isDestADirectory = destNode && destNode.type === 'directory';
+                const destValidation = FileSystemManager.validatePath(destPathArg, { allowMissing: true });
+                const isDestADirectory = destValidation.node && destValidation.node.type === 'directory';
 
                 if (sourcePathArgs.length > 1 && !isDestADirectory) {
                     return { success: false, error: `cp: target '${destPathArg}' is not a directory` };
                 }
 
                 for (const sourcePathArg of sourcePathArgs) {
-                    const sourceAbsPath = FileSystemManager.getAbsolutePath(sourcePathArg);
-                    const sourceNode = FileSystemManager.getNodeByPath(sourceAbsPath);
-
-                    if (!sourceNode) {
-                        return { success: false, error: `cp: cannot stat '${sourcePathArg}': No such file or directory` };
+                    // Centralized validation for each source
+                    const sourceValidation = FileSystemManager.validatePath(sourcePathArg, { permissions: ['read'] });
+                    if (sourceValidation.error) {
+                        return { success: false, error: `cp: ${sourceValidation.error}` };
                     }
 
-                    if (!FileSystemManager.hasPermission(sourceNode, currentUser, "read")) {
-                        return { success: false, error: `cp: cannot read '${sourcePathArg}': Permission denied` };
-                    }
-
-                    let targetContainerAbsPath, targetEntryName;
+                    let targetContainerAbsPath;
+                    let targetEntryName;
 
                     if (isDestADirectory) {
-                        targetContainerAbsPath = destAbsPath;
-                        targetEntryName = sourceAbsPath.substring(sourceAbsPath.lastIndexOf('/') + 1);
+                        targetContainerAbsPath = destValidation.resolvedPath;
+                        targetEntryName = sourceValidation.resolvedPath.substring(sourceValidation.resolvedPath.lastIndexOf('/') + 1);
                     } else {
-                        targetContainerAbsPath = destAbsPath.substring(0, destAbsPath.lastIndexOf('/')) || '/';
-                        targetEntryName = destAbsPath.substring(destAbsPath.lastIndexOf('/') + 1);
+                        targetContainerAbsPath = destValidation.resolvedPath.substring(0, destValidation.resolvedPath.lastIndexOf('/')) || '/';
+                        targetEntryName = destValidation.resolvedPath.substring(destValidation.resolvedPath.lastIndexOf('/') + 1);
                     }
 
-                    const copyResult = await _executeCopyInternal(sourceNode, sourcePathArg, targetContainerAbsPath, targetEntryName);
+                    const copyResult = await _executeCopyInternal(sourceValidation.node, sourceValidation.resolvedPath, targetContainerAbsPath, targetEntryName);
 
-                    if(!copyResult.success) {
+                    if (!copyResult.success) {
                         return copyResult;
                     }
-                    if(copyResult.changed) anyChangesMade = true;
+                    if (copyResult.changed) anyChangesMade = true;
                 }
 
                 if (anyChangesMade && !(await FileSystemManager.save())) {
                     return { success: false, error: "cp: CRITICAL - Failed to save file system changes." };
                 }
 
-                return {
-                    success: true,
-                    output: ""
-                };
-
+                return { success: true, output: "" };
 
                 async function _executeCopyInternal(sourceNode, sourcePathForMsg, targetContainerAbsPath, targetEntryName) {
-                    const targetContainerNode = FileSystemManager.getNodeByPath(targetContainerAbsPath);
-                    if (!targetContainerNode || targetContainerNode.type !== 'directory') {
-                        return { success: false, error: `cp: target '${targetContainerAbsPath}' is not a directory.` };
+                    // Centralized validation for the target container
+                    const containerValidation = FileSystemManager.validatePath(targetContainerAbsPath, { expectedType: 'directory', permissions: ['write'] });
+                    if (containerValidation.error) {
+                        return { success: false, error: `cp: ${containerValidation.error}` };
                     }
-
-                    if (!FileSystemManager.hasPermission(targetContainerNode, currentUser, "write")) {
-                        return { success: false, error: `cp: cannot create item in '${targetContainerAbsPath}': Permission denied` };
-                    }
+                    const targetContainerNode = containerValidation.node;
 
                     const fullFinalDestPath = FileSystemManager.getAbsolutePath(targetEntryName, targetContainerAbsPath);
                     const existingNodeAtDest = targetContainerNode.children[targetEntryName];
@@ -104,7 +92,7 @@
                                 });
                             });
                             if (!confirmed) {
-                                return { success: true, message: `cp: not overwriting '${fullFinalDestPath}' (skipped)` };
+                                return { success: true, changed: false, message: `cp: not overwriting '${fullFinalDestPath}' (skipped)` };
                             }
                         }
                     }
@@ -135,20 +123,17 @@
                         }
 
                         const newContainerPath = FileSystemManager.getAbsolutePath(targetEntryName, targetContainerAbsPath);
-
                         for (const childName in sourceNode.children) {
                             const childSourceNode = sourceNode.children[childName];
-                            const childSourcePath = FileSystemManager.getAbsolutePath(childName, sourcePathForMsg);
                             const childResult = await _executeCopyInternal(
                                 childSourceNode,
-                                childSourcePath,
+                                FileSystemManager.getAbsolutePath(childName, sourcePathForMsg),
                                 newContainerPath,
                                 childName
                             );
                             if (!childResult.success) return childResult;
                         }
                     }
-
                     targetContainerNode.mtime = nowISO;
                     return { success: true, changed: true };
                 }

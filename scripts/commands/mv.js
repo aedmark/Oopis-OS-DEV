@@ -4,7 +4,7 @@
 
     const mvCommandDefinition = {
         commandName: "mv",
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         flagDefinitions: [
             { name: "force", short: "-f", long: "--force" },
             { name: "interactive", short: "-i", long: "--interactive" },
@@ -22,60 +22,58 @@
                 const destPathArg = args.pop();
                 const sourcePathArgs = args;
 
-                const destAbsPath = FileSystemManager.getAbsolutePath(destPathArg);
-                let destNode = FileSystemManager.getNodeByPath(destAbsPath);
-
-                const isDestADirectory = destNode && destNode.type === 'directory';
+                // Centralized validation for the destination
+                const destValidation = FileSystemManager.validatePath(destPathArg, { allowMissing: true });
+                const isDestADirectory = destValidation.node && destValidation.node.type === 'directory';
 
                 if (sourcePathArgs.length > 1 && !isDestADirectory) {
                     return { success: false, error: `mv: target '${destPathArg}' is not a directory` };
                 }
 
                 for (const sourcePathArg of sourcePathArgs) {
-                    const sourceAbsPath = FileSystemManager.getAbsolutePath(sourcePathArg);
-                    const sourceNode = FileSystemManager.getNodeByPath(sourceAbsPath);
+                    // Centralized validation for each source
+                    const sourceValidation = FileSystemManager.validatePath(sourcePathArg);
+                    if (sourceValidation.error) {
+                        return { success: false, error: `mv: ${sourceValidation.error}` };
+                    }
+
+                    const { node: sourceNode, resolvedPath: sourceAbsPath } = sourceValidation;
 
                     if (sourceAbsPath === '/') {
                         return { success: false, error: "mv: cannot move root directory" };
                     }
 
-                    if (!sourceNode) {
-                        return { success: false, error: `mv: cannot stat '${sourcePathArg}': No such file or directory` };
-                    }
-
                     const sourceName = sourceAbsPath.substring(sourceAbsPath.lastIndexOf('/') + 1);
                     const sourceParentPath = sourceAbsPath.substring(0, sourceAbsPath.lastIndexOf('/')) || '/';
-                    const sourceParentNode = FileSystemManager.getNodeByPath(sourceParentPath);
 
-                    if (!sourceParentNode || !FileSystemManager.hasPermission(sourceParentNode, currentUser, "write")) {
+                    // Centralized validation for the source's parent directory
+                    const sourceParentValidation = FileSystemManager.validatePath(sourceParentPath, {expectedType: 'directory', permissions: ['write']});
+                    if (sourceParentValidation.error) {
                         return { success: false, error: `mv: cannot move '${sourcePathArg}': Permission denied in source directory` };
                     }
+                    const sourceParentNode = sourceParentValidation.node;
 
                     let finalDestPath;
-                    let finalDestName;
                     let targetContainerNode;
+                    let finalDestName;
 
                     if (isDestADirectory) {
                         finalDestName = sourceName;
-                        targetContainerNode = destNode;
-                        finalDestPath = FileSystemManager.getAbsolutePath(finalDestName, destAbsPath);
+                        targetContainerNode = destValidation.node;
+                        finalDestPath = FileSystemManager.getAbsolutePath(finalDestName, destValidation.resolvedPath);
                     } else {
-                        finalDestName = destAbsPath.substring(destAbsPath.lastIndexOf('/') + 1);
-                        const destParentPath = destAbsPath.substring(0, destAbsPath.lastIndexOf('/')) || '/';
-                        targetContainerNode = FileSystemManager.getNodeByPath(destParentPath);
-                        finalDestPath = destAbsPath;
-                    }
-
-                    if (!targetContainerNode || targetContainerNode.type !== 'directory') {
-                        return { success: false, error: `mv: destination '${destPathArg}' is not a valid directory.` };
-                    }
-
-                    if (!FileSystemManager.hasPermission(targetContainerNode, currentUser, "write")) {
-                        return { success: false, error: `mv: cannot write to '${destPathArg}': Permission denied` };
+                        finalDestName = destValidation.resolvedPath.substring(destValidation.resolvedPath.lastIndexOf('/') + 1);
+                        const destParentPath = destValidation.resolvedPath.substring(0, destValidation.resolvedPath.lastIndexOf('/')) || '/';
+                        const destParentValidation = FileSystemManager.validatePath(destParentPath, {expectedType: 'directory', permissions: ['write']});
+                        if (destParentValidation.error){
+                            return { success: false, error: `mv: ${destParentValidation.error}` };
+                        }
+                        targetContainerNode = destParentValidation.node;
+                        finalDestPath = destValidation.resolvedPath;
                     }
 
                     if (sourceAbsPath === finalDestPath) {
-                        continue;
+                        continue; // Nothing to do
                     }
 
                     if (sourceNode.type === 'directory' && finalDestPath.startsWith(sourceAbsPath + '/')) {
@@ -95,7 +93,7 @@
                                     options,
                                 });
                             });
-                            if(!confirmed) {
+                            if (!confirmed) {
                                 continue;
                             }
                         }
@@ -114,10 +112,7 @@
                     return { success: false, error: "mv: Failed to save file system changes." };
                 }
 
-                return {
-                    success: true,
-                    output: ""
-                };
+                return { success: true, output: "" };
             } catch (e) {
                 return { success: false, error: `mv: An unexpected error occurred: ${e.message}` };
             }
