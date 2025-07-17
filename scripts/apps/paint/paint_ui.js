@@ -5,6 +5,7 @@ const PaintUI = (() => {
 
     let elements = {};
     let managerCallbacks = {};
+    let _globalMouseUpHandler = null;
 
     function buildAndShow(initialState, callbacks) {
         managerCallbacks = callbacks;
@@ -99,6 +100,11 @@ const PaintUI = (() => {
     }
 
     function hideAndReset() {
+        if (_globalMouseUpHandler) {
+            document.removeEventListener('mouseup', _globalMouseUpHandler);
+            _globalMouseUpHandler = null;
+        }
+
         if (elements.container) {
             elements.container.remove();
         }
@@ -254,7 +260,8 @@ const PaintUI = (() => {
             const coords = _getCoordsFromEvent(e);
             if(coords) managerCallbacks.onCanvasMouseMove(coords);
         });
-        document.addEventListener('mouseup', () => managerCallbacks.onCanvasMouseUp());
+        _globalMouseUpHandler = () => managerCallbacks.onCanvasMouseUp();
+        document.addEventListener('mouseup', _globalMouseUpHandler);
         elements.canvas.addEventListener('mouseleave', () => updateStatusBar(managerCallbacks.onGetState(), null));
         elements.container.setAttribute('tabindex', '-1');
     }
@@ -270,6 +277,6 @@ const PaintUI = (() => {
         updateZoom,
         renderCanvas: renderInitialCanvas,
         showSelectionRect,
-        hideSelectionRect
+        hideSelectionRect,
     };
 })();
