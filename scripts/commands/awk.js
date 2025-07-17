@@ -113,7 +113,7 @@
             }
 
             // CORRECTED: This regex now correctly finds $1, $2, etc. without requiring a backslash.
-            argsStr = argsStr.replace(/\$([0-9]+)/g, (match, n) => {
+            argsStr = argsStr.replace(/\$(\d+)/g, (match, n) => {
                 const index = parseInt(n, 10);
                 return fields[index] || "";
             });

@@ -53,7 +53,7 @@
                     return { success: false, error: "chidi: Can only be run in interactive mode." };
                 }
 
-                if (typeof Chidi === 'undefined' || typeof App === 'undefined') {
+                if (typeof Chidi === 'undefined' || typeof ChidiUI === 'undefined' || typeof App === 'undefined') {
                     return { success: false, error: "chidi: The Chidi application modules are not properly loaded." };
                 }
 

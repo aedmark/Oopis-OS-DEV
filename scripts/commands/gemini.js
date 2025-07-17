@@ -41,8 +41,8 @@ ls [-l, -a, -R], cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -type [
                     if (!options.isInteractive) {
                         return { success: false, error: "gemini: Chat mode can only be run in interactive mode." };
                     }
-                    if (typeof GeminiChat === 'undefined' || typeof App === 'undefined') {
-                        return { success: false, error: "gemini: The GeminiChatManager module is not loaded." };
+                    if (typeof GeminiChat === 'undefined' || typeof GeminiChatUI === 'undefined' || typeof App === 'undefined') {
+                        return { success: false, error: "gemini: The GeminiChat application modules are not loaded." };
                     }
                     // THE FIX: Use AppLayerManager to show the singleton instance
                     AppLayerManager.show(GeminiChat, { provider: flags.provider, model: flags.model });

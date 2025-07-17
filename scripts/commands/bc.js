@@ -78,6 +78,7 @@
 
     const bcCommandDefinition = {
         commandName: "bc",
+        isInputStream: true, // ADDED
         coreLogic: async (context) => {
             const { args, options } = context;
             let input = "";
