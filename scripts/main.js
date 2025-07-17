@@ -24,11 +24,13 @@ function initializeTerminalEventListeners(domElements) {
   });
 
   document.addEventListener("keydown", async (e) => {
-    if (await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue())) {
-      return;
-    }
-
-    if (AppLayerManager.isActive()) {
+    if (ModalManager.isAwaiting()) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue());
+      }
+      // Let the TerminalUI handle other keys, especially for obscured input.
+      // We stop further processing for normal commands here.
       return;
     }
 
@@ -109,8 +111,8 @@ function initializeTerminalEventListeners(domElements) {
       const text = (e.clipboardData || window.clipboardData).getData("text/plain");
       const processedText = text.replace(/\r?\n|\r/g, " ");
 
-      if (ModalInputManager.isAwaiting() && ModalInputManager.isObscured()) {
-        ModalInputManager.handlePaste(processedText);
+      if (ModalManager.isAwaiting() && TerminalUI.isObscured()) {
+        TerminalUI.handlePaste(processedText);
       } else {
         const selection = window.getSelection();
         if (!selection || !selection.rangeCount) return;

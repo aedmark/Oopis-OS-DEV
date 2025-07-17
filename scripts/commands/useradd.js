@@ -15,6 +15,11 @@
             const username = args[0];
 
             try {
+                const userCheck = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
+                if (userCheck[username]) {
+                    return { success: false, error: `useradd: User '${username}' already exists.` };
+                }
+
                 return new Promise(async (resolve) => {
                     ModalManager.request({
                         context: 'terminal',
@@ -42,8 +47,14 @@
                                 onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
                             });
                         },
-                        onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
+                        onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED }),
+                        options
                     });
+                }).then(result => {
+                    if (result.success && result.message) {
+                        return {success: true, output: result.message };
+                    }
+                    return result;
                 });
             } catch (e) {
                 return { success: false, error: `useradd: An unexpected error occurred: ${e.message}` };
