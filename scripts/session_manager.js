@@ -1,3 +1,4 @@
+// scripts/session_manager.js
 const EnvironmentManager = (() => {
     "use strict";
     let envStack = [{}];
@@ -410,30 +411,26 @@ const SessionManager = (() => {
                 messageLines: [
                     `Load manually saved state for '${currentUser.name}'? This overwrites current session & filesystem.`,
                 ],
-                data: {
-                    pendingData: manualStateData,
-                    userNameToRestoreTo: currentUser.name,
-                },
-                onConfirm: async (data) => {
+                onConfirm: async () => {
                     FileSystemManager.setFsData(
-                        Utils.deepCopyNode(data.pendingData.fsDataSnapshot) || {
+                        Utils.deepCopyNode(manualStateData.fsDataSnapshot) || {
                             [Config.FILESYSTEM.ROOT_PATH]: {
                                 type: Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE,
                                 children: {},
-                                owner: data.userNameToRestoreTo,
+                                owner: manualStateData.user,
                                 mode: Config.FILESYSTEM.DEFAULT_DIR_MODE,
                                 mtime: new Date().toISOString(),
                             },
                         }
                     );
                     FileSystemManager.setCurrentPath(
-                        data.pendingData.currentPath || Config.FILESYSTEM.ROOT_PATH
+                        manualStateData.currentPath || Config.FILESYSTEM.ROOT_PATH
                     );
                     if (elements.outputDiv)
-                        elements.outputDiv.innerHTML = data.pendingData.outputHTML || "";
-                    TerminalUI.setCurrentInputValue(data.pendingData.currentInput || "");
-                    HistoryManager.setHistory(data.pendingData.commandHistory || []);
-                    await FileSystemManager.save(data.userNameToRestoreTo);
+                        elements.outputDiv.innerHTML = manualStateData.outputHTML || "";
+                    TerminalUI.setCurrentInputValue(manualStateData.currentInput || "");
+                    HistoryManager.setHistory(manualStateData.commandHistory || []);
+                    await FileSystemManager.save(manualStateData.user);
                     await OutputManager.appendToOutput(
                         Config.MESSAGES.SESSION_LOADED_MSG,
                         {
