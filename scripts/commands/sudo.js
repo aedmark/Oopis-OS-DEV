@@ -32,9 +32,12 @@
                 }
 
                 return new Promise(resolve => {
-                    ModalInputManager.requestInput(
-                        `[sudo] password for ${currentUser}:`,
-                        async (password) => {
+                    ModalManager.request({
+                        context: "terminal",
+                        type: "input",
+                        messageLines: [`[sudo] password for ${currentUser}:`],
+                        obscured: true,
+                        onConfirm: async (password) => {
                             const authResult = await UserManager.verifyPassword(currentUser, password);
 
                             if (authResult.success) {
@@ -46,10 +49,9 @@
                                 }, 1000);
                             }
                         },
-                        () => resolve({success: true, output: ""}),
-                        true,
-                        options
-                    );
+                        onCancel: () => resolve({success: true, output: ""}),
+                        options,
+                    });
                 });
             } catch (e) {
                 return { success: false, error: `sudo: An unexpected error occurred: ${e.message}` };

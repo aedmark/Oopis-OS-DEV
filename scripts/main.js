@@ -24,20 +24,11 @@ function initializeTerminalEventListeners(domElements) {
   });
 
   document.addEventListener("keydown", async (e) => {
-    if (ModalInputManager.isAwaiting()) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        await ModalInputManager.handleInput();
-      } else if (ModalInputManager.isObscured()) {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-        } else {
-          e.preventDefault();
-          ModalInputManager.updateInput(
-              e.key,
-              e.key.length === 1 ? e.key : null
-          );
-        }
-      }
+    if (await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue())) {
+      return;
+    }
+
+    if (AppLayerManager.isActive()) {
       return;
     }
 

@@ -37,12 +37,14 @@
                         return { success: false, error: "xor: password must be provided as an argument in non-interactive mode." };
                     }
                     password = await new Promise(resolve => {
-                        ModalInputManager.requestInput(
-                            "Enter password for xor:",
-                            (pw) => resolve(pw),
-                            () => resolve(null),
-                            true // Obscured input
-                        );
+                        ModalManager.request({
+                            context: "terminal",
+                            type: "input",
+                            messageLines: ["Enter password for xor:"],
+                            obscured: true,
+                            onConfirm: (pw) => resolve(pw),
+                            onCancel: () => resolve(null)
+                        });
                     });
 
                     if (password === null) {

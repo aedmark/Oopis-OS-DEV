@@ -1,3 +1,4 @@
+// scripts/apps/adventure/adventure_create.js
 const Adventure_create = (() => {
     "use strict";
 
@@ -35,20 +36,21 @@ const Adventure_create = (() => {
             prompt = `(editing ${state.editContext.type} '${state.editContext.name}')> `;
         }
 
-        ModalInputManager.requestInput(
-            prompt,
-            async (input) => {
+        ModalManager.request({
+            context: 'terminal',
+            type: 'input',
+            messageLines: [prompt],
+            onConfirm: async (input) => {
                 await _processCreatorCommand(input);
                 if (state.isActive) {
                     _requestNextCommand();
                 }
             },
-            () => {
+            onCancel: () => {
                 if (state.isActive) _requestNextCommand();
             },
-            false,
-            state.commandContext.options
-        );
+            options: state.commandContext.options
+        });
     }
 
     // Command parser and dispatcher
@@ -297,9 +299,14 @@ File: ${state.targetFilename} (${state.isDirty ? 'UNSAVED CHANGES' : 'saved'})
         }
 
         state.isActive = false;
-        ModalInputManager.requestInput("", () => {
-        }, () => {
-        }, false, {scriptingContext: {isScripting: true, lines: [], currentLineIndex: -1}}); // Force the input loop to break
+        ModalManager.request({
+            context: 'terminal',
+            type: 'input',
+            messageLines: [""],
+            onConfirm: () => {},
+            onCancel: () => {},
+            options: {scriptingContext: {isScripting: true, lines: [], currentLineIndex: -1}}
+        });
         await OutputManager.appendToOutput("Exiting Adventure Creator.", {typeClass: 'text-success'});
     }
 
