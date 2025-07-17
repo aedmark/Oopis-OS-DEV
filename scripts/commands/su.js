@@ -4,11 +4,34 @@
 
     const suCommandDefinition = {
         commandName: "su",
-        completionType: "users", // Preserved for tab completion
+        description: "Switches to another user, stacking the session.",
+        helpText: `Usage: su [username] [password]
+
+Change the current user ID to another user.
+
+DESCRIPTION
+       The su (substitute user) command allows you to run a new shell
+       session as another user. If no <username> is provided, it defaults
+       to 'root'.
+
+       If the target account has a password, you will be prompted to
+       enter it.
+
+       This command "stacks" the new session on top of the old one.
+       To return to your original user session, use the 'logout' command.
+       This is different from 'login', which replaces the current
+       session entirely.
+
+EXAMPLES
+       su
+              Switches to the 'root' user (will prompt for password).
+
+       su Guest
+              Switches to the 'Guest' user.`,
+        completionType: "users",
         argValidation: {
             max: 2,
         },
-
         coreLogic: async (context) => {
             const {args, options} = context;
             const targetUser = args.length > 0 ? args[0] : "root";
@@ -31,31 +54,5 @@
             }
         },
     };
-
-    const suDescription = "Switches to another user, stacking the session.";
-    const suHelpText = `Usage: su [username] [password]
-
-Change the current user ID to another user.
-
-DESCRIPTION
-       The su (substitute user) command allows you to run a new shell
-       session as another user. If no <username> is provided, it defaults
-       to 'root'.
-
-       If the target account has a password, you will be prompted to
-       enter it.
-
-       This command "stacks" the new session on top of the old one.
-       To return to your original user session, use the 'logout' command.
-       This is different from 'login', which replaces the current
-       session entirely.
-
-EXAMPLES
-       su
-              Switches to the 'root' user (will prompt for password).
-
-       su Guest
-              Switches to the 'Guest' user.`;
-
-    CommandRegistry.register("su", suCommandDefinition, suDescription, suHelpText);
+    CommandRegistry.register(suCommandDefinition);
 })();

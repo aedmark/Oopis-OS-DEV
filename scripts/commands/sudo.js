@@ -4,7 +4,21 @@
 
     const sudoCommandDefinition = {
         commandName: "sudo",
-        completionType: "commands", // Preserved for tab completion
+        description: "Executes a command as the superuser (root).",
+        helpText: `Usage: sudo <command> [arguments]
+
+Execute a command with superuser privileges.
+
+DESCRIPTION
+       sudo allows a permitted user to execute a command as the superuser or another
+       user, as specified by the security policy in the /etc/sudoers file.
+
+       If the user has a valid timestamp (i.e., they have successfully authenticated
+       recently), the command is executed without a password prompt. Otherwise, sudo
+       requires the user to authenticate with their own password.
+
+       To edit the sudoers file, use the 'visudo' command.`,
+        completionType: "commands",
         argValidation: {
             min: 1,
             error: "usage: sudo <command> [args ...]"
@@ -58,22 +72,5 @@
             }
         }
     };
-
-    const sudoDescription = "Executes a command as the superuser (root).";
-    const sudoHelpText = `Usage: sudo <command> [arguments]
-
-Execute a command with superuser privileges.
-
-DESCRIPTION
-       sudo allows a permitted user to execute a command as the superuser or another
-       user, as specified by the security policy in the /etc/sudoers file.
-
-       If the user has a valid timestamp (i.e., they have successfully authenticated
-       recently), the command is executed without a password prompt. Otherwise, sudo
-       requires the user to authenticate with their own password.
-
-       To edit the sudoers file, use the 'visudo' command.`;
-
-    CommandRegistry.register("sudo", sudoCommandDefinition, sudoDescription, sudoHelpText);
-
+    CommandRegistry.register(sudoCommandDefinition);
 })();

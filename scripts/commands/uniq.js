@@ -4,7 +4,34 @@
 
     const uniqCommandDefinition = {
         commandName: "uniq",
-        completionType: "paths", // This was missing and is now restored.
+        description: "Reports or filters out repeated lines in a file.",
+        helpText: `Usage: uniq [OPTION]... [FILE]...
+
+Filter adjacent matching lines from input, writing to output.
+
+DESCRIPTION
+       With no options, matching lines are merged to the first occurrence.
+       Note: 'uniq' does not detect repeated lines unless they are adjacent.
+       You may want to 'sort' the input first.
+
+OPTIONS
+       -c, --count
+              Prefix lines by the number of occurrences.
+       -d, --repeated
+              Only print duplicate lines, one for each group.
+       -u, --unique
+              Only print lines that are not repeated.
+
+EXAMPLES
+       sort data.log | uniq
+              Displays the unique lines from data.log.
+              
+       sort data.log | uniq -c
+              Displays each unique line, prefixed by its frequency count.
+              
+       sort data.log | uniq -d
+              Displays only the lines that appeared more than once.`,
+        completionType: "paths",
         isInputStream: true,
         flagDefinitions: [
             { name: "count", short: "-c", long: "--count" },
@@ -66,33 +93,5 @@
             }
         }
     };
-    const uniqDescription = "Reports or filters out repeated lines in a file.";
-    const uniqHelpText = `Usage: uniq [OPTION]... [FILE]...
-
-Filter adjacent matching lines from input, writing to output.
-
-DESCRIPTION
-       With no options, matching lines are merged to the first occurrence.
-       Note: 'uniq' does not detect repeated lines unless they are adjacent.
-       You may want to 'sort' the input first.
-
-OPTIONS
-       -c, --count
-              Prefix lines by the number of occurrences.
-       -d, --repeated
-              Only print duplicate lines, one for each group.
-       -u, --unique
-              Only print lines that are not repeated.
-
-EXAMPLES
-       sort data.log | uniq
-              Displays the unique lines from data.log.
-              
-       sort data.log | uniq -c
-              Displays each unique line, prefixed by its frequency count.
-              
-       sort data.log | uniq -d
-              Displays only the lines that appeared more than once.`;
-
-    CommandRegistry.register("uniq", uniqCommandDefinition, uniqDescription, uniqHelpText);
+    CommandRegistry.register(uniqCommandDefinition);
 })();

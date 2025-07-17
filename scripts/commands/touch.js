@@ -4,6 +4,37 @@
 
     const touchCommandDefinition = {
         commandName: "touch",
+        description: "Changes file timestamps or creates empty files.",
+        helpText: `Usage: touch [OPTION]... FILE...
+
+Change file timestamps.
+
+DESCRIPTION
+       The touch command updates the modification time of each FILE to
+       the current time.
+
+       A FILE argument that does not exist is created empty, unless the
+       -c option is supplied.
+
+OPTIONS
+       -c, --no-create
+              Do not create any files.
+
+       -d, --date=<string>
+              Parse <string> and use it instead of the current time.
+              Examples: "1 day ago", "2025-01-01"
+
+       -t <stamp>
+              Use [[CC]YY]MMDDhhmm[.ss] instead of the current time.
+
+EXAMPLES
+       touch newfile.txt
+              Creates 'newfile.txt' if it does not exist, or updates its
+              modification time if it does.
+
+       touch -c existing_file.txt
+              Updates the timestamp of 'existing_file.txt' but will not
+              create it if it's missing.`,
         completionType: "paths",
         flagDefinitions: [
             { name: "noCreate", short: "-c", long: "--no-create" },
@@ -103,38 +134,5 @@
             }
         },
     };
-
-    const touchDescription = "Changes file timestamps or creates empty files.";
-    const touchHelpText = `Usage: touch [OPTION]... FILE...
-
-Change file timestamps.
-
-DESCRIPTION
-       The touch command updates the modification time of each FILE to
-       the current time.
-
-       A FILE argument that does not exist is created empty, unless the
-       -c option is supplied.
-
-OPTIONS
-       -c, --no-create
-              Do not create any files.
-
-       -d, --date=<string>
-              Parse <string> and use it instead of the current time.
-              Examples: "1 day ago", "2025-01-01"
-
-       -t <stamp>
-              Use [[CC]YY]MMDDhhmm[.ss] instead of the current time.
-
-EXAMPLES
-       touch newfile.txt
-              Creates 'newfile.txt' if it does not exist, or updates its
-              modification time if it does.
-
-       touch -c existing_file.txt
-              Updates the timestamp of 'existing_file.txt' but will not
-              create it if it's missing.`;
-
-    CommandRegistry.register("touch", touchCommandDefinition, touchDescription, touchHelpText);
+    CommandRegistry.register(touchCommandDefinition);
 })();
