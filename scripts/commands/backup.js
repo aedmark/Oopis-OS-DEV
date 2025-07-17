@@ -4,6 +4,19 @@
 
   const backupCommandDefinition = {
     commandName: "backup",
+    description: "Creates a secure backup of the current OopisOS system state.",
+    helpText: `Usage: backup
+
+Creates a secure, verifiable backup of the current OopisOS system state.
+
+DESCRIPTION
+       The backup command creates a JSON file containing a snapshot of the current
+       OopisOS system state. This backup includes an integrity checksum (SHA-256)
+       to ensure the file is not corrupted or tampered with. This backup can be
+       used to restore the system to a previous state using the 'restore' command.
+
+       When run in the Electron desktop app, it will open a native file save dialog.
+       Otherwise, it will trigger a browser download.`,
     argValidation: {
       exact: 0,
     },
@@ -29,7 +42,7 @@
         });
 
         const backupData = {
-          dataType: "OopisOS_System_State_Backup_v3.2",
+          dataType: "OopisOS_System_State_Backup_v4.5",
           osVersion: Config.OS.VERSION,
           timestamp: new Date().toISOString(),
           fsDataSnapshot: Utils.deepCopyNode(FileSystemManager.getFsData()),
@@ -88,20 +101,5 @@
       }
     },
   };
-
-  const backupDescription = "Creates a secure backup of the current OopisOS system state.";
-  const backupHelpText = `Usage: backup
-
-Creates a secure, verifiable backup of the current OopisOS system state.
-
-DESCRIPTION
-       The backup command creates a JSON file containing a snapshot of the current
-       OopisOS system state. This backup includes an integrity checksum (SHA-256)
-       to ensure the file is not corrupted or tampered with. This backup can be
-       used to restore the system to a previous state using the 'restore' command.
-
-       When run in the Electron desktop app, it will open a native file save dialog.
-       Otherwise, it will trigger a browser download.`;
-
-  CommandRegistry.register("backup", backupCommandDefinition, backupDescription, backupHelpText);
+  CommandRegistry.register(backupCommandDefinition);
 })();

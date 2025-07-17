@@ -78,7 +78,24 @@
 
     const bcCommandDefinition = {
         commandName: "bc",
-        isInputStream: true, // ADDED
+        description: "An arbitrary-precision calculator language.",
+        helpText: `Usage: echo "<expression>" | bc
+       bc "<expression>"
+
+A simple, command-line calculator.
+
+DESCRIPTION
+       bc is a utility that evaluates mathematical expressions. It can handle
+       integers and floating-point numbers, basic arithmetic (+, -, *, /, %),
+       and parentheses for order of operations.
+
+EXAMPLES
+       echo "5 * (3 + 2)" | bc
+              Calculates 5 times the sum of 3 and 2, outputting 25.
+
+       bc "100 / 4"
+              Calculates 100 divided by 4, outputting 25.`,
+        isInputStream: true,
         coreLogic: async (context) => {
             const { args, options } = context;
             let input = "";
@@ -101,24 +118,5 @@
             }
         },
     };
-
-    const bcDescription = "An arbitrary-precision calculator language.";
-    const bcHelpText = `Usage: echo "<expression>" | bc
-       bc "<expression>"
-
-A simple, command-line calculator.
-
-DESCRIPTION
-       bc is a utility that evaluates mathematical expressions. It can handle
-       integers and floating-point numbers, basic arithmetic (+, -, *, /, %),
-       and parentheses for order of operations.
-
-EXAMPLES
-       echo "5 * (3 + 2)" | bc
-              Calculates 5 times the sum of 3 and 2, outputting 25.
-
-       bc "100 / 4"
-              Calculates 100 divided by 4, outputting 25.`;
-
-    CommandRegistry.register("bc", bcCommandDefinition, bcDescription, bcHelpText);
+    CommandRegistry.register(bcCommandDefinition);
 })();
