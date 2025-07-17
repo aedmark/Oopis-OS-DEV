@@ -37,7 +37,6 @@ ${historyResult.output || '(none)'}
 
         this.state.conversationHistory.push({ role: 'system', parts: [{ text: systemContext }] });
 
-        // This is now correct: buildAndShow returns the container, which is then appended.
         this.container = GeminiChatUI.buildAndShow(this.callbacks);
         appLayer.appendChild(this.container);
         this.container.focus();
@@ -65,7 +64,7 @@ ${historyResult.output || '(none)'}
                 const userMessage = { role: 'user', parts: [{ text: userInput }] };
                 this.state.conversationHistory.push(userMessage);
 
-                GeminiChatUI.appendMessage(userInput, 'user');
+                GeminiChatUI.appendMessage(userInput, 'user', false); // No markdown for user messages
                 GeminiChatUI.toggleLoader(true);
 
                 let apiKey = null;
@@ -74,27 +73,33 @@ ${historyResult.output || '(none)'}
                     apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
                     if (!apiKey) {
                         GeminiChatUI.toggleLoader(false);
-                        GeminiChatUI.appendMessage("Error: Gemini API key not set. Please run the `gemini` command in the terminal once to set it.", 'ai');
+                        const errorMsg = "Error: Gemini API key not set. Please run the `gemini` command in the terminal once to set it.";
+                        GeminiChatUI.appendMessage(errorMsg, 'ai', true);
                         this.state.conversationHistory.pop();
                         return;
                     }
                 }
 
-                const result = await Utils.callLlmApi(this.state.provider, this.state.model, this.state.conversationHistory, apiKey, null);
+                const result = await Utils.callLlmApi(this.state.provider, this.state.model, this.state.conversationHistory, null);
 
                 GeminiChatUI.toggleLoader(false);
 
                 if (result.success) {
                     const aiResponse = result.answer;
                     this.state.conversationHistory.push({ role: 'model', parts: [{ text: aiResponse }] });
-                    GeminiChatUI.appendMessage(aiResponse, 'ai');
+                    GeminiChatUI.appendMessage(aiResponse, 'ai', true); // Process markdown for AI messages
                 } else {
                     const errorMessage = `AI Error: ${result.error}`;
-                    GeminiChatUI.appendMessage(errorMessage, 'ai');
+                    GeminiChatUI.appendMessage(errorMessage, 'ai', true);
                     this.state.conversationHistory.pop();
                 }
             },
-            onExit: this.exit.bind(this)
+            onExit: this.exit.bind(this),
+            onRunCommand: async (commandText) => {
+                this.exit(); // Exit the chat UI first
+                await new Promise(resolve => setTimeout(resolve, 50)); // Small delay to ensure UI is hidden
+                await CommandExecutor.processSingleCommand(commandText, { isInteractive: true });
+            }
         };
     }
 }

@@ -65,22 +65,12 @@ class ChidiManager extends App {
         if (this.state.provider === 'gemini') {
             apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
             if (!apiKey) {
-                ChidiUI.showMessage("Error: Gemini API key not found.", true);
-                ChidiUI.appendAiOutput("API Error", "A Gemini API key is required. Please run `gemini` once in the terminal to set it up.");
-                return null;
+                return { success: false, error: "A Gemini API key is required. Please run `gemini` once in the terminal to set it up." };
             }
         }
 
         const result = await Utils.callLlmApi(this.state.provider, this.state.model, chatHistory, apiKey, systemPrompt);
-
-        if (!result.success) {
-            const errorMsg = `Failed to get a response. Details: ${result.error}`;
-            ChidiUI.showMessage(`Error: ${result.error}`, true);
-            ChidiUI.appendAiOutput("API Error", errorMsg);
-            return null;
-        }
-        ChidiUI.showMessage("Response received.", true);
-        return result.answer;
+        return result;
     }
 
     _createCallbacks() {
@@ -94,16 +84,18 @@ class ChidiManager extends App {
                 this.state.conversationHistory.push({ role: 'user', parts: [{ text: userQuestion }] });
 
                 const systemPromptWithContext = this.state.CHIDI_SYSTEM_PROMPT.replace('{{documentContext}}', this.state.sessionContext);
-                const llmResult = await this._callLlmApi(this.state.conversationHistory, systemPromptWithContext);
-
-                if (llmResult) {
-                    this.state.conversationHistory.push({ role: 'model', parts: [{ text: llmResult }] });
-                } else {
-                    this.state.conversationHistory.pop();
-                }
+                const result = await this._callLlmApi(this.state.conversationHistory, systemPromptWithContext);
 
                 ChidiUI.toggleLoader(false);
-                ChidiUI.appendAiOutput(`Answer for "${userQuestion}"`, llmResult || "I could not generate an answer based on the provided context.");
+                if (result.success) {
+                    this.state.conversationHistory.push({ role: 'model', parts: [{ text: result.answer }] });
+                    ChidiUI.appendAiOutput(`Answer for "${userQuestion}"`, result.answer);
+                    ChidiUI.showMessage("Response received.", true);
+                } else {
+                    this.state.conversationHistory.pop(); // Remove the user question if the API call failed
+                    ChidiUI.appendAiOutput("API Error", `Failed to get a response. Details: ${result.error}`);
+                    ChidiUI.showMessage(`Error: ${result.error}`, true);
+                }
             },
             onFileSelect: (index) => {
                 this.state.currentIndex = index;
@@ -116,9 +108,17 @@ class ChidiManager extends App {
                 ChidiUI.showMessage(`Contacting ${this.state.provider} API...`);
                 const contentToSummarize = currentFile.isCode ? Utils.extractComments(currentFile.content, Utils.getFileExtension(currentFile.name)) : currentFile.content;
                 const prompt = `Please provide a concise summary of the following document:\n\n---\n\n${contentToSummarize}`;
-                const summary = await this._callLlmApi([{ role: 'user', parts: [{ text: prompt }] }]);
+
+                const result = await this._callLlmApi([{ role: 'user', parts: [{ text: prompt }] }]);
+
                 ChidiUI.toggleLoader(false);
-                ChidiUI.appendAiOutput("Summary", summary);
+                if (result.success) {
+                    ChidiUI.appendAiOutput("Summary", result.answer);
+                    ChidiUI.showMessage("Summary received.", true);
+                } else {
+                    ChidiUI.appendAiOutput("API Error", `Failed to get a summary. Details: ${result.error}`);
+                    ChidiUI.showMessage(`Error: ${result.error}`, true);
+                }
             },
             onStudy: async () => {
                 const currentFile = this.state.loadedFiles[this.state.currentIndex];
@@ -127,9 +127,17 @@ class ChidiManager extends App {
                 ChidiUI.showMessage(`Contacting ${this.state.provider} API...`);
                 const contentForQuestions = currentFile.isCode ? Utils.extractComments(currentFile.content, Utils.getFileExtension(currentFile.name)) : currentFile.content;
                 const prompt = `Based on the following document, what are some insightful questions a user might ask?\n\n---\n\n${contentForQuestions}`;
-                const questions = await this._callLlmApi([{ role: 'user', parts: [{ text: prompt }] }]);
+
+                const result = await this._callLlmApi([{ role: 'user', parts: [{ text: prompt }] }]);
+
                 ChidiUI.toggleLoader(false);
-                ChidiUI.appendAiOutput("Suggested Questions", questions);
+                if (result.success) {
+                    ChidiUI.appendAiOutput("Suggested Questions", result.answer);
+                    ChidiUI.showMessage("Suggestions received.", true);
+                } else {
+                    ChidiUI.appendAiOutput("API Error", `Failed to get suggestions. Details: ${result.error}`);
+                    ChidiUI.showMessage(`Error: ${result.error}`, true);
+                }
             },
             onSaveSession: async (filename) => {
                 const htmlContent = ChidiUI.packageSessionAsHTML(this.state);

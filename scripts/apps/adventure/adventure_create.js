@@ -1,4 +1,3 @@
-// scripts/apps/adventure/adventure_create.js
 const Adventure_create = (() => {
     "use strict";
 

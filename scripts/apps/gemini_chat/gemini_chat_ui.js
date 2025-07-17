@@ -43,8 +43,6 @@ const GeminiChatUI = (() => {
         });
 
         elements.input.focus();
-
-        // Return the created container instead of calling AppLayerManager
         return elements.container;
     }
 
@@ -56,14 +54,14 @@ const GeminiChatUI = (() => {
         managerCallbacks = {};
     }
 
-    function appendMessage(message, sender) {
+    function appendMessage(message, sender, processMarkdown) {
         if (!elements.messageDisplay) return;
 
         const messageDiv = Utils.createElement('div', {
             className: `gemini-chat-message ${sender}`
         });
 
-        if (sender === 'ai') {
+        if (processMarkdown) {
             const sanitizedHtml = DOMPurify.sanitize(marked.parse(message));
             messageDiv.innerHTML = sanitizedHtml;
 
@@ -84,11 +82,7 @@ const GeminiChatUI = (() => {
                         textContent: `Run Command`,
                         style: 'display: block; margin-top: 10px;'
                     });
-                    runButton.addEventListener('click', async () => {
-                        managerCallbacks.onExit();
-                        await new Promise(resolve => setTimeout(resolve, 50));
-                        await CommandExecutor.processSingleCommand(commandText, { isInteractive: true });
-                    });
+                    runButton.addEventListener('click', () => managerCallbacks.onRunCommand(commandText));
                     codeBlock.parentElement.insertAdjacentElement('afterend', runButton);
                 }
             });
