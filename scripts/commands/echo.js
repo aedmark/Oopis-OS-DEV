@@ -39,22 +39,25 @@ EXAMPLES
         coreLogic: async (context) => {
             try {
                 let output = context.args.join(" ");
+                let suppressNewline = false;
 
                 if (context.flags.enableBackslashEscapes) {
-                    // Interpret backslash escapes
-                    output = output.replace(/\\\\n/g, '\\n')
-                        .replace(/\\\\t/g, '\\t')
-                        .replace(/\\\\c/g, '') // Used to stop further output
-                        .replace(/\\\\\\\\/g, '\\\\');
-                }
+                    // Correctly handle \c to suppress newline and further output
+                    const cIndex = output.indexOf('\\c');
+                    if (cIndex !== -1) {
+                        output = output.substring(0, cIndex);
+                        suppressNewline = true;
+                    }
 
-                // Handle the \\c sequence, which suppresses the trailing newline and further output.
-                const parts = output.split('\\\\c');
-                const finalOutput = parts[0];
+                    // Now interpret other escapes on the potentially truncated string
+                    output = output.replace(/\\n/g, '\n')
+                        .replace(/\\t/g, '\t')
+                        .replace(/\\\\/g, '\\');
+                }
 
                 return {
                     success: true,
-                    output: finalOutput,
+                    output: suppressNewline ? output : output + '\n',
                 };
             } catch (e) {
                 return { success: false, error: `echo: An unexpected error occurred: ${e.message}` };

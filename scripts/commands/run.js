@@ -77,12 +77,15 @@ SCRIPTING
                     depth: currentDepth
                 };
 
+                let finalResult = { success: true, output: "" };
+
                 for (let i = 0; i < lines.length; i++) {
                     scriptingContext.currentLineIndex = i;
 
                     if (signal?.aborted) {
                         await OutputManager.appendToOutput("Script execution aborted by user.", { typeClass: "text-warning" });
-                        return { success: false, error: "Aborted by user" };
+                        finalResult = { success: false, error: "Aborted by user" };
+                        break;
                     }
 
                     let line = lines[i].trim();
@@ -107,11 +110,12 @@ SCRIPTING
 
                     if (!result.success) {
                         await OutputManager.appendToOutput(`Script '${scriptPathArg}' error on line ${i + 1}: ${line}\nError: ${result.error || 'Command failed.'}`, { typeClass: 'text-error' });
-                        return result; // Return failure immediately
+                        finalResult = result;
+                        break;
                     }
                 }
 
-                return { success: true }; // Return success if all lines execute
+                return finalResult;
 
             } catch (e) {
                 return { success: false, error: `run: An unexpected error occurred: ${e.message}` };
