@@ -1,10 +1,8 @@
-# OopisOS Core Test Suite v4.5 - "The Gauntlet, Now With More Gauntlet"
 echo "===== OopisOS Core Test Suite v4.5 Initializing ====="
 echo "This script tests all non-interactive core functionality, now with maximum paranoia."
 echo "---------------------------------------------------------------------"
 echo ""
 
-# --- Phase 1: Test User & Workspace Setup ---
 echo "--- Phase 1: Creating dedicated test user and workspace ---"
 login root mcgoopis
 delay 400
@@ -26,7 +24,6 @@ cd /home/diagUser/diag_workspace
 delay 400
 echo "---------------------------------------------------------------------"
 
-# --- Phase 2: Create All Diagnostic Assets ---
 echo ""
 echo "--- Phase 2: Creating diagnostic assets ---"
 # Basic FS assets
@@ -72,7 +69,6 @@ echo "Asset creation complete."
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase 3: Core FS Commands & Flags (Expanded) ---
 echo ""
 echo "===== Phase 3: Testing Core FS Commands (Expanded) ====="
 delay 400
@@ -108,8 +104,6 @@ delay 200
 rm not_a_directory.txt
 echo "---------------------------------------------------------------------"
 
-
-# --- Phase 4: Group Permissions and Ownership (Expanded) ---
 echo ""
 echo "===== Phase 4: Testing Group Permissions & Ownership (Expanded) ====="
 delay 400
@@ -119,11 +113,9 @@ testpass
 testpass
 usermod -aG testgroup testuser
 groups testuser
-# Create the directory for the cd permission test as root
 mkdir -p /tmp/no_exec_dir
 chmod 644 /tmp/no_exec_dir
-# Set up the group test file as root
-chmod 755 /home/diagUser # Allow testuser to cd into diagUser home
+chmod 755 /home/diagUser
 cd /home/diagUser/diag_workspace
 echo "Initial content" > group_test_file.txt
 chown diagUser group_test_file.txt
@@ -140,8 +132,8 @@ cd /home/diagUser/diag_workspace
 check_fail "echo 'Append by other user' >> group_test_file.txt"
 echo "--- Test: Permission Edge Cases ---"
 login testuser testpass
-check_fail "chmod 777 /home/diagUser/diag_workspace/group_test_file.txt" # testuser is not owner
-check_fail "cd /tmp/no_exec_dir" # testuser cannot execute
+check_fail "chmod 777 /home/diagUser/diag_workspace/group_test_file.txt"
+check_fail "cd /tmp/no_exec_dir"
 login root mcgoopis
 rm -r -f /tmp
 removeuser -f testuser
@@ -153,7 +145,6 @@ cd /home/diagUser/diag_workspace
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase 5: Sudo & Security Model ---
 echo ""
 echo "===== Phase 5: Testing Sudo & Security Model ====="
 delay 400
@@ -193,8 +184,6 @@ echo "Granular sudo test complete."
 delay 700
 echo "---------------------------------------------------------------------"
 
-
-# --- Phase 6: Advanced Scripting & Process Management ---
 echo ""
 echo "===== Phase 6: Testing Scripting & Process Management ====="
 delay 400
@@ -210,7 +199,6 @@ ps
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase 7: Advanced Data Processing & Text Utilities ---
 echo ""
 echo "===== Phase 7: Testing Data Processing & Text Utilities ======="
 delay 400
@@ -235,7 +223,6 @@ echo "xargs deletion verified."
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase 8: find and Archival Commands ---
 echo ""
 echo "===== Phase 8: Testing 'find' and Archival (zip/unzip) ====="
 delay 400
@@ -251,7 +238,6 @@ ls -R zip_test
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase 9: Pager and Calculator Tests ---
 echo ""
 echo "===== Phase 9: Testing Pager and Calculator Tests ====="
 delay 400
@@ -272,7 +258,6 @@ echo "Input redirection test complete."
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase 10: Data Transformation & Integrity Commands ---
 echo ""
 echo "===== Phase 10: Testing Data Transformation & Integrity Commands ====="
 delay 400
@@ -328,7 +313,6 @@ echo "csplit test complete."
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase 11: Testing Underrepresented Commands (Data/System) ---
 echo ""
 echo "===== Phase 11: Testing Underrepresented Commands (Data/System) ====="
 delay 400
@@ -351,8 +335,6 @@ echo "Underrepresented data command tests complete."
 delay 700
 echo "---------------------------------------------------------------------"
 
-
-# --- Phase 12: Shell & Session Commands ---
 echo ""
 echo "===== Phase 12: Testing Shell & Session Commands ====="
 delay 400
@@ -382,7 +364,6 @@ cat screen.log
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase 13: Testing User & State Management ---
 echo ""
 echo "===== Phase 13: Testing User & State Management ====="
 delay 400
@@ -407,7 +388,6 @@ echo "User & State Management tests complete."
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase 14: Testing Network & System Documentation Commands ---
 echo ""
 echo "===== Phase 14: Testing Network & System Documentation Commands ====="
 delay 400
@@ -425,8 +405,6 @@ echo "Network & Docs tests complete."
 delay 700
 echo "---------------------------------------------------------------------"
 
-
-# --- Phase 15: Edge Case Gauntlet (Expanded) ---
 echo ""
 echo "===== Phase 15: Testing Edge Cases & Complex Scenarios (Expanded) ====="
 delay 400
@@ -476,15 +454,11 @@ check_fail "cat nonexistent_file.txt" || echo "Logical OR successful: cat failed
 echo "YES" > yes.txt
 echo "n" > no.txt
 touch interactive_test.txt
-# The script runner will auto-reply 'YES' to prompts
-# This tests the `rm -i` prompt flow.
 rm -i interactive_test.txt < yes.txt
 check_fail "ls interactive_test.txt"
-# This tests the `cp -i` prompt flow.
 touch another_file.txt
 cp -i another_file.txt overwrite_dir < yes.txt
 ls overwrite_dir
-# This tests forced overwrite with `cp -f`
 cp -f another_file.txt overwrite_dir
 rm no.txt yes.txt another_file.txt
 echo "Interactive flag and logical OR tests complete."
@@ -492,7 +466,6 @@ delay 700
 
 echo "---------------------------------------------------------------------"
 
-# --- Phase 16: Paranoid Security & Edge Case Testing ---
 echo ""
 echo "===== Phase 16: Testing Paranoid Security & Edge Cases ====="
 delay 400
@@ -524,7 +497,6 @@ echo "Redirection tests complete."
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase X: Filesystem Torture & I/O Gauntlet ---
 echo ""
 echo "===== Phase X: Testing Filesystem Torture & I/O Gauntlet ====="
 delay 400
@@ -546,14 +518,11 @@ echo "find me" > find_torture/file.txt
 echo "don't find me" > find_torture/file.tmp
 echo "cant touch this" > find_torture/ro_subdir/secret.txt
 login root mcgoopis
-chmod 500 /home/diagUser/diag_workspace/find_torture/ro_subdir # Executable but not readable for diagUser
+chmod 500 /home/diagUser/diag_workspace/find_torture/ro_subdir
 login diagUser testpass
 cd /home/diagUser/diag_workspace
-# This find should succeed on .txt but fail to cat the secret.txt due to read permissions
 find ./find_torture -name "*.txt" -exec cat {} \;
-# This should fail because we can't write the output file
 check_fail "find ./find_torture -name '*.txt' -exec echo '{}' > ./find_torture/ro_subdir/output.log \;"
-# Cleanup
 login root mcgoopis
 rm -r -f /home/diagUser/diag_workspace/find_torture
 login diagUser testpass
@@ -564,7 +533,6 @@ delay 700
 echo "--- Test: Nested redirection and command substitution simulation ---"
 echo "ls -l" > cmd.sh
 chmod 700 cmd.sh
-# We can't do real command substitution, but we can simulate the I/O flow
 run ./cmd.sh > ls_output.txt
 cat ls_output.txt | grep "cmd.sh" | wc -l
 rm cmd.sh ls_output.txt
@@ -572,10 +540,12 @@ echo "Redirection simulation test complete."
 delay 400
 echo "---------------------------------------------------------------------"
 
-# --- Test: Hyper-specific sudo permissions ---
 login root mcgoopis
 
 # Grant 'limitedsudo' the ability to run the 'cat' command, and nothing else.
+delay 200
+echo "--- Test: Hyper-specific sudo permissions ---"
+delay 300
 echo 'limitedsudo cat' >> /etc/sudoers
 useradd limitedsudo
 testpass
@@ -583,25 +553,20 @@ testpass
 
 chmod 701 /home/diagUser
 
-# Create the specific file this user is meant to read.
 echo "TOP SECRET" > /home/diagUser/diag_workspace/specific_file.txt
 
 login limitedsudo testpass
 cd /home/diagUser/diag_workspace
 
-# This should SUCCEED because the user can run 'cat'
 echo "Attempting to run allowed command ('cat') on a file..."
 sudo cat /home/diagUser/diag_workspace/specific_file.txt
 testpass
 
-# This should FAIL because the user is not allowed to run 'ls'
 echo "Attempting to run disallowed command ('ls')... (This should fail)"
 check_fail "sudo ls /"
 
-# Cleanup
 login root mcgoopis
 removeuser -f limitedsudo
-# Clean up the sudoers file properly
 grep -v "limitedsudo" /etc/sudoers > sudoers.tmp
 mv sudoers.tmp /etc/sudoers
 rm /home/diagUser/diag_workspace/specific_file.txt
@@ -611,7 +576,6 @@ echo "Specific sudo tests complete."
 delay 400
 login root mcgoopis
 removeuser -r -f limitedsudo
-# Clean up the sudoers file properly
 grep -v "limitedsudo" /etc/sudoers > sudoers.tmp; mv sudoers.tmp /etc/sudoers
 delay 400
 
@@ -621,11 +585,9 @@ testpass
 testpass
 touch paradox.txt
 chown paradoxuser paradox.txt
-# Now, paradoxuser owns the file but has no permissions to read it.
 chmod 000 paradox.txt
 login paradoxuser testpass
 cd /home/diagUser/diag_workspace
-# This MUST fail. Ownership doesn't override permissions.
 check_fail "cat paradox.txt"
 echo "Permission paradox test complete."
 delay 400
@@ -637,18 +599,15 @@ cd /home/diagUser/diag_workspace
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase Z: Process & State Integrity Under Stress ---
 echo ""
 echo "===== Phase Z: Testing Process & State Integrity Under Stress ====="
 delay 400
 
 echo "--- Test: Background process race condition ---"
-# This is a simple race condition test. The final content is non-deterministic,
-# but the key is that the OS doesn't crash.
 echo "one" > race.txt &
 echo "two" > race.txt &
 echo "three" > race.txt &
-delay 500 # Give background jobs a moment to (hopefully) complete
+delay 500
 echo "Race condition test initiated. Final content of race.txt:"
 cat race.txt
 rm race.txt
@@ -663,7 +622,6 @@ mkdir -p new_dir_post_save
 echo "post-save" > new_dir_post_save/another.txt
 loadstate
 YES
-# After loading, the original file should exist and the new directory should NOT.
 ls state_integrity.txt
 check_fail "ls new_dir_post_save"
 rm state_integrity.txt
@@ -834,7 +792,6 @@ echo "xargs with quotes test complete."
 delay 700
 echo "---------------------------------------------------------------------"
 
-# --- Phase Omega: Final Cleanup ---
 echo ""
 echo "--- Phase Omega: Final Cleanup ---"
 cd /
