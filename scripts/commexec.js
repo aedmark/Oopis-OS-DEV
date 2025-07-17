@@ -569,13 +569,13 @@ const CommandExecutor = (() => {
     }
 
     let lastPipelineSuccess = true;
-    let overallResult = { success: true, output: "" };
+    let finalResult = { success: true, output: "" };
 
     for (let i = 0; i < commandSequence.length; i++) {
       const { pipeline, operator } = commandSequence[i];
 
       if (i > 0) {
-        const prevOperator = commandSequence[i-1].operator;
+        const prevOperator = commandSequence[i - 1].operator;
         if (prevOperator === '&&' && !lastPipelineSuccess) continue;
         if (prevOperator === '||' && lastPipelineSuccess) continue;
       }
@@ -614,21 +614,25 @@ const CommandExecutor = (() => {
         result = await _executePipeline(pipeline, { isInteractive, signal: null, scriptingContext, suppressOutput });
       }
 
-
       if (!result) {
         const err = `Critical: Pipeline execution returned an undefined result.`;
         console.error(err, "Pipeline:", pipeline);
         result = { success: false, error: err };
       }
+
       lastPipelineSuccess = result.success;
-      overallResult = result;
+      finalResult = result;
+
+      if (!lastPipelineSuccess && (!operator || operator === ';')) {
+        break;
+      }
     }
 
     if (isInteractive && !scriptingContext) {
       await _finalizeInteractiveModeUI(rawCommandText);
     }
 
-    return overallResult;
+    return finalResult;
   }
 
   function getCommands() {

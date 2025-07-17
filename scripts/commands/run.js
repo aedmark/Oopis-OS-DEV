@@ -68,7 +68,6 @@ SCRIPTING
                 const scriptContent = scriptNode.content || "";
                 const scriptArgs = args.slice(1);
                 const lines = scriptContent.split('\n');
-                let finalResult = { success: true }; // Default to success
 
                 const scriptingContext = {
                     sourceFile: scriptPathArg,
@@ -83,8 +82,7 @@ SCRIPTING
 
                     if (signal?.aborted) {
                         await OutputManager.appendToOutput("Script execution aborted by user.", { typeClass: "text-warning" });
-                        finalResult = { success: false, error: "Aborted by user" };
-                        break;
+                        return { success: false, error: "Aborted by user" };
                     }
 
                     let line = lines[i].trim();
@@ -109,12 +107,11 @@ SCRIPTING
 
                     if (!result.success) {
                         await OutputManager.appendToOutput(`Script '${scriptPathArg}' error on line ${i + 1}: ${line}\nError: ${result.error || 'Command failed.'}`, { typeClass: 'text-error' });
-                        finalResult = result; // Store the failure result
-                        break; // Exit the loop immediately on failure
+                        return result; // Return failure immediately
                     }
                 }
 
-                return finalResult;
+                return { success: true }; // Return success if all lines execute
 
             } catch (e) {
                 return { success: false, error: `run: An unexpected error occurred: ${e.message}` };

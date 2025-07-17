@@ -30,19 +30,15 @@ EXAMPLES
 
        check_fail -z "echo $UNSET_VARIABLE"
               This will succeed, because echoing an unset variable produces no output.`,
+        flagDefinitions: [
+            { name: "z", short: "-z" }
+        ],
         coreLogic: async (context) => {
-            const { args, options } = context;
-            let commandToTest;
-            let checkEmptyOutput = false;
+            const { args, options, flags } = context;
+            const commandToTest = args.join(' ');
+            const checkEmptyOutput = flags.z;
 
             try {
-                if (args[0] === '-z') {
-                    checkEmptyOutput = true;
-                    commandToTest = args.slice(1).join(' ');
-                } else {
-                    commandToTest = args.join(' ');
-                }
-
                 if (typeof commandToTest !== "string" || commandToTest.trim() === "") {
                     return {
                         success: false,
