@@ -93,33 +93,26 @@ EXAMPLES
                             continue;
                         }
 
-                        const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
-                        const parentNode = FileSystemManager.getNodeByPath(parentPath);
-
-                        if (!parentNode || parentNode.type !== 'directory' || !FileSystemManager.hasPermission(parentNode, currentUser, "write")) {
-                            messages.push(`touch: cannot create '${pathArg}': Parent directory not found or permission denied.`);
+                        const createResult = await FileSystemManager.createOrUpdateFile(resolvedPath, "", { currentUser, primaryGroup });
+                        if (!createResult.success) {
                             allSuccess = false;
+                            messages.push(`touch: ${createResult.error}`);
                             continue;
                         }
-
-                        if (!primaryGroup) {
-                            messages.push(`touch: could not determine primary group for user '${currentUser}'`);
-                            allSuccess = false;
-                            continue;
+                        const newNode = FileSystemManager.getNodeByPath(resolvedPath);
+                        if(newNode) {
+                            newNode.mtime = timestampToUse;
+                            changesMade = true;
                         }
-
-                        const fileName = resolvedPath.substring(resolvedPath.lastIndexOf('/') + 1);
-                        const newFileNode = FileSystemManager._createNewFileNode(fileName, "", currentUser, primaryGroup);
-                        newFileNode.mtime = timestampToUse;
-                        parentNode.children[fileName] = newFileNode;
-                        parentNode.mtime = new Date().toISOString();
-                        changesMade = true;
                     }
                 }
 
-                if (changesMade && !(await FileSystemManager.save())) {
-                    messages.push("touch: CRITICAL - Failed to save file system changes.");
-                    allSuccess = false;
+                if (changesMade) {
+                    const saveResult = await FileSystemManager.save();
+                    if (!saveResult.success) {
+                        allSuccess = false;
+                        messages.unshift(`touch: CRITICAL - Failed to save file system changes: ${saveResult.error}`);
+                    }
                 }
 
                 if (!allSuccess)

@@ -63,10 +63,11 @@ EXAMPLES
                     return { success: false, error: `printscreen: ${saveResult.error}`};
                 }
 
-                if (!(await FileSystemManager.save(currentUser))) {
+                const fsSaveResult = await FileSystemManager.save();
+                if (!fsSaveResult.success) {
                     return {
                         success: false,
-                        error: "printscreen: Failed to save file system changes.",
+                        error: `printscreen: Failed to save file system changes: ${fsSaveResult.error}`,
                     };
                 }
 

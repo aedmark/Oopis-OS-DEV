@@ -401,54 +401,29 @@ const CommandExecutor = (() => {
           error: `no create in '${finalParentDirPath}'`,
         };
       }
-      const fName = absRedirPath.substring(
-          absRedirPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR) + 1
-      );
-      let exContent = "";
-      if (
-          redirType === "append" &&
-          finalParentNodeForFile.children[fName]?.type ===
-          Config.FILESYSTEM.DEFAULT_FILE_TYPE
-      ) {
-        exContent = finalParentNodeForFile.children[fName].content || "";
-        if (exContent && !exContent.endsWith("\n") && outputToRedir)
-          exContent += "\n";
-      }
-      if (targetNode) {
-        targetNode.content = exContent + outputToRedir;
-      } else {
-        const primaryGroup = UserManager.getPrimaryGroupForUser(user);
-        if (!primaryGroup) {
-          if (!pipeline.isBackground)
-            await OutputManager.appendToOutput(
-                `Redirection error: could not determine primary group for user '${user}'.`,
-                {typeClass: Config.CSS_CLASSES.ERROR_MSG}
-            );
-          return {
-            success: false,
-            error: "internal redirection error: no primary group",
-          };
+
+      const saveResult = await FileSystemManager.createOrUpdateFile(absRedirPath, outputToRedir, { currentUser: user, primaryGroup: UserManager.getPrimaryGroupForUser(user) });
+
+      if (!saveResult.success) {
+        if (!pipeline.isBackground) {
+          await OutputManager.appendToOutput(`Redir err: ${saveResult.error}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
         }
-        finalParentNodeForFile.children[fName] =
-            FileSystemManager._createNewFileNode(
-                fName,
-                exContent + outputToRedir,
-                user,
-                primaryGroup
-            );
+        return { success: false, error: saveResult.error };
       }
+
       FileSystemManager._updateNodeAndParentMtime(absRedirPath, nowISO);
-      if (!(await FileSystemManager.save())) {
+      const fsSaveResult = await FileSystemManager.save();
+      if (!fsSaveResult.success) {
         if (!pipeline.isBackground)
           await OutputManager.appendToOutput(
-              `Failed to save redir to '${redirFile}'.`,
+              `Failed to save redir to '${redirFile}': ${fsSaveResult.error}`,
               {
                 typeClass: Config.CSS_CLASSES.ERROR_MSG,
               }
           );
         return {
           success: false,
-          error: `save redir fail`,
+          error: `save redir fail: ${fsSaveResult.error}`,
         };
       }
       lastResult.output = "";

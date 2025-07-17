@@ -103,8 +103,11 @@ EXAMPLES
                     if (copyResult.changed) anyChangesMade = true;
                 }
 
-                if (anyChangesMade && !(await FileSystemManager.save())) {
-                    return { success: false, error: "cp: CRITICAL - Failed to save file system changes." };
+                if (anyChangesMade) {
+                    const saveResult = await FileSystemManager.save();
+                    if (!saveResult.success) {
+                        return { success: false, error: `cp: CRITICAL - Failed to save file system changes: ${saveResult.error}` };
+                    }
                 }
 
                 return { success: true, output: "" };
@@ -139,14 +142,16 @@ EXAMPLES
                     }
 
                     if (sourceNode.type === 'file') {
-                        targetContainerNode.children[targetEntryName] = {
-                            type: 'file',
-                            content: sourceNode.content,
-                            owner: flags.preserve ? sourceNode.owner : currentUser,
-                            group: flags.preserve ? sourceNode.group : primaryGroup,
-                            mode: flags.preserve ? sourceNode.mode : Config.FILESYSTEM.DEFAULT_FILE_MODE,
-                            mtime: flags.preserve ? sourceNode.mtime : nowISO,
-                        };
+                        const createResult = await FileSystemManager.createOrUpdateFile(fullFinalDestPath, sourceNode.content, { currentUser: flags.preserve ? sourceNode.owner : currentUser, primaryGroup: flags.preserve ? sourceNode.group : primaryGroup });
+                        if (!createResult.success) {
+                            return createResult;
+                        }
+                        const newNode = FileSystemManager.getNodeByPath(fullFinalDestPath);
+                        if(flags.preserve) {
+                            newNode.mode = sourceNode.mode;
+                            newNode.mtime = sourceNode.mtime;
+                        }
+
                     } else if (sourceNode.type === 'directory') {
                         if (!flags.recursive) {
                             await OutputManager.appendToOutput(`cp: omitting directory '${sourcePathForMsg}'`);

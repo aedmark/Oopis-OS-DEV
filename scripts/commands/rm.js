@@ -102,7 +102,14 @@ WARNING
                         messages.push(...deleteResult.messages);
                     }
                 }
-                if (anyChangeMade) await FileSystemManager.save();
+
+                if (anyChangeMade) {
+                    const saveResult = await FileSystemManager.save();
+                    if (!saveResult.success) {
+                        allSuccess = false;
+                        messages.unshift(`rm: Failed to save file system changes: ${saveResult.error}`);
+                    }
+                }
 
                 const finalOutput = messages.filter((m) => m).join("\\n");
                 return {

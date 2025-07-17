@@ -101,31 +101,18 @@ MESSAGES.WELCOME_SUFFIX=!`;
     }
 
     async function save() {
-        const totalSize = _calculateTotalSize();
-        if (totalSize > Config.FILESYSTEM.MAX_VFS_SIZE) {
-            const errorMsg = `Disk quota exceeded. (Usage: ${Utils.formatBytes(
-                totalSize
-            )} / ${Utils.formatBytes(
-                Config.FILESYSTEM.MAX_VFS_SIZE
-            )}). Reverting last operation.`;
-            await OutputManager.appendToOutput(errorMsg, {
-                typeClass: Config.CSS_CLASSES.ERROR_MSG,
-            });
-            await load();
-            return false;
-        }
         let db;
         try {
             db = IndexedDBManager.getDbInstance();
         } catch (e) {
-            await OutputManager.appendToOutput(
-                "Error: File system storage not available for saving.", {
-                    typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                }
-            );
-            return Promise.reject(Config.INTERNAL_ERRORS.DB_NOT_INITIALIZED_FS_SAVE);
+            // This is a critical failure, returning an error object is appropriate.
+            return {
+                success: false,
+                error: "File system storage not available for saving."
+            };
         }
-        return new Promise((resolve, reject) => {
+
+        return new Promise((resolve) => {
             const transaction = db.transaction(
                 [Config.DATABASE.FS_STORE_NAME],
                 "readwrite"
@@ -135,17 +122,19 @@ MESSAGES.WELCOME_SUFFIX=!`;
                 id: Config.DATABASE.UNIFIED_FS_KEY,
                 data: Utils.deepCopyNode(fsData),
             });
-            request.onsuccess = () => resolve(true);
+            request.onsuccess = () => resolve({
+                success: true
+            });
             request.onerror = (event) => {
-                OutputManager.appendToOutput(
-                    "Error: OopisOs failed to save the file system.", {
-                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                    }
-                );
-                reject(event.target.error);
+                // The transaction failed. Report it back.
+                resolve({
+                    success: false,
+                    error: `OopisOs failed to save the file system: ${event.target.error}`
+                });
             };
         });
     }
+
 
     async function load() {
         let db;
@@ -153,9 +142,12 @@ MESSAGES.WELCOME_SUFFIX=!`;
             db = IndexedDBManager.getDbInstance();
         } catch (e) {
             await initialize(Config.USER.DEFAULT_NAME);
-            return Promise.reject(Config.INTERNAL_ERRORS.DB_NOT_INITIALIZED_FS_LOAD);
+            return {
+                success: false,
+                error: Config.INTERNAL_ERRORS.DB_NOT_INITIALIZED_FS_LOAD
+            };
         }
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async (resolve) => {
             const transaction = db.transaction(
                 [Config.DATABASE.FS_STORE_NAME],
                 "readonly"
@@ -175,11 +167,16 @@ MESSAGES.WELCOME_SUFFIX=!`;
                     await initialize(Config.USER.DEFAULT_NAME);
                     await save();
                 }
-                resolve();
+                resolve({
+                    success: true
+                });
             };
             request.onerror = async (event) => {
                 await initialize(Config.USER.DEFAULT_NAME);
-                reject(event.target.error);
+                resolve({
+                    success: false,
+                    error: event.target.error
+                });
             };
         });
     }
@@ -189,32 +186,31 @@ MESSAGES.WELCOME_SUFFIX=!`;
         try {
             db = IndexedDBManager.getDbInstance();
         } catch (e) {
-            await OutputManager.appendToOutput(
-                "Error: File system storage not available for clearing all data.", {
-                    typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                }
-            );
-            return Promise.reject(Config.INTERNAL_ERRORS.DB_NOT_INITIALIZED_FS_CLEAR);
+            return {
+                success: false,
+                error: "File system storage not available for clearing all data."
+            };
         }
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             const transaction = db.transaction(
                 [Config.DATABASE.FS_STORE_NAME],
                 "readwrite"
             );
             const store = transaction.objectStore(Config.DATABASE.FS_STORE_NAME);
             const request = store.clear();
-            request.onsuccess = () => resolve(true);
+            request.onsuccess = () => resolve({
+                success: true
+            });
             request.onerror = (event) => {
                 console.error("Error clearing FileSystemsStore:", event.target.error);
-                OutputManager.appendToOutput(
-                    "Error: OopisOs could not clear all user file systems. Your data might still be present. Please try the operation again.", {
-                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                    }
-                );
-                reject(event.target.error);
+                resolve({
+                    success: false,
+                    error: `Could not clear all user file systems: ${event.target.error}`
+                });
             };
         });
     }
+
 
     function getCurrentPath() {
         return currentPath;
@@ -232,15 +228,6 @@ MESSAGES.WELCOME_SUFFIX=!`;
         fsData = newData;
     }
 
-    // --- Start of Refactored Functions ---
-
-    /**
-     * The Path Resolver.
-     * Takes a user-provided path string and resolves it to a true, absolute path.
-     * @param {string} targetPath - The path to resolve.
-     * @param {string} [basePath=currentPath] - The base path to resolve from.
-     * @returns {string} The absolute path.
-     */
     function getAbsolutePath(targetPath, basePath = currentPath) {
         if (!targetPath) targetPath = Config.FILESYSTEM.CURRENT_DIR_SYMBOL;
         let effectiveBasePath = basePath;
@@ -275,13 +262,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
         );
     }
 
-    /**
-     * The Node Retriever.
-     * Traverses the file system from an absolute path and returns the corresponding node.
-     * It performs permission checks during traversal.
-     * @param {string} absolutePath - The absolute path to the node.
-     * @returns {object|null} The node object if found and accessible, otherwise null.
-     */
+
     function getNodeByPath(absolutePath) {
         const currentUser = UserManager.getCurrentUser().name;
         if (absolutePath === Config.FILESYSTEM.ROOT_PATH) {
@@ -304,18 +285,11 @@ MESSAGES.WELCOME_SUFFIX=!`;
         return currentNode;
     }
 
-    /**
-     * The Path Validator.
-     * Orchestrates path resolution, node retrieval, and final validation checks.
-     * @param {string} pathArg - The user-provided path.
-     * @param {object} options - Validation options.
-     * @param {string} [options.expectedType] - e.g., 'file' or 'directory'.
-     * @param {string[]} [options.permissions] - e.g., ['read', 'write'].
-     * @param {boolean} [options.allowMissing=false] - If true, doesn't error if the node is null.
-     * @returns {{node: object, resolvedPath: string, error: string|null}}
-     */
+
     function validatePath(pathArg, options = {}) {
-        const { expectedType = null, permissions = [], allowMissing = false } = options;
+        const {
+            expectedType = null, permissions = [], allowMissing = false
+        } = options;
         const currentUser = UserManager.getCurrentUser().name;
 
         // 1. Resolve Path
@@ -327,34 +301,55 @@ MESSAGES.WELCOME_SUFFIX=!`;
         // 3. Validate Node Existence
         if (!node) {
             if (allowMissing) {
-                return { node: null, resolvedPath, error: null };
+                return {
+                    node: null,
+                    resolvedPath,
+                    error: null
+                };
             }
-            return { node: null, resolvedPath, error: `${pathArg}: No such file or directory` };
+            return {
+                node: null,
+                resolvedPath,
+                error: `${pathArg}: No such file or directory`
+            };
         }
 
         // 4. Validate Expected Type
         if (expectedType && node.type !== expectedType) {
             if (expectedType === 'file') {
-                return { node, resolvedPath, error: `${pathArg}: Is not a file` };
+                return {
+                    node,
+                    resolvedPath,
+                    error: `${pathArg}: Is not a file`
+                };
             }
             if (expectedType === 'directory') {
-                return { node, resolvedPath, error: `${pathArg}: Is not a directory` };
+                return {
+                    node,
+                    resolvedPath,
+                    error: `${pathArg}: Is not a directory`
+                };
             }
         }
 
         // 5. Validate Permissions
         for (const perm of permissions) {
             if (!hasPermission(node, currentUser, perm)) {
-                return { node, resolvedPath, error: `${pathArg}: Permission denied` };
+                return {
+                    node,
+                    resolvedPath,
+                    error: `${pathArg}: Permission denied`
+                };
             }
         }
 
         // 6. Success
-        return { node, resolvedPath, error: null };
+        return {
+            node,
+            resolvedPath,
+            error: null
+        };
     }
-
-    // --- End of Refactored Functions ---
-
 
     function calculateNodeSize(node) {
         if (!node) return 0;
@@ -568,7 +563,9 @@ MESSAGES.WELCOME_SUFFIX=!`;
         const {
             force = false, currentUser
         } = options;
-        const pathValidation = validatePath(path, { disallowRoot: true });
+        const pathValidation = validatePath(path, {
+            disallowRoot: true
+        });
         if (pathValidation.error) {
             if (force && !pathValidation.node) {
                 return {
@@ -647,6 +644,11 @@ MESSAGES.WELCOME_SUFFIX=!`;
         return calculateNodeSize(fsData[Config.FILESYSTEM.ROOT_PATH]);
     }
 
+    function _willOperationExceedQuota(changeInBytes) {
+        const currentSize = _calculateTotalSize();
+        return (currentSize + changeInBytes) > Config.FILESYSTEM.MAX_VFS_SIZE;
+    }
+
     function _createNewDirectoryNode(owner, group, mode = null) {
         const nowISO = new Date().toISOString();
         return {
@@ -662,12 +664,19 @@ MESSAGES.WELCOME_SUFFIX=!`;
     async function createOrUpdateFile(absolutePath, content, context) {
         const {
             currentUser,
-            primaryGroup,
-            existingNode: providedExistingNode
+            primaryGroup
         } = context;
         const nowISO = new Date().toISOString();
 
-        const existingNode = providedExistingNode !== undefined ? providedExistingNode : getNodeByPath(absolutePath);
+        const existingNode = getNodeByPath(absolutePath);
+        const changeInBytes = content.length - (existingNode?.content?.length || 0);
+
+        if (_willOperationExceedQuota(changeInBytes)) {
+            return {
+                success: false,
+                error: `Disk quota exceeded. Cannot write ${content.length} bytes.`
+            };
+        }
 
         if (existingNode) {
             if (existingNode.type !== Config.FILESYSTEM.DEFAULT_FILE_TYPE) {
@@ -723,12 +732,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
         };
     }
 
-    /**
-     * Checks if a user has administrative rights to modify a node's metadata (owner/permissions).
-     * @param {object} node The filesystem node in question.
-     * @param {string} username The name of the user attempting the action.
-     * @returns {boolean} True if the user is the owner or root.
-     */
+
     function canUserModifyNode(node, username) {
         return username === 'root' || node.owner === username;
     }

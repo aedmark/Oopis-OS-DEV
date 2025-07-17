@@ -43,7 +43,6 @@ OPTIONS
                     return { success: false, error: "upload: Can only be run in interactive mode." };
 
                 let targetDirPath = FileSystemManager.getCurrentPath();
-                const nowISO = new Date().toISOString();
                 const operationMessages = [];
                 let allFilesSuccess = true;
                 let anyChangeMade = false;
@@ -109,25 +108,10 @@ OPTIONS
                         const relativePath = (flags.recursive && file.webkitRelativePath) ? file.webkitRelativePath : file.name;
                         const fullDestPath = FileSystemManager.getAbsolutePath(relativePath, targetDirPath);
 
-                        const parentDirResult = FileSystemManager.createParentDirectoriesIfNeeded(fullDestPath);
-                        if (parentDirResult.error) {
-                            operationMessages.push(`Error: ${parentDirResult.error}`);
-                            allFilesSuccess = false;
-                            continue;
-                        }
-                        const finalTargetNode = parentDirResult.parentNode;
-                        const finalFileName = fullDestPath.substring(fullDestPath.lastIndexOf('/') + 1);
-
-                        if (!FileSystemManager.hasPermission(finalTargetNode, currentUser, "write")) {
-                            operationMessages.push(`upload: cannot write to destination directory for '${finalFileName}': Permission denied`);
-                            allFilesSuccess = false;
-                            continue;
-                        }
-
-                        const existingFileNode = finalTargetNode.children[finalFileName];
+                        const existingFileNode = FileSystemManager.getNodeByPath(fullDestPath);
                         if (existingFileNode) {
                             if (existingFileNode.type !== 'file') {
-                                operationMessages.push(`upload: cannot overwrite non-file '${finalFileName}'`);
+                                operationMessages.push(`upload: cannot overwrite non-file '${relativePath}'`);
                                 allFilesSuccess = false;
                                 continue;
                             }
@@ -149,9 +133,14 @@ OPTIONS
                             }
                         }
 
-                        const explicitMode = finalFileName.endsWith(".sh") ? Config.FILESYSTEM.DEFAULT_SH_MODE : null;
-                        finalTargetNode.children[finalFileName] = FileSystemManager._createNewFileNode(finalFileName, content, currentUser, primaryGroup, explicitMode);
-                        finalTargetNode.mtime = nowISO;
+                        const saveResult = await FileSystemManager.createOrUpdateFile(fullDestPath, content, { currentUser, primaryGroup });
+
+                        if (!saveResult.success) {
+                            operationMessages.push(`Error for '${relativePath}': ${saveResult.error}`);
+                            allFilesSuccess = false;
+                            continue;
+                        }
+
                         operationMessages.push(`${Config.MESSAGES.UPLOAD_SUCCESS_PREFIX}'${relativePath}'${Config.MESSAGES.UPLOAD_SUCCESS_MIDDLE}'${targetDirPath}'${Config.MESSAGES.UPLOAD_SUCCESS_SUFFIX}`);
                         anyChangeMade = true;
 
@@ -161,9 +150,12 @@ OPTIONS
                     }
                 }
 
-                if (anyChangeMade && !(await FileSystemManager.save())) {
-                    operationMessages.push("Critical: Failed to save file system changes after uploads.");
-                    allFilesSuccess = false;
+                if (anyChangeMade) {
+                    const fsSaveResult = await FileSystemManager.save();
+                    if (!fsSaveResult.success) {
+                        operationMessages.push(`Critical: Failed to save file system changes after uploads: ${fsSaveResult.error}`);
+                        allFilesSuccess = false;
+                    }
                 }
 
                 document.body.removeChild(input);

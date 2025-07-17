@@ -94,8 +94,9 @@ EXAMPLES
                     return { success: false, error: `zip: ${saveResult.error}` };
                 }
 
-                if (!(await FileSystemManager.save())) {
-                    return { success: false, error: "zip: Failed to save file system changes." };
+                const fsSaveResult = await FileSystemManager.save();
+                if (!fsSaveResult.success) {
+                    return { success: false, error: `zip: Failed to save file system changes: ${fsSaveResult.error}` };
                 }
 
                 return { success: true, output: `Successfully zipped '${sourcePath}' to '${archivePath}'.` };
