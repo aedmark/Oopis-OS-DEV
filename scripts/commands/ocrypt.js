@@ -99,13 +99,16 @@
                         return { success: false, error: "ocrypt: password must be provided as an argument in non-interactive mode." };
                     }
                     password = await new Promise(resolve => {
-                        ModalInputManager.requestInput(
-                            "Enter password for ocrypt:",
-                            (pw) => resolve(pw),
-                            () => resolve(null),
-                            true
-                        );
+                        ModalManager.request({
+                            context: 'terminal',
+                            type: 'input',
+                            messageLines: ["Enter password for ocrypt:"],
+                            obscured: true,
+                            onConfirm: (pw) => resolve(pw),
+                            onCancel: () => resolve(null)
+                        });
                     });
+
                     if (password === null) return { success: true, output: "Operation cancelled." };
                     if (!password) return { success: false, error: "ocrypt: password cannot be empty." };
                 }

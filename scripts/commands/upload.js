@@ -112,6 +112,7 @@
                                 const confirmed = await new Promise((r) =>
                                     ModalManager.request({
                                         context: "terminal",
+                                        type: "confirm",
                                         messageLines: [`'${relativePath}' already exists. Overwrite?`],
                                         onConfirm: () => r(true),
                                         onCancel: () => r(false),

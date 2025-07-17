@@ -4,7 +4,7 @@
 
     const passwdCommandDefinition = {
         commandName: "passwd",
-        completionType: "users", // Preserved for tab completion
+        completionType: "users",
         argValidation: {
             max: 1,
         },
@@ -28,16 +28,22 @@
 
                 return new Promise(resolve => {
                     const getNewPassword = (oldPassword) => {
-                        ModalInputManager.requestInput(
-                            `Enter new password for ${targetUsername}:`,
-                            (newPassword) => {
+                        ModalManager.request({
+                            context: 'terminal',
+                            type: 'input',
+                            messageLines: [`Enter new password for ${targetUsername}:`],
+                            obscured: true,
+                            onConfirm: (newPassword) => {
                                 if (!newPassword) {
                                     resolve({ success: false, error: Config.MESSAGES.EMPTY_PASSWORD_NOT_ALLOWED });
                                     return;
                                 }
-                                ModalInputManager.requestInput(
-                                    `Confirm new password:`,
-                                    async (confirmPassword) => {
+                                ModalManager.request({
+                                    context: 'terminal',
+                                    type: 'input',
+                                    messageLines: [`Confirm new password:`],
+                                    obscured: true,
+                                    onConfirm: async (confirmPassword) => {
                                         if (newPassword !== confirmPassword) {
                                             resolve({ success: false, error: Config.MESSAGES.PASSWORD_MISMATCH });
                                             return;
@@ -45,27 +51,24 @@
                                         const result = await UserManager.changePassword(currentUser, targetUsername, oldPassword, newPassword);
                                         resolve(result);
                                     },
-                                    () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED }),
-                                    true,
-                                    options
-                                );
+                                    onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
+                                });
                             },
-                            () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED }),
-                            true,
-                            options
-                        );
+                            onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
+                        });
                     };
 
                     if (currentUser === 'root' && currentUser !== targetUsername) {
                         getNewPassword(null);
                     } else {
-                        ModalInputManager.requestInput(
-                            `Enter current password for ${currentUser}:`,
-                            (oldPassword) => getNewPassword(oldPassword),
-                            () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED }),
-                            true,
-                            options
-                        );
+                        ModalManager.request({
+                            context: 'terminal',
+                            type: 'input',
+                            messageLines: [`Enter current password for ${currentUser}:`],
+                            obscured: true,
+                            onConfirm: (oldPassword) => getNewPassword(oldPassword),
+                            onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
+                        });
                     }
                 });
             } catch (e) {

@@ -4,7 +4,7 @@
 
     const useraddCommandDefinition = {
         commandName: "useradd",
-        completionType: "users", // Preserved for tab completion
+        completionType: "users",
         argValidation: {
             exact: 1,
             error: "expects exactly one argument (username)",
@@ -21,17 +21,22 @@
                 }
 
                 return new Promise(async (resolve) => {
-                    ModalInputManager.requestInput(
-                        Config.MESSAGES.PASSWORD_PROMPT,
-                        async (firstPassword) => {
+                    ModalManager.request({
+                        context: 'terminal',
+                        type: 'input',
+                        messageLines: [Config.MESSAGES.PASSWORD_PROMPT],
+                        obscured: true,
+                        onConfirm: (firstPassword) => {
                             if (firstPassword.trim() === "") {
                                 resolve({success: false, error: Config.MESSAGES.EMPTY_PASSWORD_NOT_ALLOWED});
                                 return;
                             }
-
-                            ModalInputManager.requestInput(
-                                Config.MESSAGES.PASSWORD_CONFIRM_PROMPT,
-                                async (confirmedPassword) => {
+                            ModalManager.request({
+                                context: 'terminal',
+                                type: 'input',
+                                messageLines: [Config.MESSAGES.PASSWORD_CONFIRM_PROMPT],
+                                obscured: true,
+                                onConfirm: async (confirmedPassword) => {
                                     if (firstPassword !== confirmedPassword) {
                                         resolve({success: false, error: Config.MESSAGES.PASSWORD_MISMATCH});
                                         return;
@@ -39,21 +44,11 @@
                                     const registerResult = await UserManager.register(username, firstPassword);
                                     resolve(registerResult);
                                 },
-                                () => resolve({
-                                    success: true,
-                                    output: Config.MESSAGES.OPERATION_CANCELLED,
-                                }),
-                                true,
-                                options
-                            );
+                                onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
+                            });
                         },
-                        () => resolve({
-                            success: true,
-                            output: Config.MESSAGES.OPERATION_CANCELLED,
-                        }),
-                        true,
-                        options
-                    );
+                        onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
+                    });
                 }).then(result => {
                     if (result.success && result.message) {
                         return {success: true, output: result.message };

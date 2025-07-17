@@ -53,6 +53,7 @@
                         const confirmed = await new Promise((resolve) => {
                             ModalManager.request({
                                 context: "terminal",
+                                type: "confirm",
                                 messageLines: [promptMsg],
                                 onConfirm: () => resolve(true),
                                 onCancel: () => resolve(false),

@@ -9,18 +9,22 @@ var ModalManager = (() => {
         cachedTerminalBezel = dom.terminalBezel;
     }
 
-    function _renderGraphicalModal(options) {
+    function _createModalDOM(options) {
         const {
             messageLines,
             onConfirm,
             onCancel,
+            type,
             confirmText = "OK",
             cancelText = "Cancel",
+            placeholder = "",
+            obscured = false,
+            data = {}
         } = options;
 
         if (!cachedTerminalBezel) {
             console.error("ModalManager: Cannot find terminal-bezel to attach modal.");
-            if (options.onCancel) options.onCancel();
+            if (onCancel) onCancel(data);
             return;
         }
 
@@ -35,23 +39,46 @@ var ModalManager = (() => {
             className: "btn btn--confirm",
             textContent: confirmText,
         });
+
         const cancelButton = Utils.createElement("button", {
             className: "btn btn--cancel",
             textContent: cancelText,
         });
 
+        let inputField = null;
+        if (type === 'input') {
+            inputField = Utils.createElement('input', {
+                type: obscured ? 'password' : 'text',
+                placeholder: placeholder,
+                className: 'modal-dialog__input'
+            });
+        }
+
         const confirmHandler = () => {
             removeModal();
-            if (onConfirm) onConfirm();
+            if (onConfirm) {
+                const value = inputField ? inputField.value : null;
+                onConfirm(value, data);
+            }
         };
 
         const cancelHandler = () => {
             removeModal();
-            if (onCancel) onCancel();
+            if (onCancel) onCancel(data);
         };
 
         confirmButton.addEventListener('click', confirmHandler);
         cancelButton.addEventListener('click', cancelHandler);
+
+        if (inputField) {
+            inputField.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    confirmHandler();
+                } else if (e.key === 'Escape') {
+                    cancelHandler();
+                }
+            });
+        }
 
         const buttonContainer = Utils.createElement("div", { className: "modal-dialog__buttons" }, [confirmButton, cancelButton]);
         const messageContainer = Utils.createElement("div");
@@ -59,179 +86,141 @@ var ModalManager = (() => {
             messageContainer.appendChild(Utils.createElement("p", { textContent: line }));
         });
 
-        const modalDialog = Utils.createElement("div", { className: "modal-dialog" }, [messageContainer, buttonContainer]);
-        const modalOverlay = Utils.createElement("div", { id: "dynamic-modal-dialog", className: "modal-overlay" }, [modalDialog]);
-
-        cachedTerminalBezel.appendChild(modalOverlay);
-    }
-
-    function _renderGraphicalInputModal(options) {
-        const {
-            messageLines,
-            onConfirm,
-            onCancel,
-            confirmText = "OK",
-            cancelText = "Cancel",
-            placeholder = ""
-        } = options;
-
-        if (!cachedTerminalBezel) {
-            if (onCancel) onCancel();
-            return;
+        const modalDialogContents = [messageContainer];
+        if (inputField) {
+            modalDialogContents.push(inputField);
         }
+        modalDialogContents.push(buttonContainer);
 
-        const removeModal = () => {
-            const modal = document.getElementById("dynamic-modal-dialog");
-            if (modal && modal.parentNode) {
-                modal.parentNode.removeChild(modal);
-            }
-        };
-
-        const inputField = Utils.createElement('input', {
-            type: 'text',
-            placeholder: placeholder,
-            className: 'modal-dialog__input'
-        });
-
-        const confirmButton = Utils.createElement("button", { className: "btn btn--confirm", textContent: confirmText });
-        const cancelButton = Utils.createElement("button", { className: "btn btn--cancel", textContent: cancelText });
-
-        const handleConfirm = () => {
-            const value = inputField.value;
-            if (onConfirm) onConfirm(value);
-            removeModal();
-        };
-
-        const handleCancel = () => {
-            if (onCancel) onCancel();
-            removeModal();
-        };
-
-        confirmButton.addEventListener('click', handleConfirm);
-        cancelButton.addEventListener('click', handleCancel);
-
-        inputField.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                handleConfirm();
-            } else if (e.key === 'Escape') {
-                handleCancel();
-            }
-        });
-
-        const buttonContainer = Utils.createElement("div", { className: "modal-dialog__buttons" }, [confirmButton, cancelButton]);
-        const messageContainer = Utils.createElement("div");
-        messageLines.forEach(line => {
-            messageContainer.appendChild(Utils.createElement("p", {textContent: line}));
-        });
-
-        const modalDialog = Utils.createElement("div", { className: "modal-dialog" }, [messageContainer, inputField, buttonContainer]);
+        const modalDialog = Utils.createElement("div", { className: "modal-dialog" }, modalDialogContents);
         const modalOverlay = Utils.createElement("div", { id: "dynamic-modal-dialog", className: "modal-overlay" }, [modalDialog]);
 
         cachedTerminalBezel.appendChild(modalOverlay);
-        inputField.focus();
+
+        if (inputField) {
+            inputField.focus();
+        }
     }
+
 
     function _renderTerminalPrompt(options) {
+        const { messageLines, onConfirm, onCancel, type, obscured, data } = options;
         if (isAwaitingTerminalInput) {
-            if (options.onCancel) options.onCancel();
+            if (onCancel) onCancel(data);
             return;
         }
         isAwaitingTerminalInput = true;
-        activeModalContext = {onConfirm: options.onConfirm, onCancel: options.onCancel, data: options.data || {}};
-        options.messageLines.forEach((line) => void OutputManager.appendToOutput(line, {typeClass: 'text-warning'}));
-        void OutputManager.appendToOutput(Config.MESSAGES.CONFIRMATION_PROMPT, {typeClass: 'text-subtle'});
+        activeModalContext = { onConfirm, onCancel, data, type, obscured };
+        messageLines.forEach((line) => void OutputManager.appendToOutput(line, { typeClass: 'text-warning' }));
+
+        if (type === 'confirm') {
+            void OutputManager.appendToOutput(Config.MESSAGES.CONFIRMATION_PROMPT, { typeClass: 'text-subtle' });
+        }
 
         TerminalUI.showInputLine();
-        TerminalUI.setInputState(true);
+        TerminalUI.setInputState(true, obscured);
         TerminalUI.focusInput();
         TerminalUI.clearInput();
         TerminalUI.scrollOutputToEnd();
     }
 
     function request(options) {
-        if (options.options?.stdinContent) {
-            const inputLine = options.options.stdinContent.trim().split('\n')[0];
-            const promptEcho = `${TerminalUI.getPromptText()} `;
+        const { context = 'terminal', type = 'confirm' } = options;
 
-            options.messageLines.forEach(line => void OutputManager.appendToOutput(line, {typeClass: 'text-warning'}));
-            void OutputManager.appendToOutput(Config.MESSAGES.CONFIRMATION_PROMPT, {typeClass: 'text-subtle'});
-            void OutputManager.appendToOutput(`${promptEcho}${inputLine}`);
-
-            if (inputLine.toUpperCase() === 'YES') {
-                if (options.onConfirm) options.onConfirm(options.data);
-            } else {
-                if (options.onCancel) options.onCancel(options.data);
-            }
-            return;
-        }
-        if (options.options?.scriptingContext?.isScripting) {
+        // Scripting / Non-interactive handling
+        if (options.options?.scriptingContext?.isScripting || options.options?.stdinContent) {
             const scriptContext = options.options.scriptingContext;
             let inputLine = null;
-            let nextLineIndex = scriptContext.currentLineIndex + 1;
-            while (nextLineIndex < scriptContext.lines.length) {
-                const line = scriptContext.lines[nextLineIndex].trim();
-                if (line && !line.startsWith('#')) {
-                    inputLine = line;
-                    scriptContext.currentLineIndex = nextLineIndex;
-                    break;
+
+            if (options.options.stdinContent) {
+                inputLine = options.options.stdinContent.trim().split('\\n')[0];
+            } else if (scriptContext) {
+                let nextLineIndex = scriptContext.currentLineIndex + 1;
+                while (nextLineIndex < scriptContext.lines.length) {
+                    const line = scriptContext.lines[nextLineIndex].trim();
+                    if (line && !line.startsWith('#')) {
+                        inputLine = line;
+                        scriptContext.currentLineIndex = nextLineIndex;
+                        break;
+                    }
+                    nextLineIndex++;
                 }
-                nextLineIndex++;
             }
+
 
             if (inputLine !== null) {
                 options.messageLines.forEach(line => void OutputManager.appendToOutput(line, {typeClass: 'text-warning'}));
-                void OutputManager.appendToOutput(Config.MESSAGES.CONFIRMATION_PROMPT, {typeClass: 'text-subtle'});
-                const promptEcho = `${TerminalUI.getPromptText()} `;
-                void OutputManager.appendToOutput(`${promptEcho}${inputLine}`);
-                if (inputLine.toUpperCase() === 'YES') {
-                    if (options.onConfirm) options.onConfirm(options.data);
-                } else {
-                    if (options.onCancel) options.onCancel(options.data);
+                if (type === 'confirm') {
+                    void OutputManager.appendToOutput(Config.MESSAGES.CONFIRMATION_PROMPT, {typeClass: 'text-subtle'});
                 }
-            } else {
+                const promptEcho = `${TerminalUI.getPromptText()}`;
+                const echoInput = options.obscured ? '*'.repeat(inputLine.length) : inputLine;
+                void OutputManager.appendToOutput(`${promptEcho}${echoInput}`);
+
+                if (type === 'confirm') {
+                    if (inputLine.toUpperCase() === 'YES') {
+                        if (options.onConfirm) options.onConfirm(options.data);
+                    } else {
+                        if (options.onCancel) options.onCancel(options.data);
+                    }
+                } else { // type === 'input'
+                    if (options.onConfirm) options.onConfirm(inputLine, options.data);
+                }
+            } else { // No more lines in script
                 if (options.onCancel) options.onCancel(options.data);
             }
             return;
         }
 
-        switch (options.context) {
-            case 'graphical':
-                _renderGraphicalModal(options);
-                break;
-            case 'graphical-input':
-                _renderGraphicalInputModal(options);
-                break;
-            default:
-                _renderTerminalPrompt(options);
+
+        if (context === 'graphical') {
+            _createModalDOM(options);
+        } else { // context === 'terminal'
+            _renderTerminalPrompt(options);
         }
     }
 
     async function handleTerminalInput(input) {
         if (!isAwaitingTerminalInput) return false;
-        const promptString = `${TerminalUI.getPromptText()} `;
-        await OutputManager.appendToOutput(`${promptString}${input.trim()}`);
-        if (input.trim() === "YES") {
-            await activeModalContext.onConfirm(activeModalContext.data);
-        } else {
-            if (typeof activeModalContext.onCancel === "function") {
-                await activeModalContext.onCancel(activeModalContext.data);
-            } else {
-                await OutputManager.appendToOutput(Config.MESSAGES.OPERATION_CANCELLED, {typeClass: 'text-subtle'});
-            }
-        }
+
+        const { onConfirm, onCancel, data, type, obscured } = activeModalContext;
+
+        const promptString = `${TerminalUI.getPromptText()}`;
+        const echoInput = obscured ? '*'.repeat(input.length) : input.trim();
+        await OutputManager.appendToOutput(`${promptString}${echoInput}`);
+
         isAwaitingTerminalInput = false;
         activeModalContext = null;
+        TerminalUI.setInputState(true, false); // Reset obscured mode
+        TerminalUI.clearInput();
+
+        if (type === 'confirm') {
+            if (input.trim().toUpperCase() === "YES") {
+                if (onConfirm) await onConfirm(data);
+            } else {
+                if (onCancel) {
+                    await onCancel(data);
+                } else {
+                    await OutputManager.appendToOutput(Config.MESSAGES.OPERATION_CANCELLED, {typeClass: 'text-subtle'});
+                }
+            }
+        } else { // type === 'input'
+            if (onConfirm) await onConfirm(input.trim(), data);
+        }
+
         return true;
     }
 
     return { initialize, request, handleTerminalInput, isAwaiting: () => isAwaitingTerminalInput };
 })();
 
+
 var TerminalUI = (() => {
     "use strict";
     let isNavigatingHistory = false;
     let _isObscuredInputMode = false;
     let elements = {};
+    let originalInputForObscure = "";
 
     function initialize(dom) {
         elements = dom;
@@ -279,18 +268,50 @@ var TerminalUI = (() => {
 
     function clearInput() {
         if (elements.editableInputDiv) elements.editableInputDiv.textContent = "";
+        originalInputForObscure = "";
     }
 
     function getCurrentInputValue() {
-        return elements.editableInputDiv ? elements.editableInputDiv.textContent : "";
+        return _isObscuredInputMode ? originalInputForObscure : (elements.editableInputDiv ? elements.editableInputDiv.textContent : "");
     }
 
     function setCurrentInputValue(value, setAtEnd = true) {
         if (elements.editableInputDiv) {
-            elements.editableInputDiv.textContent = value;
+            if (_isObscuredInputMode) {
+                originalInputForObscure = value;
+                elements.editableInputDiv.textContent = '*'.repeat(value.length);
+            } else {
+                elements.editableInputDiv.textContent = value;
+            }
             if (setAtEnd) setCaretToEnd(elements.editableInputDiv);
         }
     }
+    function updateInputForObscure(key) {
+        const selection = getSelection();
+        let { start, end } = selection;
+
+        if (key === "Backspace") {
+            if (start === end && start > 0) {
+                originalInputForObscure = originalInputForObscure.slice(0, start - 1) + originalInputForObscure.slice(start);
+                start--;
+            } else if (start !== end) {
+                originalInputForObscure = originalInputForObscure.slice(0, start) + originalInputForObscure.slice(end);
+            }
+        } else if (key === "Delete") {
+            if (start === end && start < originalInputForObscure.length) {
+                originalInputForObscure = originalInputForObscure.slice(0, start) + originalInputForObscure.slice(start + 1);
+            } else if (start !== end) {
+                originalInputForObscure = originalInputForObscure.slice(0, start) + originalInputForObscure.slice(end);
+            }
+        } else if (key.length === 1) {
+            originalInputForObscure = originalInputForObscure.slice(0, start) + key + originalInputForObscure.slice(end);
+            start += key.length;
+        }
+
+        elements.editableInputDiv.textContent = "*".repeat(originalInputForObscure.length);
+        setCaretPosition(elements.editableInputDiv, start);
+    }
+
 
     function setCaretToEnd(element) {
         if (!element || typeof window.getSelection === "undefined" || typeof document.createRange === "undefined") return;
@@ -348,9 +369,17 @@ var TerminalUI = (() => {
             elements.editableInputDiv.contentEditable = isEditable ? "true" : "false";
             elements.editableInputDiv.style.opacity = isEditable ? "1" : "0.5";
             _isObscuredInputMode = obscured;
+            if (isEditable && obscured) {
+                originalInputForObscure = "";
+                elements.editableInputDiv.textContent = "";
+            }
             if (!isEditable) elements.editableInputDiv.blur();
         }
     }
+    function isObscured() {
+        return _isObscuredInputMode;
+    }
+
 
     function setIsNavigatingHistory(status) {
         isNavigatingHistory = status;
@@ -397,6 +426,17 @@ var TerminalUI = (() => {
             elements.outputDiv.scrollTop = elements.outputDiv.scrollHeight;
         }
     }
+    function handlePaste(pastedText) {
+        if (isObscured()) {
+            const selection = getSelection();
+            let { start, end } = selection;
+            originalInputForObscure = originalInputForObscure.slice(0, start) + pastedText + originalInputForObscure.slice(end);
+            elements.editableInputDiv.textContent = "*".repeat(originalInputForObscure.length);
+            setCaretPosition(elements.editableInputDiv, start + pastedText.length);
+        } else {
+            document.execCommand("insertText", false, pastedText);
+        }
+    }
 
     return {
         initialize,
@@ -414,146 +454,13 @@ var TerminalUI = (() => {
         showInputLine,
         hideInputLine,
         scrollOutputToEnd,
-    };
-})();
-
-var ModalInputManager = (() => {
-    "use strict";
-    let _isAwaitingInput = false;
-    let _inputContext = null;
-
-    function isObscured() {
-        return _isAwaitingInput && _inputContext && _inputContext.isObscured;
-    }
-
-    function requestInput(promptMessage, onInputReceivedCallback, onCancelledCallback, isObscured = false, options = {}) {
-        if (options.stdinContent) {
-            const inputLine = options.stdinContent.trim().split('\n')[0];
-            if (promptMessage) {
-                void OutputManager.appendToOutput(promptMessage, {typeClass: 'text-subtle'});
-            }
-            const echoInput = isObscured ? '*'.repeat(inputLine.length) : inputLine;
-            const promptEcho = `${TerminalUI.getPromptText()} `;
-            void OutputManager.appendToOutput(`${promptEcho}${echoInput}`);
-            onInputReceivedCallback(inputLine);
-            return;
-        }
-        if (options.scriptingContext && options.scriptingContext.isScripting) {
-            const scriptContext = options.scriptingContext;
-            let inputLine = null;
-            while (scriptContext.currentLineIndex < scriptContext.lines.length - 1) {
-                scriptContext.currentLineIndex++;
-                const line = scriptContext.lines[scriptContext.currentLineIndex].trim();
-                if (line && !line.startsWith('#')) {
-                    inputLine = line;
-                    break;
-                }
-            }
-            if (inputLine !== null) {
-                if (promptMessage) {
-                    void OutputManager.appendToOutput(promptMessage, {typeClass: 'text-subtle'});
-                }
-                const echoInput = isObscured ? '*'.repeat(inputLine.length) : inputLine;
-                const promptEcho = `${TerminalUI.getPromptText()} `;
-                void OutputManager.appendToOutput(`${promptEcho}${echoInput}`);
-                onInputReceivedCallback(inputLine);
-            } else {
-                void OutputManager.appendToOutput("Script ended while awaiting input.", {typeClass: 'text-error'});
-                if (onCancelledCallback) onCancelledCallback();
-            }
-            return;
-        }
-        if (_isAwaitingInput) {
-            void OutputManager.appendToOutput("Another modal input prompt is already pending.", {typeClass: 'text-warning'});
-            if (onCancelledCallback) onCancelledCallback();
-            return;
-        }
-        _isAwaitingInput = true;
-        _inputContext = {
-            onInputReceived: onInputReceivedCallback,
-            onCancelled: onCancelledCallback,
-            isObscured: isObscured,
-            currentInput: "",
-        };
-
-        TerminalUI.showInputLine();
-
-        if (promptMessage) {
-            void OutputManager.appendToOutput(promptMessage, {typeClass: 'text-subtle'});
-        }
-        TerminalUI.clearInput();
-        TerminalUI.setInputState(true, isObscured);
-        TerminalUI.focusInput();
-        TerminalUI.scrollOutputToEnd();
-    }
-
-    async function handleInput() {
-        if (!_isAwaitingInput || !_inputContext) return false;
-        const finalInput = _inputContext.isObscured ? _inputContext.currentInput : TerminalUI.getCurrentInputValue();
-        const callback = _inputContext.onInputReceived;
-        _isAwaitingInput = false;
-        _inputContext = null;
-        TerminalUI.setInputState(true, false);
-        TerminalUI.clearInput();
-        if (typeof callback === "function") {
-            await callback(finalInput.trim());
-        }
-        return true;
-    }
-
-    function updateInput(key, rawChar) {
-        if (!_isAwaitingInput) return;
-        let inputArray = Array.from(_inputContext.currentInput);
-        const selection = TerminalUI.getSelection();
-        let {start, end} = selection;
-        if (key === "Backspace") {
-            if (start === end && start > 0) {
-                inputArray.splice(start - 1, 1);
-                start--;
-            } else if (start !== end) {
-                inputArray.splice(start, end - start);
-            }
-        } else if (key === "Delete") {
-            if (start === end && start < inputArray.length) {
-                inputArray.splice(start, 1);
-            } else if (start !== end) {
-                inputArray.splice(start, end - start);
-            }
-        } else if (rawChar) {
-            inputArray.splice(start, end - start, rawChar);
-            start += rawChar.length;
-        }
-        _inputContext.currentInput = inputArray.join("");
-        const displayText = _inputContext.isObscured ? "*".repeat(_inputContext.currentInput.length) : _inputContext.currentInput;
-        TerminalUI.setCurrentInputValue(displayText, false);
-        TerminalUI.setCaretPosition(TerminalUI.elements.editableInputDiv, start);
-    }
-
-    function handlePaste(pastedText) {
-        if (!_isAwaitingInput || !_inputContext) return;
-
-        const selection = TerminalUI.getSelection();
-        let {start, end} = selection;
-
-        let inputArray = Array.from(_inputContext.currentInput);
-        inputArray.splice(start, end - start, pastedText);
-
-        _inputContext.currentInput = inputArray.join("");
-        const displayText = _inputContext.isObscured ? "*".repeat(_inputContext.currentInput.length) : _inputContext.currentInput;
-
-        TerminalUI.setCurrentInputValue(displayText, false);
-        TerminalUI.setCaretPosition(TerminalUI.elements.editableInputDiv, start + pastedText.length);
-    }
-
-    return {
-        requestInput,
-        handleInput,
-        updateInput,
-        isAwaiting: () => _isAwaitingInput,
         isObscured,
-        handlePaste,
+        updateInputForObscure,
+        handlePaste
     };
 })();
+
+// NO ModalInputManager HERE
 
 var TabCompletionManager = (() => {
     "use strict";

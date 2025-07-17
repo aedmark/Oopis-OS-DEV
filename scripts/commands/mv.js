@@ -22,7 +22,6 @@
                 const destPathArg = args.pop();
                 const sourcePathArgs = args;
 
-                // Centralized validation for the destination
                 const destValidation = FileSystemManager.validatePath(destPathArg, { allowMissing: true });
                 const isDestADirectory = destValidation.node && destValidation.node.type === 'directory';
 
@@ -31,7 +30,6 @@
                 }
 
                 for (const sourcePathArg of sourcePathArgs) {
-                    // Centralized validation for each source
                     const sourceValidation = FileSystemManager.validatePath(sourcePathArg);
                     if (sourceValidation.error) {
                         return { success: false, error: `mv: ${sourceValidation.error}` };
@@ -46,7 +44,6 @@
                     const sourceName = sourceAbsPath.substring(sourceAbsPath.lastIndexOf('/') + 1);
                     const sourceParentPath = sourceAbsPath.substring(0, sourceAbsPath.lastIndexOf('/')) || '/';
 
-                    // Centralized validation for the source's parent directory
                     const sourceParentValidation = FileSystemManager.validatePath(sourceParentPath, {expectedType: 'directory', permissions: ['write']});
                     if (sourceParentValidation.error) {
                         return { success: false, error: `mv: cannot move '${sourcePathArg}': Permission denied in source directory` };
@@ -73,7 +70,7 @@
                     }
 
                     if (sourceAbsPath === finalDestPath) {
-                        continue; // Nothing to do
+                        continue;
                     }
 
                     if (sourceNode.type === 'directory' && finalDestPath.startsWith(sourceAbsPath + '/')) {
@@ -87,6 +84,7 @@
                             const confirmed = await new Promise((resolve) => {
                                 ModalManager.request({
                                     context: "terminal",
+                                    type: "confirm",
                                     messageLines: [`Overwrite '${finalDestPath}'?`],
                                     onConfirm: () => resolve(true),
                                     onCancel: () => resolve(false),
