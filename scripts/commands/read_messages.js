@@ -5,6 +5,8 @@
 
     const readMessagesCommandDefinition = {
         commandName: "read_messages",
+        description: "Reads messages from the job's own message queue.",
+        helpText: "Usage: read_messages (must be run within a background job)",
         argValidation: { exact: 0 },
         coreLogic: async (context) => {
             const jobId = context.options?.jobId;
@@ -23,10 +25,5 @@
         },
     };
 
-    CommandRegistry.register(
-        "read_messages",
-        readMessagesCommandDefinition,
-        "Reads messages from the job's own message queue.",
-        "Usage: read_messages (must be run within a background job)"
-    );
+    CommandRegistry.register(readMessagesCommandDefinition);
 })();

@@ -4,7 +4,33 @@
 
     const sortCommandDefinition = {
         commandName: "sort",
-        completionType: "paths", // Restored for tab completion
+        description: "Sorts lines of text from a file or standard input.",
+        helpText: `Usage: sort [OPTION]... [FILE]...
+
+Sort lines of text.
+
+DESCRIPTION
+       Writes a sorted concatenation of all FILE(s) to standard output.
+       With no FILE, or when FILE is -, read standard input.
+
+OPTIONS
+       -r, --reverse
+              Reverse the result of comparisons.
+
+       -n, --numeric-sort
+              Compare according to string numerical value.
+              
+       -u, --unique
+              Output only unique lines.
+
+EXAMPLES
+       sort data.txt
+              Displays the lines of data.txt in alphabetical order.
+              
+       ls | sort -r
+              Displays the contents of the current directory in reverse
+              alphabetical order.`,
+        completionType: "paths",
         isInputStream: true,
         flagDefinitions: [
             { name: "reverse", short: "-r", long: "--reverse" },
@@ -67,33 +93,5 @@
             }
         }
     };
-
-    const sortDescription = "Sorts lines of text from a file or standard input.";
-    const sortHelpText = `Usage: sort [OPTION]... [FILE]...
-
-Sort lines of text.
-
-DESCRIPTION
-       Writes a sorted concatenation of all FILE(s) to standard output.
-       With no FILE, or when FILE is -, read standard input.
-
-OPTIONS
-       -r, --reverse
-              Reverse the result of comparisons.
-
-       -n, --numeric-sort
-              Compare according to string numerical value.
-              
-       -u, --unique
-              Output only unique lines.
-
-EXAMPLES
-       sort data.txt
-              Displays the lines of data.txt in alphabetical order.
-              
-       ls | sort -r
-              Displays the contents of the current directory in reverse
-              alphabetical order.`;
-
-    CommandRegistry.register("sort", sortCommandDefinition, sortDescription, sortHelpText);
+    CommandRegistry.register(sortCommandDefinition);
 })();

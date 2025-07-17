@@ -4,7 +4,33 @@
 
     const removeuserCommandDefinition = {
         commandName: "removeuser",
-        completionType: "users", // Preserved for tab completion
+        description: "Removes a user account, optionally keeping their home directory.",
+        helpText: `Usage: removeuser [-f] [-r] <username>
+
+Remove a user account.
+
+DESCRIPTION
+       The removeuser command permanently deletes the user account specified
+       by <username>. By default, this action only removes the user's
+       credentials and group memberships, preserving their home directory.
+
+       To also remove the user's home directory and all its contents,
+       the -r or --remove-home flag must be used.
+
+       The 'root' and 'Guest' users cannot be removed. You also cannot
+       remove the user you are currently logged in as.
+
+OPTIONS
+       -f, --force
+              Do not prompt for confirmation. Use with caution.
+       -r, --remove-home
+              Also remove the user's home directory.
+
+WARNING
+       This operation is irreversible. Using the -r flag will permanently
+       delete all data within the user's home directory. The command will
+       prompt for confirmation before proceeding unless -f is used.`,
+        completionType: "users",
         flagDefinitions: [
             {
                 name: "force",
@@ -21,7 +47,6 @@
             exact: 1,
             error: "Usage: removeuser [-f] [-r] <username>",
         },
-
         coreLogic: async (context) => {
             const { args, currentUser, flags, options } = context;
             const usernameToRemove = args[0];
@@ -145,33 +170,5 @@
             }
         },
     };
-
-    const removeuserDescription = "Removes a user account, optionally keeping their home directory.";
-    const removeuserHelpText = `Usage: removeuser [-f] [-r] <username>
-
-Remove a user account.
-
-DESCRIPTION
-       The removeuser command permanently deletes the user account specified
-       by <username>. By default, this action only removes the user's
-       credentials and group memberships, preserving their home directory.
-
-       To also remove the user's home directory and all its contents,
-       the -r or --remove-home flag must be used.
-
-       The 'root' and 'Guest' users cannot be removed. You also cannot
-       remove the user you are currently logged in as.
-
-OPTIONS
-       -f, --force
-              Do not prompt for confirmation. Use with caution.
-       -r, --remove-home
-              Also remove the user's home directory.
-
-WARNING
-       This operation is irreversible. Using the -r flag will permanently
-       delete all data within the user's home directory. The command will
-       prompt for confirmation before proceeding unless -f is used.`;
-
-    CommandRegistry.register("removeuser", removeuserCommandDefinition, removeuserDescription, removeuserHelpText);
+    CommandRegistry.register(removeuserCommandDefinition);
 })();
