@@ -16,7 +16,7 @@
 
 Welcome to OopisOS, a sophisticated OS simulation that runs entirely on your local machine. It's a self-contained, persistent world built on a foundation of privacy and exploration, featuring a rich command-line environment, a secure multi-user file system, and now, a suite of powerful, integrated AI tools. All user data is stored locally; your world remains your own.
 
-## What's New in v4.1: Your AI Copilot
+## What's New in v4.5: Your AI Copilot
 
 This release integrates a powerful and flexible AI toolkit directly into the OS core, making it your "Friendly Neighborhood LLM."
 
@@ -46,6 +46,7 @@ OopisOS is more than just a terminal; it's a complete ecosystem.
 #### Persistent File System & Applications
 
 - **Hierarchical VFS:** A robust virtual file system powered by IndexedDB that persists between sessions.
+
 - **File Management:** A comprehensive suite of commands including `ls`, `find`, `tree`, `diff`, `mkdir`, `cp`, `mv`, `rm`, `zip`, and `unzip`.
 
 - **Application Suite:**
@@ -77,7 +78,7 @@ The entire state of OopisOS is stored locally and persistently on your machine, 
 
 #### The Command Contract: Secure by Design
 
-OopisOS has a highly modular command architecture. Adding a new command is a declarative process where you _declare_ your command's requirements to the `CommandExecutor`, which enforces these rules _before_ your command's core logic is ever run. This is a critical security and stability feature. The contract includes:
+OopisOS has a highly modular command architecture. Adding a new command is a declarative process where you *declare* your command's requirements to the `CommandExecutor`, which enforces these rules *before* your command's core logic is ever run. This is a critical security and stability feature. The contract includes:
 
 - `flagDefinitions`: All flags the command accepts.
 - `argValidation`: The number of arguments your command expects.
