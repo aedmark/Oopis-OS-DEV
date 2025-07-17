@@ -5,6 +5,8 @@
 
     const postMessageCommandDefinition = {
         commandName: "post_message",
+        description: "Sends a message to a background job.",
+        helpText: "Usage: post_message <job_id> <message>",
         argValidation: {
             exact: 2,
             error: "Usage: post_message <job_id> <message>",
@@ -31,11 +33,5 @@
             }
         },
     };
-
-    CommandRegistry.register(
-        "post_message",
-        postMessageCommandDefinition,
-        "Sends a message to a background job.",
-        "Usage: post_message <job_id> <message>"
-    );
+    CommandRegistry.register(postMessageCommandDefinition);
 })();

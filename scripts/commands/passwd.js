@@ -4,6 +4,26 @@
 
     const passwdCommandDefinition = {
         commandName: "passwd",
+        description: "Change a user's password.",
+        helpText: `Usage: passwd [username]
+
+Change a user's password.
+
+DESCRIPTION
+       The passwd command updates the password for a user account.
+
+       If run without arguments, it changes the password for the current user.
+       You will be prompted for your current password, and then for the new password twice.
+
+       The root user can change the password for any user by specifying their
+       username, and will not be prompted for the old password.
+
+EXAMPLES
+       passwd
+              Initiates the process to change your own password.
+
+       sudo passwd Guest
+              As root, initiates the process to change the password for 'Guest'.`,
         completionType: "users",
         argValidation: {
             max: 1,
@@ -76,27 +96,5 @@
             }
         }
     };
-
-    const passwdDescription = "Change a user's password.";
-    const passwdHelpText = `Usage: passwd [username]
-
-Change a user's password.
-
-DESCRIPTION
-       The passwd command updates the password for a user account.
-
-       If run without arguments, it changes the password for the current user.
-       You will be prompted for your current password, and then for the new password twice.
-
-       The root user can change the password for any user by specifying their
-       username, and will not be prompted for the old password.
-
-EXAMPLES
-       passwd
-              Initiates the process to change your own password.
-
-       sudo passwd Guest
-              As root, initiates the process to change the password for 'Guest'.`;
-
-    CommandRegistry.register("passwd", passwdCommandDefinition, passwdDescription, passwdHelpText);
+    CommandRegistry.register(passwdCommandDefinition);
 })();
