@@ -402,7 +402,19 @@ const CommandExecutor = (() => {
         };
       }
 
-      const saveResult = await FileSystemManager.createOrUpdateFile(absRedirPath, outputToRedir, { currentUser: user, primaryGroup: UserManager.getPrimaryGroupForUser(user) });
+      let contentToWrite = outputToRedir;
+      // Check if the redirection is an append operation
+      if (redirType === "append" && targetNode) {
+        const existingContent = targetNode.content || "";
+        // Prepend existing content to the new output
+        contentToWrite = existingContent + outputToRedir;
+      }
+
+      const saveResult = await FileSystemManager.createOrUpdateFile(
+          absRedirPath,
+          contentToWrite, // Use the potentially combined content
+          { currentUser: user, primaryGroup: UserManager.getPrimaryGroupForUser(user) }
+      );
 
       if (!saveResult.success) {
         if (!pipeline.isBackground) {
