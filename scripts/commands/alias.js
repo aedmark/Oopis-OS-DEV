@@ -4,6 +4,36 @@
 
     const aliasCommandDefinition = {
         commandName: "alias",
+        description: "Create, remove, and display command aliases.",
+        helpText: `Usage: alias [name='command']...
+
+Define or display command aliases.
+
+DESCRIPTION
+       The alias command allows you to create shortcuts for longer or more
+       complex commands. Aliases are saved and persist across sessions.
+
+       Running \`alias\` with no arguments lists all currently defined
+       aliases in a reusable format.
+
+       To create or redefine an alias, use the \`name='command'\` format.
+       The command string should be quoted if it contains spaces or
+       special characters.
+
+       To display a specific alias, run \`alias <name>\`.
+
+EXAMPLES
+       alias ll='ls -la'
+              Creates a shortcut 'll' for a long directory listing.
+
+       alias mypath='echo $PATH'
+              Creates an alias to display the current PATH variable.
+       
+       alias
+              Lists all defined aliases.
+       
+       alias ll
+              Displays the definition for the 'll' alias.`,
         coreLogic: async (context) => {
             const { args } = context;
 
@@ -80,37 +110,5 @@
             }
         },
     };
-
-    const aliasDescription = "Create, remove, and display command aliases.";
-    const aliasHelpText = `Usage: alias [name='command']...
-
-Define or display command aliases.
-
-DESCRIPTION
-       The alias command allows you to create shortcuts for longer or more
-       complex commands. Aliases are saved and persist across sessions.
-
-       Running \`alias\` with no arguments lists all currently defined
-       aliases in a reusable format.
-
-       To create or redefine an alias, use the \`name='command'\` format.
-       The command string should be quoted if it contains spaces or
-       special characters.
-
-       To display a specific alias, run \`alias <name>\`.
-
-EXAMPLES
-       alias ll='ls -la'
-              Creates a shortcut 'll' for a long directory listing.
-
-       alias mypath='echo $PATH'
-              Creates an alias to display the current PATH variable.
-       
-       alias
-              Lists all defined aliases.
-       
-       alias ll
-              Displays the definition for the 'll' alias.`;
-
-    CommandRegistry.register("alias", aliasCommandDefinition, aliasDescription, aliasHelpText);
+    CommandRegistry.register(aliasCommandDefinition);
 })();

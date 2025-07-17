@@ -124,6 +124,36 @@
 
     const adventureCommandDefinition = {
         commandName: "adventure",
+        dependencies: [
+            'apps/adventure/adventure_ui.js',
+            'apps/adventure/adventure_manager.js',
+            'apps/adventure/adventure_create.js'
+        ],
+        description: "Starts an interactive text adventure game or creation tool.",
+        helpText: `Usage: adventure [--create] [path_to_game.json]
+
+Launches the OopisOS interactive text adventure engine.
+
+MODES
+       Play Mode (default)
+       Launches the game. If no file is provided, starts the default adventure.
+
+       Creation Mode
+       Use 'adventure --create <file.json>' to enter an interactive shell
+       for building or editing an adventure file.
+
+GAMEPLAY COMMANDS
+       look, go, take, drop, use, inventory, save, load, quit, etc.
+       Type 'help' inside the game for a full list of gameplay commands.
+
+CREATION COMMANDS
+       create <type> "<name>"
+       edit <type> "<name>"
+       set <property> "<value>"
+       link "<room1>" <dir> "<room2>"
+       save
+       exit
+       Type 'help' inside the creator for a full list of building commands.`,
         completionType: "paths",
         flagDefinitions: [
             {name: 'create', short: '--create'}
@@ -194,33 +224,6 @@
                 return { success: false, error: `adventure: An unexpected error occurred: ${e.message}` };
             }
         }
-    }
-
-    const adventureDescription = "Starts an interactive text adventure game or creation tool.";
-    const adventureHelpText = `Usage: adventure [--create] [path_to_game.json]
-
-Launches the OopisOS interactive text adventure engine.
-
-MODES
-       Play Mode (default)
-       Launches the game. If no file is provided, starts the default adventure.
-
-       Creation Mode
-       Use 'adventure --create <file.json>' to enter an interactive shell
-       for building or editing an adventure file.
-
-GAMEPLAY COMMANDS
-       look, go, take, drop, use, inventory, save, load, quit, etc.
-       Type 'help' inside the game for a full list of gameplay commands.
-
-CREATION COMMANDS
-       create <type> "<name>"
-       edit <type> "<name>"
-       set <property> "<value>"
-       link "<room1>" <dir> "<room2>"
-       save
-       exit
-       Type 'help' inside the creator for a full list of building commands.`;
-
-    CommandRegistry.register("adventure", adventureCommandDefinition, adventureDescription, adventureHelpText);
+    };
+    CommandRegistry.register(adventureCommandDefinition);
 })();

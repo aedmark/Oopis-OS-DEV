@@ -46,9 +46,7 @@ const CommandExecutor = (() => {
           }
         }
         commands[commandName] = {
-          handler: createCommandHandler(definition),
-          description: definition.description,
-          helpText: definition.helpText,
+          handler: createCommandHandler(definition)
         };
         return true;
       }

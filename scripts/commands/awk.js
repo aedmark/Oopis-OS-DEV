@@ -3,6 +3,39 @@
     "use strict";
     const awkCommandDefinition = {
         commandName: "awk",
+        description: "Pattern scanning and text processing language.",
+        helpText: `Usage: awk 'program' [file...]
+       awk -F<separator> 'program' [file...]
+
+A tool for pattern scanning and processing.
+
+DESCRIPTION
+       awk scans each input file for lines that match any of a set of
+       patterns specified in the 'program'. The program consists of
+       a series of rules, each with a pattern and an action.
+
+       This version of awk supports a subset of features:
+       - Patterns must be regular expressions enclosed in slashes (e.g., /error/).
+       - The only supported action is 'print'.
+       - Special patterns BEGIN and END are supported.
+       - Built-in variables NR (line number) and NF (number of fields) are available.
+       - Field variables like $0 (the whole line), $1, $2, etc., are available.
+
+OPTIONS
+       -F<separator>
+              Use the specified separator to split fields. Can be a single
+              character or a regular expression.
+
+EXAMPLES
+       ls -l | awk '{print $9}'
+              Prints only the 9th column (the filename) from the output of ls -l.
+
+       awk -F, '{print $1}' data.csv
+              Prints the first column of a comma-separated file.
+
+       awk '/success/ {print "Found:", $0}' app.log
+              Prints "Found:" followed by the full line for every line containing
+              "success" in the file app.log.`,
         completionType: "paths",
         isInputStream: true,
         flagDefinitions: [
@@ -128,39 +161,5 @@
         return null;
     }
 
-    const awkDescription = "Pattern scanning and text processing language.";
-    const awkHelpText = `Usage: awk 'program' [file...]
-       awk -F<separator> 'program' [file...]
-
-A tool for pattern scanning and processing.
-
-DESCRIPTION
-       awk scans each input file for lines that match any of a set of
-       patterns specified in the 'program'. The program consists of
-       a series of rules, each with a pattern and an action.
-
-       This version of awk supports a subset of features:
-       - Patterns must be regular expressions enclosed in slashes (e.g., /error/).
-       - The only supported action is 'print'.
-       - Special patterns BEGIN and END are supported.
-       - Built-in variables NR (line number) and NF (number of fields) are available.
-       - Field variables like $0 (the whole line), $1, $2, etc., are available.
-
-OPTIONS
-       -F<separator>
-              Use the specified separator to split fields. Can be a single
-              character or a regular expression.
-
-EXAMPLES
-       ls -l | awk '{print $9}'
-              Prints only the 9th column (the filename) from the output of ls -l.
-
-       awk -F, '{print $1}' data.csv
-              Prints the first column of a comma-separated file.
-
-       awk '/success/ {print "Found:", $0}' app.log
-              Prints "Found:" followed by the full line for every line containing
-              "success" in the file app.log.`;
-
-    CommandRegistry.register("awk", awkCommandDefinition, awkDescription, awkHelpText);
+    CommandRegistry.register(awkCommandDefinition);
 })();
