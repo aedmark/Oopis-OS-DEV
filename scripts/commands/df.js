@@ -4,6 +4,26 @@
 
     const dfCommandDefinition = {
         commandName: "df",
+        description: "Reports file system disk space usage.",
+        helpText: `Usage: df [OPTION]...
+
+Show information about the file system on which each specified FILE resides,
+or all file systems by default.
+
+DESCRIPTION
+       The df command displays the total amount of available disk space
+       for the OopisOS virtual file system.
+
+OPTIONS
+       -h, --human-readable
+              Print sizes in powers of 1024 (e.g., 1023M).
+
+EXAMPLES
+       df
+              Displays the disk usage in bytes.
+
+       df -h
+              Displays the disk usage in a human-readable format.`,
         flagDefinitions: [
             { name: "humanReadable", short: "-h", long: "--human-readable" },
         ],
@@ -41,27 +61,5 @@
             }
         }
     };
-
-    const dfDescription = "Reports file system disk space usage.";
-    const dfHelpText = `Usage: df [OPTION]...
-
-Show information about the file system on which each specified FILE resides,
-or all file systems by default.
-
-DESCRIPTION
-       The df command displays the total amount of available disk space
-       for the OopisOS virtual file system.
-
-OPTIONS
-       -h, --human-readable
-              Print sizes in powers of 1024 (e.g., 1023M).
-
-EXAMPLES
-       df
-              Displays the disk usage in bytes.
-
-       df -h
-              Displays the disk usage in a human-readable format.`;
-
-    CommandRegistry.register("df", dfCommandDefinition, dfDescription, dfHelpText);
+    CommandRegistry.register(dfCommandDefinition);
 })();

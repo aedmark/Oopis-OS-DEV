@@ -4,7 +4,37 @@
 
     const csplitCommandDefinition = {
         commandName: "csplit",
-        completionType: "paths", // Preserved for tab completion
+        description: "Splits a file into sections determined by context lines.",
+        helpText: `Usage: csplit [OPTION]... FILE PATTERN...
+
+Output pieces of FILE separated by PATTERN(s) to files 'xx00', 'xx01', etc.
+
+DESCRIPTION
+       csplit splits a file into multiple smaller files based on context lines.
+       The context can be a line number or a regular expression.
+
+OPTIONS
+       -f, --prefix=PREFIX    use PREFIX instead of 'xx'
+       -k, --keep-files       do not remove output files on errors
+       -n, --digits=DIGITS    use specified number of digits instead of 2
+       -s, --quiet, --silent  do not print counts of output file sizes
+       -z, --elide-empty-files remove empty output files
+
+PATTERNS
+       N         Split at line number N.
+       /REGEX/   Split before the line matching the regular expression.
+       %REGEX%   Skip to the line matching the regular expression, but do not create a file.
+       {N}       Repeat the previous pattern N times.
+       
+EXAMPLES
+       csplit my_log.txt 100 /ERROR/ {5}
+              Creates xx00 with lines 1-99, then creates up to 5 files,
+              each starting with a line containing "ERROR".
+
+       csplit -f chapter- book.txt %^CHAPTER% {*}
+              Splits book.txt into chapter-00, chapter-01, etc.,
+              skipping the "CHAPTER" line itself.`,
+        completionType: "paths",
         flagDefinitions: [
             { name: "prefix", short: "-f", long: "--prefix", takesValue: true },
             { name: "keepFiles", short: "-k", long: "--keep-files" },
@@ -30,7 +60,6 @@
                 const fileNode = fileValidation.node;
 
                 const content = fileNode.content || "";
-                // CORRECTED: Split by the actual newline character.
                 const lines = content.split('\n');
 
                 const patterns = args.slice(1);
@@ -123,37 +152,5 @@
             }
         }
     };
-
-    const csplitDescription = "Splits a file into sections determined by context lines.";
-    const csplitHelpText = `Usage: csplit [OPTION]... FILE PATTERN...
-
-Output pieces of FILE separated by PATTERN(s) to files 'xx00', 'xx01', etc.
-
-DESCRIPTION
-       csplit splits a file into multiple smaller files based on context lines.
-       The context can be a line number or a regular expression.
-
-OPTIONS
-       -f, --prefix=PREFIX    use PREFIX instead of 'xx'
-       -k, --keep-files       do not remove output files on errors
-       -n, --digits=DIGITS    use specified number of digits instead of 2
-       -s, --quiet, --silent  do not print counts of output file sizes
-       -z, --elide-empty-files remove empty output files
-
-PATTERNS
-       N         Split at line number N.
-       /REGEX/   Split before the line matching the regular expression.
-       %REGEX%   Skip to the line matching the regular expression, but do not create a file.
-       {N}       Repeat the previous pattern N times.
-       
-EXAMPLES
-       csplit my_log.txt 100 /ERROR/ {5}
-              Creates xx00 with lines 1-99, then creates up to 5 files,
-              each starting with a line containing "ERROR".
-
-       csplit -f chapter- book.txt %^CHAPTER% {*}
-              Splits book.txt into chapter-00, chapter-01, etc.,
-              skipping the "CHAPTER" line itself.`;
-
-    CommandRegistry.register("csplit", csplitCommandDefinition, csplitDescription, csplitHelpText);
+    CommandRegistry.register(csplitCommandDefinition);
 })();

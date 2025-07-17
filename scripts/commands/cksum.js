@@ -4,8 +4,30 @@
 
     const cksumCommandDefinition = {
         commandName: "cksum",
+        description: "Print checksum and byte counts of files.",
+        helpText: `Usage: cksum [FILE]...
+
+Calculate and print a checksum, byte count, and filename for each FILE.
+
+DESCRIPTION
+       The cksum utility calculates and writes to standard output a 32-bit
+       checksum (CRC), the total number of bytes, and the name for each
+       input file.
+       
+       It is typically used to quickly compare a suspect file against a trusted
+       version to ensure that the file has not been accidentally corrupted.
+
+       If no file is specified, or if the file is '-', cksum reads from
+       standard input, and no filename is printed.
+
+EXAMPLES
+       cksum my_script.sh
+              Displays the checksum and size of the script file.
+
+       cat my_script.sh | cksum
+              Calculates the checksum and size from the piped content.`,
         isInputStream: true,
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         flagDefinitions: [],
         coreLogic: async (context) => {
             const { inputItems, inputError } = context;
@@ -53,29 +75,5 @@
             }
         }
     };
-
-    const cksumDescription = "Print checksum and byte counts of files.";
-    const cksumHelpText = `Usage: cksum [FILE]...
-
-Calculate and print a checksum, byte count, and filename for each FILE.
-
-DESCRIPTION
-       The cksum utility calculates and writes to standard output a 32-bit
-       checksum (CRC), the total number of bytes, and the name for each
-       input file.
-       
-       It is typically used to quickly compare a suspect file against a trusted
-       version to ensure that the file has not been accidentally corrupted.
-
-       If no file is specified, or if the file is '-', cksum reads from
-       standard input, and no filename is printed.
-
-EXAMPLES
-       cksum my_script.sh
-              Displays the checksum and size of the script file.
-
-       cat my_script.sh | cksum
-              Calculates the checksum and size from the piped content.`;
-
-    CommandRegistry.register("cksum", cksumCommandDefinition, cksumDescription, cksumHelpText);
+    CommandRegistry.register(cksumCommandDefinition);
 })();

@@ -4,6 +4,31 @@
 
     const editCommandDefinition = {
         commandName: "edit",
+        dependencies: [
+            'apps/editor/editor_ui.js',
+            'apps/editor/editor_manager.js'
+        ],
+        description: "A powerful, context-aware text and code editor.",
+        helpText: `Usage: edit [filepath]
+
+Launches the OopisOS text editor.
+
+DESCRIPTION
+       The 'edit' command opens a powerful, full-screen modal application for creating
+       and editing files. It intelligently adapts its interface based on the file type.
+
+       - If a filepath is provided, it opens that file.
+       - If the file does not exist, a new empty file will be created with that name upon saving.
+       - If no filepath is given, it opens a new, untitled document.
+
+MODES
+       - Markdown (.md): Activates a live preview and a formatting toolbar.
+       - HTML (.html): Activates a live, sandboxed preview of the rendered HTML.
+       - Other (e.g., .txt, .js, .sh): Provides a clean, standard text editing experience.
+
+KEYBOARD SHORTCUTS
+       Ctrl+S: Save       Ctrl+O: Exit
+       Ctrl+P: Toggle Preview`,
         completionType: "paths",
         argValidation: {
             max: 1,
@@ -38,28 +63,5 @@
             }
         }
     };
-
-    const editDescription = "A powerful, context-aware text and code editor.";
-    const editHelpText = `Usage: edit [filepath]
-
-Launches the OopisOS text editor.
-
-DESCRIPTION
-       The 'edit' command opens a powerful, full-screen modal application for creating
-       and editing files. It intelligently adapts its interface based on the file type.
-
-       - If a filepath is provided, it opens that file.
-       - If the file does not exist, a new empty file will be created with that name upon saving.
-       - If no filepath is given, it opens a new, untitled document.
-
-MODES
-       - Markdown (.md): Activates a live preview and a formatting toolbar.
-       - HTML (.html): Activates a live, sandboxed preview of the rendered HTML.
-       - Other (e.g., .txt, .js, .sh): Provides a clean, standard text editing experience.
-
-KEYBOARD SHORTCUTS
-       Ctrl+S: Save       Ctrl+O: Exit
-       Ctrl+P: Toggle Preview`;
-
-    CommandRegistry.register("edit", editCommandDefinition, editDescription, editHelpText);
+    CommandRegistry.register(editCommandDefinition);
 })();

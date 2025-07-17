@@ -4,12 +4,26 @@
 
     const exportCommandDefinition = {
         commandName: "export",
+        description: "Downloads a file from OopisOS to your local machine.",
+        helpText: `Usage: export <file_path>
+
+Download a file from OopisOS to your local machine.
+
+DESCRIPTION
+       The export command initiates a browser download for the file
+       specified by <file_path>. This allows you to save files from
+       the OopisOS virtual file system onto your actual computer's
+       hard drive.
+
+EXAMPLES
+       export /home/Guest/documents/report.txt
+              Triggers a download of 'report.txt' to your computer.`,
         completionType: "paths",
         argValidation: {
             exact: 1,
             error: "expects exactly one file path.",
         },
-        pathValidation: { // Added contract for the executor
+        pathValidation: {
             argIndex: 0,
             options: { expectedType: 'file' },
             permissions: ['read']
@@ -50,21 +64,5 @@
             }
         },
     };
-
-    const exportDescription = "Downloads a file from OopisOS to your local machine.";
-    const exportHelpText = `Usage: export <file_path>
-
-Download a file from OopisOS to your local machine.
-
-DESCRIPTION
-       The export command initiates a browser download for the file
-       specified by <file_path>. This allows you to save files from
-       the OopisOS virtual file system onto your actual computer's
-       hard drive.
-
-EXAMPLES
-       export /home/Guest/documents/report.txt
-              Triggers a download of 'report.txt' to your computer.`;
-
-    CommandRegistry.register("export", exportCommandDefinition, exportDescription, exportHelpText);
+    CommandRegistry.register(exportCommandDefinition);
 })();

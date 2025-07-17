@@ -4,6 +4,22 @@
 
     const codeCommandDefinition = {
         commandName: "code",
+        dependencies: [
+            'apps/code/code_ui.js',
+            'apps/code/code_manager.js'
+        ],
+        description: "A simple, lightweight code editor with syntax highlighting.",
+        helpText: `Usage: code [filepath]
+
+Launches the OopisOS code editor.
+
+DESCRIPTION
+        The 'code' command opens a simple modal editor designed for viewing
+        and editing code files. It provides basic JavaScript syntax highlighting.
+
+        - If a filepath is provided, it opens that file.
+        - If the file does not exist, a new empty file will be created with that name upon saving.
+        - If no filepath is given, it opens a new, untitled document.`,
         completionType: "paths",
         argValidation: {
             max: 1,
@@ -23,15 +39,12 @@
                     return { success: false, error: "code: Can only be run in interactive mode." };
                 }
 
-                // CORRECTED: Check for the INSTANCE 'Code', not the class 'CodeManager'.
-                // Also ensure the base App class and UI module are loaded.
                 if (typeof Code === 'undefined' || typeof CodeUI === 'undefined' || typeof App === 'undefined') {
                     return { success: false, error: "code: The code editor application modules are not loaded." };
                 }
 
                 const fileContent = node ? node.content || "" : "";
 
-                // Use the singleton instance 'Code'
                 AppLayerManager.show(Code, { filePath: resolvedPath, fileContent });
 
                 return { success: true, output: "" };
@@ -40,19 +53,5 @@
             }
         }
     };
-
-    const codeDescription = "A simple, lightweight code editor with syntax highlighting.";
-    const codeHelpText = `Usage: code [filepath]
-
-Launches the OopisOS code editor.
-
-DESCRIPTION
-        The 'code' command opens a simple modal editor designed for viewing
-        and editing code files. It provides basic JavaScript syntax highlighting.
-
-        - If a filepath is provided, it opens that file.
-        - If the file does not exist, a new empty file will be created with that name upon saving.
-        - If no filepath is given, it opens a new, untitled document.`;
-
-    CommandRegistry.register("code", codeCommandDefinition, codeDescription, codeHelpText);
+    CommandRegistry.register(codeCommandDefinition);
 })();

@@ -4,7 +4,29 @@
 
     const duCommandDefinition = {
         commandName: "du",
-        completionType: "paths", // Preserved for tab completion
+        description: "Estimates file and directory space usage.",
+        helpText: `Usage: du [OPTION]... [FILE]...
+
+Summarize disk usage of the set of FILEs, recursively for directories.
+
+DESCRIPTION
+       The du command displays the disk usage of files and directories.
+
+OPTIONS
+       -h, --human-readable
+              Print sizes in human-readable format (e.g., 1K, 234M, 2G).
+       -s, --summarize
+              Display only a total for each argument.
+
+EXAMPLES
+       du /home/Guest
+              Displays the size of each file and subdirectory within
+              the Guest user's home, plus a total.
+
+       du -sh /home/Guest/docs
+              Displays a single, human-readable total size for the
+              docs directory.`,
+        completionType: "paths",
         flagDefinitions: [
             { name: "humanReadable", short: "-h", long: "--human-readable" },
             { name: "summarize", short: "-s", long: "--summarize" },
@@ -63,29 +85,5 @@
             }
         }
     };
-
-    const duDescription = "Estimates file and directory space usage.";
-    const duHelpText = `Usage: du [OPTION]... [FILE]...
-
-Summarize disk usage of the set of FILEs, recursively for directories.
-
-DESCRIPTION
-       The du command displays the disk usage of files and directories.
-
-OPTIONS
-       -h, --human-readable
-              Print sizes in human-readable format (e.g., 1K, 234M, 2G).
-       -s, --summarize
-              Display only a total for each argument.
-
-EXAMPLES
-       du /home/Guest
-              Displays the size of each file and subdirectory within
-              the Guest user's home, plus a total.
-
-       du -sh /home/Guest/docs
-              Displays a single, human-readable total size for the
-              docs directory.`;
-
-    CommandRegistry.register("du", duCommandDefinition, duDescription, duHelpText);
+    CommandRegistry.register(duCommandDefinition);
 })();

@@ -4,6 +4,35 @@
 
     const echoCommandDefinition = {
         commandName: "echo",
+        description: "Writes arguments to the standard output.",
+        helpText: `Usage: echo [-e] [STRING]...
+
+Write arguments to the standard output.
+
+DESCRIPTION
+       The echo utility writes its arguments separated by spaces,
+       terminated by a newline, to the standard output.
+
+OPTIONS
+       -e     Enable interpretation of backslash escapes.
+
+ESCAPES
+       If -e is in effect, the following sequences are recognized:
+       \\\\\\\\     backslash
+       \\\\n     new line
+       \\\\t     horizontal tab
+       \\\\c     produce no further output (the trailing newline is suppressed)
+
+EXAMPLES
+       echo Hello, world!
+              Displays "Hello, world!".
+
+       echo -e "A line.\\\\nA second line."
+              Displays two lines of text.
+
+       echo "User: $USER"
+              Displays the name of the current user by expanding the
+              $USER environment variable.`,
         flagDefinitions: [
             {name: "enableBackslashEscapes", short: "-e"}
         ],
@@ -32,37 +61,5 @@
             }
         },
     };
-
-    const echoDescription = "Writes arguments to the standard output.";
-
-    const echoHelpText = `Usage: echo [-e] [STRING]...
-
-Write arguments to the standard output.
-
-DESCRIPTION
-       The echo utility writes its arguments separated by spaces,
-       terminated by a newline, to the standard output.
-
-OPTIONS
-       -e     Enable interpretation of backslash escapes.
-
-ESCAPES
-       If -e is in effect, the following sequences are recognized:
-       \\\\\\\\     backslash
-       \\\\n     new line
-       \\\\t     horizontal tab
-       \\\\c     produce no further output (the trailing newline is suppressed)
-
-EXAMPLES
-       echo Hello, world!
-              Displays "Hello, world!".
-
-       echo -e "A line.\\\\nA second line."
-              Displays two lines of text.
-
-       echo "User: $USER"
-              Displays the name of the current user by expanding the
-              $USER environment variable.`;
-
-    CommandRegistry.register("echo", echoCommandDefinition, echoDescription, echoHelpText);
+    CommandRegistry.register(echoCommandDefinition);
 })();

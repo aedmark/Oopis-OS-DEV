@@ -4,10 +4,28 @@
 
     const delayCommandDefinition = {
         commandName: "delay",
+        description: "Pauses execution for a specified time.",
+        helpText: `Usage: delay <milliseconds>
+
+Pause execution for a specified time.
+
+DESCRIPTION
+       The delay command pauses execution for the specified number of
+       milliseconds.
+
+       It is primarily used within scripts (\`run\` command) to create
+       timed sequences or demonstrations.
+
+EXAMPLES
+       delay 1000
+              Waits for 1000 milliseconds (1 second).
+
+       delay 5000 &
+              Starts a 5-second delay in the background. The job ID
+              will be printed, and you can see it with 'ps'.`,
         argValidation: {
             exact: 1,
         },
-
         coreLogic: async (context) => {
             const { args, options, signal } = context;
 
@@ -61,27 +79,5 @@
             }
         },
     };
-
-    const delayDescription = "Pauses execution for a specified time.";
-
-    const delayHelpText = `Usage: delay <milliseconds>
-
-Pause execution for a specified time.
-
-DESCRIPTION
-       The delay command pauses execution for the specified number of
-       milliseconds.
-
-       It is primarily used within scripts (\`run\` command) to create
-       timed sequences or demonstrations.
-
-EXAMPLES
-       delay 1000
-              Waits for 1000 milliseconds (1 second).
-
-       delay 5000 &
-              Starts a 5-second delay in the background. The job ID
-              will be printed, and you can see it with 'ps'.`;
-
-    CommandRegistry.register("delay", delayCommandDefinition, delayDescription, delayHelpText);
+    CommandRegistry.register(delayCommandDefinition);
 })();
