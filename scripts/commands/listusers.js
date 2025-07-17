@@ -4,10 +4,24 @@
 
     const listusersCommandDefinition = {
         commandName: "listusers",
+        description: "Lists all registered users on the system.",
+        helpText: `Usage: listusers
+
+List all registered users.
+
+DESCRIPTION
+       The listusers command displays a list of all user accounts that
+       currently exist on the system.
+
+EXAMPLES
+       listusers
+              Registered users:
+                Guest
+                root
+                userDiag`,
         argValidation: {
             exact: 0,
         },
-
         coreLogic: async () => {
             try {
                 const users = StorageManager.loadItem(
@@ -39,23 +53,5 @@
             }
         },
     };
-
-    const listusersDescription = "Lists all registered users on the system.";
-
-    const listusersHelpText = `Usage: listusers
-
-List all registered users.
-
-DESCRIPTION
-       The listusers command displays a list of all user accounts that
-       currently exist on the system.
-
-EXAMPLES
-       listusers
-              Registered users:
-                Guest
-                root
-                userDiag`;
-
-    CommandRegistry.register("listusers", listusersCommandDefinition, listusersDescription, listusersHelpText);
+    CommandRegistry.register(listusersCommandDefinition);
 })();

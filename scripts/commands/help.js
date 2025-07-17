@@ -4,11 +4,17 @@
 
     const helpCommandDefinition = {
         commandName: "help",
-        completionType: "commands", // Preserved for tab completion
+        description: "Displays a list of commands or a command's syntax.",
+        helpText: `Usage: help [command]
+
+Displays a list of all available commands.
+If a command name is provided, it displays the command's usage syntax.
+
+For a full, detailed manual page for a command, use 'man <command>'.`,
+        completionType: "commands",
         argValidation: {
             max: 1,
         },
-
         coreLogic: async (context) => {
             const { args } = context;
 
@@ -62,14 +68,5 @@
             }
         },
     };
-
-    const helpDescription = "Displays a list of commands or a command's syntax.";
-    const helpHelpText = `Usage: help [command]
-
-Displays a list of all available commands.
-If a command name is provided, it displays the command's usage syntax.
-
-For a full, detailed manual page for a command, use 'man <command>'.`;
-
-    CommandRegistry.register("help", helpCommandDefinition, helpDescription, helpHelpText);
+    CommandRegistry.register(helpCommandDefinition);
 })();
