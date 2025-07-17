@@ -44,7 +44,8 @@
                                     const registerResult = await UserManager.register(username, firstPassword);
                                     resolve(registerResult);
                                 },
-                                onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
+                                onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED }),
+                                options
                             });
                         },
                         onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED }),
