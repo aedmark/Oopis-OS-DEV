@@ -43,7 +43,7 @@ class ExplorerManager extends App {
                     placeholder: "new_file.txt",
                     onConfirm: async (name) => {
                         if (name) {
-                            const newFilePath = `${path}/${name}`;
+                            const newFilePath = `${path === '/' ? '' : path}/${name}`;
                             const result = await FileSystemManager.createOrUpdateFile(newFilePath, "", {
                                 currentUser: UserManager.getCurrentUser().name,
                                 primaryGroup: UserManager.getPrimaryGroupForUser(UserManager.getCurrentUser().name)
@@ -67,7 +67,7 @@ class ExplorerManager extends App {
                     placeholder: "new_directory",
                     onConfirm: async (name) => {
                         if (name) {
-                            await CommandExecutor.processSingleCommand(`mkdir "${path}/${name}"`, {isInteractive: false});
+                            await CommandExecutor.processSingleCommand(`mkdir "${path === '/' ? '' : path}/${name}"`, {isInteractive: false});
                             this._updateView(this.currentPath);
                         }
                     },
@@ -82,7 +82,7 @@ class ExplorerManager extends App {
                     placeholder: oldName,
                     onConfirm: async (newName) => {
                         if (newName && newName !== oldName) {
-                            const newPath = `${this.currentPath}/${newName}`;
+                            const newPath = `${this.currentPath === '/' ? '' : this.currentPath}/${newName}`;
                             await CommandExecutor.processSingleCommand(`mv "${path}" "${newPath}"`, {isInteractive: false});
                             this._updateView(this.currentPath);
                         }

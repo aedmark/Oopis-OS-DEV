@@ -116,9 +116,11 @@ const ChidiUI = (() => {
         elements.askBtn.addEventListener('click', async () => {
             const userQuestion = await new Promise(resolve => {
                 ModalManager.request({
-                    context: 'graphical-input',
+                    context: 'graphical',
+                    type: 'input',
                     messageLines: ["Ask a question about all loaded documents:"],
-                    onConfirm: resolve, onCancel: () => resolve(null)
+                    onConfirm: (value) => resolve(value),
+                    onCancel: () => resolve(null)
                 });
             });
             if (userQuestion) callbacks.onAsk(userQuestion);
@@ -129,7 +131,8 @@ const ChidiUI = (() => {
         elements.saveSessionBtn.addEventListener('click', async () => {
             const filename = await new Promise(resolve => {
                 ModalManager.request({
-                    context: 'graphical-input',
+                    context: 'graphical',
+                    type: 'input',
                     messageLines: ["Save Chidi Session As:"],
                     placeholder: `chidi_session_${new Date().toISOString().split('T')[0]}.html`,
                     onConfirm: (value) => resolve(value.trim()),

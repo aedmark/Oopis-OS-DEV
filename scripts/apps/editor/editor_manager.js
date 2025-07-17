@@ -41,20 +41,23 @@ class EditorManager extends App {
         if (!this.isActive) return;
 
         if (this.state.isDirty) {
-            const confirmed = await new Promise(resolve => {
+            await new Promise(resolve => {
                 ModalManager.request({
                     context: 'graphical',
                     type: 'confirm',
                     messageLines: ["You have unsaved changes that will be lost.", "Are you sure you want to exit?"],
                     confirmText: "Discard Changes",
                     cancelText: "Cancel",
-                    onConfirm: () => resolve(true),
-                    onCancel: () => resolve(false)
+                    onConfirm: () => {
+                        this._performExit();
+                        resolve();
+                    },
+                    onCancel: () => resolve()
                 });
             });
-            if (!confirmed) return;
+        } else {
+            this._performExit();
         }
-        this._performExit();
     }
 
     _performExit() {
