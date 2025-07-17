@@ -27,7 +27,22 @@
 
     const zipCommandDefinition = {
         commandName: "zip",
-        completionType: "paths", // Preserved for tab completion.
+        description: "Creates a compressed .zip archive of a file or directory.",
+        helpText: `Usage: zip <archive.zip> <path>
+
+Creates a simulated compressed archive of a file or directory.
+
+DESCRIPTION
+       The zip command recursively archives the contents of the specified
+       <path> into a single file named <archive.zip>. The resulting
+       .zip file is a JSON representation of the file structure, not
+       a standard binary zip file. It can be unzipped using the 'unzip'
+       command.
+
+EXAMPLES
+       zip my_project.zip /home/Guest/project
+              Creates 'my_project.zip' containing the 'project' directory.`,
+        completionType: "paths",
         argValidation: {
             exact: 2,
             error: "Usage: zip <archive.zip> <path_to_zip>"
@@ -89,22 +104,5 @@
             }
         }
     };
-
-    const zipDescription = "Creates a compressed .zip archive of a file or directory.";
-    const zipHelpText = `Usage: zip <archive.zip> <path>
-
-Creates a simulated compressed archive of a file or directory.
-
-DESCRIPTION
-       The zip command recursively archives the contents of the specified
-       <path> into a single file named <archive.zip>. The resulting
-       .zip file is a JSON representation of the file structure, not
-       a standard binary zip file. It can be unzipped using the 'unzip'
-       command.
-
-EXAMPLES
-       zip my_project.zip /home/Guest/project
-              Creates 'my_project.zip' containing the 'project' directory.`;
-
-    CommandRegistry.register("zip", zipCommandDefinition, zipDescription, zipHelpText);
+    CommandRegistry.register(zipCommandDefinition);
 })();

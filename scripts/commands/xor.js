@@ -13,9 +13,30 @@
 
     const xorCommandDefinition = {
         commandName: "xor",
+        description: "Simple symmetric XOR cipher for data obfuscation (educational).",
+        helpText: `Usage: xor [password] [FILE]
+       cat [FILE] | xor [password]
+
+Obfuscate data using a simple password-based XOR cipher.
+
+DESCRIPTION
+       xor transforms data from a FILE or standard input using a symmetric
+       XOR cipher. The same command and password are used for both obfuscation
+       and reversal.
+
+       WARNING: This utility is for educational purposes only. It provides
+       NO REAL SECURITY and should not be used to protect sensitive data.
+
+PIPELINE SECURITY
+       For enhanced security, use the new 'ocrypt' command which implements
+       strong, modern encryption. 'xor' can be combined with 'base64' to make
+       its binary output safe for text-based storage.
+
+       Obfuscate: cat secret.txt | xor "my-pass" | base64 > safe.txt
+       De-obfuscate: cat safe.txt | base64 -d | xor "my-pass" > secret.txt`,
         isInputStream: true,
-        completionType: "paths", // Preserved for tab completion
-        firstFileArgIndex: 1, // The first arg is the password
+        completionType: "paths",
+        firstFileArgIndex: 1,
         coreLogic: async (context) => {
             const { args, options, inputItems, inputError } = context;
 
@@ -63,28 +84,5 @@
             }
         }
     };
-
-    const xorDescription = "Simple symmetric XOR cipher for data obfuscation (educational).";
-    const xorHelpText = `Usage: xor [password] [FILE]
-       cat [FILE] | xor [password]
-
-Obfuscate data using a simple password-based XOR cipher.
-
-DESCRIPTION
-       xor transforms data from a FILE or standard input using a symmetric
-       XOR cipher. The same command and password are used for both obfuscation
-       and reversal.
-
-       WARNING: This utility is for educational purposes only. It provides
-       NO REAL SECURITY and should not be used to protect sensitive data.
-
-PIPELINE SECURITY
-       For enhanced security, use the new 'ocrypt' command which implements
-       strong, modern encryption. 'xor' can be combined with 'base64' to make
-       its binary output safe for text-based storage.
-
-       Obfuscate: cat secret.txt | xor "my-pass" | base64 > safe.txt
-       De-obfuscate: cat safe.txt | base64 -d | xor "my-pass" > secret.txt`;
-
-    CommandRegistry.register(xorCommandDefinition.commandName, xorCommandDefinition, xorDescription, xorHelpText);
+    CommandRegistry.register(xorCommandDefinition);
 })();

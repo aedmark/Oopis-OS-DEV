@@ -4,6 +4,45 @@
 
     const visudoCommandDefinition = {
         commandName: "visudo",
+        description: "Safely edits the /etc/sudoers file.",
+        helpText: `Usage: visudo
+
+Edit the sudoers file with a lock to prevent simultaneous edits.
+
+DESCRIPTION
+       visudo edits the sudoers file in a safe fashion. It sets an edit lock
+       on the sudoers file to prevent multiple simultaneous edits.
+
+       The sudoers file controls which users can run commands as root.
+       Incorrect syntax in this file can lock all users out of sudo.
+
+SYNTAX
+       The /etc/sudoers file uses a simple, space-separated format.
+       Lines starting with '#' are comments.
+
+       RULE FORMAT:
+       <who>    <permission>
+
+       <who>:
+           A username (e.g., guest)
+           A group name, prefixed with '%' (e.g., %developers)
+
+       <permission>:
+           ALL             - The user/group can run all commands.
+           (command_name)  - The user/group can only run the specified command.
+
+       EXAMPLES
+           # Give the user 'admin' full root privileges
+           admin    ALL
+
+           # Allow anyone in the 'testers' group to run the 'reboot' command
+           %testers reboot
+
+           # Set the password timeout to 30 minutes (0 to always ask)
+           Defaults timestamp_timeout=30
+
+PERMISSIONS
+       Only the superuser (root) can run visudo.`,
         argValidation: {
             exact: 0
         },
@@ -50,7 +89,7 @@
                     }
                 };
 
-                EditorManager.enter(sudoersPath, sudoersNode.content, onSudoersSave);
+                AppLayerManager.show(Editor, { filePath: sudoersPath, fileContent: sudoersNode.content, onSaveCallback: onSudoersSave });
 
                 return {
                     success: true,
@@ -61,47 +100,5 @@
             }
         }
     };
-
-    const visudoDescription = "Safely edits the /etc/sudoers file.";
-    const visudoHelpText = `Usage: visudo
-
-Edit the sudoers file with a lock to prevent simultaneous edits.
-
-DESCRIPTION
-       visudo edits the sudoers file in a safe fashion. It sets an edit lock
-       on the sudoers file to prevent multiple simultaneous edits.
-
-       The sudoers file controls which users can run commands as root.
-       Incorrect syntax in this file can lock all users out of sudo.
-
-SYNTAX
-       The /etc/sudoers file uses a simple, space-separated format.
-       Lines starting with '#' are comments.
-
-       RULE FORMAT:
-       <who>    <permission>
-
-       <who>:
-           A username (e.g., guest)
-           A group name, prefixed with '%' (e.g., %developers)
-
-       <permission>:
-           ALL             - The user/group can run all commands.
-           (command_name)  - The user/group can only run the specified command.
-
-       EXAMPLES
-           # Give the user 'admin' full root privileges
-           admin    ALL
-
-           # Allow anyone in the 'testers' group to run the 'reboot' command
-           %testers reboot
-
-           # Set the password timeout to 30 minutes (0 to always ask)
-           Defaults timestamp_timeout=30
-
-PERMISSIONS
-       Only the superuser (root) can run visudo.`;
-
-    CommandRegistry.register("visudo", visudoCommandDefinition, visudoDescription, visudoHelpText);
-
+    CommandRegistry.register(visudoCommandDefinition);
 })();

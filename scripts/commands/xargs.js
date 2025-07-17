@@ -4,7 +4,33 @@
 
     const xargsCommandDefinition = {
         commandName: "xargs",
-        isInputStream: true, // Declares use of the unified input stream
+        description: "Builds and executes command lines from standard input.",
+        helpText: `Usage: xargs [OPTION]... [command]
+
+Read items from standard input and execute a command for each item.
+
+DESCRIPTION
+       The xargs command reads newline-delimited items from standard
+       input and executes the specified [command] for each item.
+
+       By default, the item is appended as the last argument.
+
+OPTIONS
+       -I <replace-str>
+              Replace occurrences of <replace-str> in the initial arguments
+              with names read from standard input.
+
+EXAMPLES
+       ls *.log | xargs rm
+              Deletes all files ending in .log in the current directory.
+
+       find . -name "*.tmp" | xargs rm
+              Finds and deletes all files ending in .tmp in the
+              current directory and its subdirectories.
+              
+       ls *.txt | xargs -I {} mv {} {}.bak
+              Renames all .txt files to .txt.bak.`,
+        isInputStream: true,
         flagDefinitions: [{
             name: "replaceStr",
             short: "-I",
@@ -37,7 +63,7 @@
                 }
 
                 const baseCommandArgs = args;
-                const lines = inputText.trim().split('\n').filter(Boolean); // Filter out empty lines
+                const lines = inputText.trim().split('\n').filter(Boolean);
                 let lastResult = {
                     success: true,
                     output: ""
@@ -53,11 +79,8 @@
                     let commandToExecute;
 
                     if (replaceStr) {
-                        // Correctly handle replacement within each argument part
                         const commandParts = baseCommandArgs.map(part => {
-                            // Perform a literal string replacement
                             const newPart = part.replace(new RegExp(replaceStr, 'g'), rawLine);
-                            // If the resulting part has spaces and is not already quoted, quote it.
                             if (newPart.includes(' ') && !(newPart.startsWith('"') && newPart.endsWith('"'))) {
                                 return `"${newPart}"`;
                             }
@@ -65,7 +88,6 @@
                         });
                         commandToExecute = commandParts.join(" ");
                     } else {
-                        // Default behavior: append the line as a new, quoted argument if it contains spaces.
                         const finalArg = rawLine.includes(" ") ? `"${rawLine}"` : rawLine;
                         commandToExecute = [...baseCommandArgs, finalArg].join(" ");
                     }
@@ -98,33 +120,5 @@
             }
         },
     };
-
-    const xargsDescription = "Builds and executes command lines from standard input.";
-    const xargsHelpText = `Usage: xargs [OPTION]... [command]
-
-Read items from standard input and execute a command for each item.
-
-DESCRIPTION
-       The xargs command reads newline-delimited items from standard
-       input and executes the specified [command] for each item.
-
-       By default, the item is appended as the last argument.
-
-OPTIONS
-       -I <replace-str>
-              Replace occurrences of <replace-str> in the initial arguments
-              with names read from standard input.
-
-EXAMPLES
-       ls *.log | xargs rm
-              Deletes all files ending in .log in the current directory.
-
-       find . -name "*.tmp" | xargs rm
-              Finds and deletes all files ending in .tmp in the
-              current directory and its subdirectories.
-              
-       ls *.txt | xargs -I {} mv {} {}.bak
-              Renames all .txt files to .txt.bak.`;
-
-    CommandRegistry.register("xargs", xargsCommandDefinition, xargsDescription, xargsHelpText);
+    CommandRegistry.register(xargsCommandDefinition);
 })();

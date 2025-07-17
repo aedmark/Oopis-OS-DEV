@@ -4,6 +4,34 @@
 
     const wcCommandDefinition = {
         commandName: "wc",
+        description: "Counts lines, words, and bytes in files.",
+        helpText: `Usage: wc [OPTION]... [FILE]...
+
+Print newline, word, and byte counts for each FILE, and a total line if
+more than one FILE is specified. With no FILE, or when FILE is -,
+read standard input.
+
+DESCRIPTION
+       The wc utility displays the number of lines, words, and bytes
+       contained in each input file or standard input.
+
+OPTIONS
+       -c, --bytes
+              Print the byte counts.
+       -l, --lines
+              Print the newline counts.
+       -w, --words
+              Print the word counts.
+
+       If no options are specified, all three counts are printed.
+
+EXAMPLES
+       wc /docs/api/best_practices.md
+              Displays the line, word, and byte count for the file.
+
+       ls | wc -l
+              Counts the number of files and directories in the current
+              directory by counting the lines from 'ls' output.`,
         isInputStream: true,
         completionType: "paths",
         flagDefinitions: [
@@ -79,35 +107,5 @@
             }
         }
     };
-
-    const wcDescription = "Counts lines, words, and bytes in files.";
-    const wcHelpText = `Usage: wc [OPTION]... [FILE]...
-
-Print newline, word, and byte counts for each FILE, and a total line if
-more than one FILE is specified. With no FILE, or when FILE is -,
-read standard input.
-
-DESCRIPTION
-       The wc utility displays the number of lines, words, and bytes
-       contained in each input file or standard input.
-
-OPTIONS
-       -c, --bytes
-              Print the byte counts.
-       -l, --lines
-              Print the newline counts.
-       -w, --words
-              Print the word counts.
-
-       If no options are specified, all three counts are printed.
-
-EXAMPLES
-       wc /docs/api/best_practices.md
-              Displays the line, word, and byte count for the file.
-
-       ls | wc -l
-              Counts the number of files and directories in the current
-              directory by counting the lines from 'ls' output.`;
-
-    CommandRegistry.register("wc", wcCommandDefinition, wcDescription, wcHelpText);
+    CommandRegistry.register(wcCommandDefinition);
 })();

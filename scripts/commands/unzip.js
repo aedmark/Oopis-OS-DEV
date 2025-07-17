@@ -56,10 +56,26 @@
         return { success: true };
     }
 
-
     const unzipCommandDefinition = {
         commandName: "unzip",
-        completionType: "paths", // Preserved for tab completion.
+        description: "Extracts files from a .zip archive.",
+        helpText: `Usage: unzip <archive.zip> [destination]
+
+Extracts a simulated .zip archive created by the 'zip' command.
+
+DESCRIPTION
+       The unzip command extracts the files and directories from
+       <archive.zip> into the specified [destination] directory.
+       If no destination is provided, it extracts to the current
+       directory.
+
+EXAMPLES
+       unzip my_project.zip
+              Extracts the archive into the current directory.
+
+       unzip my_project.zip /home/Guest/backups/
+              Extracts the archive into the 'backups' directory.`,
+        completionType: "paths",
         argValidation: {
             min: 1,
             max: 2,
@@ -132,24 +148,5 @@
             }
         }
     };
-
-    const unzipDescription = "Extracts files from a .zip archive.";
-    const unzipHelpText = `Usage: unzip <archive.zip> [destination]
-
-Extracts a simulated .zip archive created by the 'zip' command.
-
-DESCRIPTION
-       The unzip command extracts the files and directories from
-       <archive.zip> into the specified [destination] directory.
-       If no destination is provided, it extracts to the current
-       directory.
-
-EXAMPLES
-       unzip my_project.zip
-              Extracts the archive into the current directory.
-
-       unzip my_project.zip /home/Guest/backups/
-              Extracts the archive into the 'backups' directory.`;
-
-    CommandRegistry.register("unzip", unzipCommandDefinition, unzipDescription, unzipHelpText);
+    CommandRegistry.register(unzipCommandDefinition);
 })();

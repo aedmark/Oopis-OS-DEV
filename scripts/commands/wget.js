@@ -4,7 +4,29 @@
 
     const wgetCommandDefinition = {
         commandName: "wget",
-        completionType: "paths", // Preserved for tab completion
+        description: "The non-interactive network downloader.",
+        helpText: `Usage: wget [-O <file>] <URL>
+
+The non-interactive network downloader.
+
+DESCRIPTION
+       wget is a utility for downloading files from the Web. It will
+       automatically determine the filename from the URL unless a
+       different name is specified with the -O option.
+
+       Note: Due to browser security restrictions, wget is subject to
+       Cross-Origin Resource Sharing (CORS) policies and may not be able
+       to fetch content from all URLs.
+
+OPTIONS
+       -O <file>
+              Write documents to <file>.
+
+EXAMPLES
+       wget https://raw.githubusercontent.com/aedmark/Oopis-OS/master/LICENSE.txt
+              Downloads the license file and saves it as 'LICENSE.txt'
+              in the current directory.`,
+        completionType: "paths",
         flagDefinitions: [{
             name: "outputFile",
             short: "-O",
@@ -111,29 +133,5 @@
             }
         },
     };
-
-    const wgetDescription = "The non-interactive network downloader.";
-    const wgetHelpText = `Usage: wget [-O <file>] <URL>
-
-The non-interactive network downloader.
-
-DESCRIPTION
-       wget is a utility for downloading files from the Web. It will
-       automatically determine the filename from the URL unless a
-       different name is specified with the -O option.
-
-       Note: Due to browser security restrictions, wget is subject to
-       Cross-Origin Resource Sharing (CORS) policies and may not be able
-       to fetch content from all URLs.
-
-OPTIONS
-       -O <file>
-              Write documents to <file>.
-
-EXAMPLES
-       wget https://raw.githubusercontent.com/aedmark/Oopis-OS/master/LICENSE.txt
-              Downloads the license file and saves it as 'LICENSE.txt'
-              in the current directory.`;
-
-    CommandRegistry.register("wget", wgetCommandDefinition, wgetDescription, wgetHelpText);
+    CommandRegistry.register(wgetCommandDefinition);
 })();
