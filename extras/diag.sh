@@ -1,5 +1,5 @@
-# OopisOS Core Test Suite v4.2 - "The Gauntlet, Now With More Gauntlet"
-echo "===== OopisOS Core Test Suite v4.2 Initializing ====="
+# OopisOS Core Test Suite v4.5 - "The Gauntlet, Now With More Gauntlet"
+echo "===== OopisOS Core Test Suite v4.5 Initializing ====="
 echo "This script tests all non-interactive core functionality, now with maximum paranoia."
 echo "---------------------------------------------------------------------"
 echo ""
@@ -853,7 +853,7 @@ listusers
 delay 700
 echo "---------------------------------------------------------------------"
 echo ""
-echo "      ===== OopisOS Core Test Suite v4.2 Complete ======="
+echo "      ===== OopisOS Core Test Suite v4.5 Complete ======="
 echo " "
 delay 500
 echo "  ======================================================"

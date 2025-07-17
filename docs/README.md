@@ -1,4 +1,4 @@
-# OopisOS v4.1: Your Friendly Neighborhood LLM Edition
+# OopisOS v4.5: The Pocket Kernel
 
 ```
    /$$$$$$                      /$$            /$$$$$$   /$$$$$$

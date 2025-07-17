@@ -6,13 +6,13 @@ const Config = (() => {
     const defaultConfig = {
         DATABASE: {
             NAME: "OopisOsDB",
-            VERSION: 42,
+            VERSION: 45,
             FS_STORE_NAME: "FileSystemsStore",
             UNIFIED_FS_KEY: "OopisOS_SharedFS",
         },
         OS: {
             NAME: "OopisOs",
-            VERSION: "4.2",
+            VERSION: "4.5",
             DEFAULT_HOST_NAME: "OopisOs",
         },
         USER: {

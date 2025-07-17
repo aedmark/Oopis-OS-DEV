@@ -1,9 +1,9 @@
 #!/bin/oopis_shell
 
-# inflate.sh - The OopisOS Instant Universe Generator (v3.5)
+# inflate.sh - The OopisOS Instant Universe Generator (v4.5)
 # Run this and watch a sterile, empty void blossom into a bustling digital ecosystem.
 
-echo "Initiating World-Build Protocol v3.5..."
+echo "Initiating World-Build Protocol v4.5..."
 delay 500
 
 echo "Warning: Spontaneous generation of files and directories is imminent."
