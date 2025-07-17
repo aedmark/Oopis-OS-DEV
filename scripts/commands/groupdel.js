@@ -4,6 +4,24 @@
 
     const groupdelCommandDefinition = {
         commandName: "groupdel",
+        description: "Deletes an existing user group.",
+        helpText: `Usage: groupdel <groupname>
+
+Delete an existing user group.
+
+DESCRIPTION
+       The groupdel command deletes the group specified by <groupname>.
+
+       You cannot remove the primary group of an existing user. You must
+       either delete the user first ('removeuser') or change their
+       primary group before deleting the group.
+
+EXAMPLES
+       groupdel developers
+              Deletes the group named 'developers'.
+
+PERMISSIONS
+       Only the superuser (root) can delete groups.`,
         argValidation: { exact: 1, error: "Usage: groupdel <groupname>" },
         coreLogic: async (context) => {
             const { args, currentUser } = context;
@@ -26,26 +44,5 @@
             }
         },
     };
-
-    const groupdelDescription = "Deletes an existing user group.";
-    const groupdelHelpText = `Usage: groupdel <groupname>
-
-Delete an existing user group.
-
-DESCRIPTION
-       The groupdel command deletes the group specified by <groupname>.
-
-       You cannot remove the primary group of an existing user. You must
-       either delete the user first ('removeuser') or change their
-       primary group before deleting the group.
-
-EXAMPLES
-       groupdel developers
-              Deletes the group named 'developers'.
-
-PERMISSIONS
-       Only the superuser (root) can delete groups.`;
-
-    // The variable name here is now correct.
-    CommandRegistry.register("groupdel", groupdelCommandDefinition, groupdelDescription, groupdelHelpText);
+    CommandRegistry.register(groupdelCommandDefinition);
 })();

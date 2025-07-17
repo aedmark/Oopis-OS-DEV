@@ -1,7 +1,40 @@
 // scripts/commands/grep.js
 const grepCommandDefinition = {
     commandName: "grep",
-    completionType: "paths", // Preserved for tab completion.
+    description: "Searches for a pattern in files or standard input.",
+    helpText: `Usage: grep [OPTION]... PATTERN [FILE]...
+Search for PATTERN in each FILE or standard input.
+
+DESCRIPTION
+       The grep command searches for lines containing a match to the given
+       PATTERN. When a line matches, it is printed.
+
+OPTIONS
+       -i, --ignore-case
+              Ignore case distinctions in patterns and data.
+       -v, --invert-match
+              Invert the sense of matching, to select non-matching lines.
+       -n, --line-number
+              Prefix each line of output with the 1-based line number
+              within its input file.
+       -c, --count
+              Suppress normal output; instead print a count of matching lines
+              for each input file.
+       -R, -r, --recursive
+              Read all files under each directory, recursively.
+       -E, --extended-regexp
+              Interpret PATTERN as an extended regular expression.
+
+EXAMPLES
+       grep "error" /data/logs/system.log
+              Finds all lines containing "error" in the system log.
+
+       ls | grep ".txt"
+              Lists only the files in the current directory that contain ".txt".
+
+       grep -R "TODO" /home/Guest/src
+              Recursively searches for "TODO" in the 'src' directory.`,
+    completionType: "paths",
     flagDefinitions: [
         { name: "ignoreCase", short: "-i", long: "--ignore-case" },
         { name: "invertMatch", short: "-v", long: "--invert-match" },
@@ -138,39 +171,4 @@ const grepCommandDefinition = {
         }
     },
 };
-
-const grepDescription = "Searches for a pattern in files or standard input.";
-const grepHelpText = `Usage: grep [OPTION]... PATTERN [FILE]...
-Search for PATTERN in each FILE or standard input.
-
-DESCRIPTION
-       The grep command searches for lines containing a match to the given
-       PATTERN. When a line matches, it is printed.
-
-OPTIONS
-       -i, --ignore-case
-              Ignore case distinctions in patterns and data.
-       -v, --invert-match
-              Invert the sense of matching, to select non-matching lines.
-       -n, --line-number
-              Prefix each line of output with the 1-based line number
-              within its input file.
-       -c, --count
-              Suppress normal output; instead print a count of matching lines
-              for each input file.
-       -R, -r, --recursive
-              Read all files under each directory, recursively.
-       -E, --extended-regexp
-              Interpret PATTERN as an extended regular expression.
-
-EXAMPLES
-       grep "error" /data/logs/system.log
-              Finds all lines containing "error" in the system log.
-
-       ls | grep ".txt"
-              Lists only the files in the current directory that contain ".txt".
-
-       grep -R "TODO" /home/Guest/src
-              Recursively searches for "TODO" in the 'src' directory.`;
-
-CommandRegistry.register("grep", grepCommandDefinition, grepDescription, grepHelpText);
+CommandRegistry.register(grepCommandDefinition);

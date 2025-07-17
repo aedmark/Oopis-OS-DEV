@@ -4,12 +4,26 @@
 
     const findCommandDefinition = {
         commandName: "find",
-        completionType: "paths", // Preserved for tab completion
+        description: "Searches for files in a directory hierarchy.",
+        helpText: `Usage: find [path...] [expression]
+
+Search for files in a directory hierarchy based on a set of criteria.
+
+Expressions are made up of tests and actions:
+  -name <pattern>     File name matches shell pattern (e.g., "*.txt").
+  -type <f|d>         File is of type f (file) or d (directory).
+  -user <name>        File is owned by user <name>.
+  -perm <mode>        File's permission bits are exactly <mode> (octal).
+  -mtime <n>          File's data was last modified n*24 hours ago.
+  -newermt <date>     File's data was last modified more recently than <date>.
+  -delete             Deletes found files. Use with caution.
+  -exec <cmd> {} ;    Executes <cmd> on found files. {} is replaced by the file path.
+  ! or -not           Inverts the sense of the next test.`,
+        completionType: "paths",
         argValidation: {
             min: 1,
             error: "missing path specification",
         },
-
         coreLogic: async (context) => {
             const { args, currentUser } = context;
             const startPathArg = args[0];
@@ -230,21 +244,5 @@
             }
         },
     };
-    const findDescription = "Searches for files in a directory hierarchy.";
-    const findHelpText = `Usage: find [path...] [expression]
-
-Search for files in a directory hierarchy based on a set of criteria.
-
-Expressions are made up of tests and actions:
-  -name <pattern>     File name matches shell pattern (e.g., "*.txt").
-  -type <f|d>         File is of type f (file) or d (directory).
-  -user <name>        File is owned by user <name>.
-  -perm <mode>        File's permission bits are exactly <mode> (octal).
-  -mtime <n>          File's data was last modified n*24 hours ago.
-  -newermt <date>     File's data was last modified more recently than <date>.
-  -delete             Deletes found files. Use with caution.
-  -exec <cmd> {} ;    Executes <cmd> on found files. {} is replaced by the file path.
-  ! or -not           Inverts the sense of the next test.`;
-
-    CommandRegistry.register("find", findCommandDefinition, findDescription, findHelpText);
+    CommandRegistry.register(findCommandDefinition);
 })();

@@ -4,6 +4,31 @@
 
     const headCommandDefinition = {
         commandName: "head",
+        description: "Outputs the first part of files.",
+        helpText: `Usage: head [OPTION]... [FILE]...
+
+Print the first 10 lines of each FILE to standard output.
+With more than one FILE, precede each with a header giving the file name.
+
+DESCRIPTION
+       The head command displays the beginning of a text file. It is a quick
+       way to preview a file's content without opening it in an editor.
+
+OPTIONS
+       -n, --lines=COUNT
+              Print the first COUNT lines instead of the first 10.
+       -c, --bytes=COUNT
+              Print the first COUNT bytes of each file.
+
+EXAMPLES
+       head /etc/motd
+              Displays the first 10 lines of the message of the day file.
+
+       head -n 5 README.md
+              Displays the first 5 lines of the README.md file.
+
+       ls | head -n 3
+              Displays the first 3 files or directories in the current location.`,
         isInputStream: true,
         flagDefinitions: [
             { name: "lines", short: "-n", long: "--lines", takesValue: true },
@@ -58,32 +83,5 @@
             }
         },
     };
-
-    const headDescription = "Outputs the first part of files.";
-    const headHelpText = `Usage: head [OPTION]... [FILE]...
-
-Print the first 10 lines of each FILE to standard output.
-With more than one FILE, precede each with a header giving the file name.
-
-DESCRIPTION
-       The head command displays the beginning of a text file. It is a quick
-       way to preview a file's content without opening it in an editor.
-
-OPTIONS
-       -n, --lines=COUNT
-              Print the first COUNT lines instead of the first 10.
-       -c, --bytes=COUNT
-              Print the first COUNT bytes of each file.
-
-EXAMPLES
-       head /etc/motd
-              Displays the first 10 lines of the message of the day file.
-
-       head -n 5 README.md
-              Displays the first 5 lines of the README.md file.
-
-       ls | head -n 3
-              Displays the first 3 files or directories in the current location.`;
-
-    CommandRegistry.register("head", headCommandDefinition, headDescription, headHelpText);
+    CommandRegistry.register(headCommandDefinition);
 })();

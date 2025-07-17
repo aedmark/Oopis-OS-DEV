@@ -4,7 +4,23 @@
 
     const groupsCommandDefinition = {
         commandName: "groups",
-        completionType: "users", // For tab-completing usernames
+        description: "Prints the groups a user is in.",
+        helpText: `Usage: groups [username]
+
+Print group memberships for a user.
+
+DESCRIPTION
+       The groups command prints the names of the primary and supplementary
+       groups for each given username, or the current process if none are
+       given.
+
+EXAMPLES
+       groups
+              Displays the groups for the current user.
+
+       groups root
+              Displays the groups for the 'root' user.`,
+        completionType: "users",
         argValidation: {
             max: 1,
         },
@@ -13,7 +29,6 @@
             const targetUser = args.length > 0 ? args[0] : currentUser;
 
             try {
-                // Check if the user exists
                 if (!await UserManager.userExists(targetUser)) {
                     return { success: false, error: `groups: user '${targetUser}' does not exist` };
                 }
@@ -33,24 +48,5 @@
             }
         },
     };
-
-    const groupsDescription = "Prints the groups a user is in.";
-    const groupsHelpText = `Usage: groups [username]
-
-Print group memberships for a user.
-
-DESCRIPTION
-       The groups command prints the names of the primary and supplementary
-       groups for each given username, or the current process if none are
-       given.
-
-EXAMPLES
-       groups
-              Displays the groups for the current user.
-
-       groups root
-              Displays the groups for the 'root' user.`;
-
-    // Correctly register the 'groups' command
-    CommandRegistry.register("groups", groupsCommandDefinition, groupsDescription, groupsHelpText);
+    CommandRegistry.register(groupsCommandDefinition);
 })();

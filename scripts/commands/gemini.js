@@ -25,6 +25,62 @@ ls [-l, -a, -R], cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -type [
 
     const geminiCommandDefinition = {
         commandName: "gemini",
+        dependencies: [
+            'apps/gemini_chat/gemini_chat_ui.js',
+            'apps/gemini_chat/gemini_chat_manager.js'
+        ],
+        description: "Engages in a context-aware conversation with a configured AI model.",
+        helpText: `Usage: gemini [-c | --chat] [-n|--new] [-v|--verbose] [-p provider] [-m model] [-f|--force] "<prompt>"
+
+Engage in a context-aware conversation with an AI model.
+
+DESCRIPTION
+       The gemini command sends a prompt to a configured AI model.
+
+       When using the default 'gemini' provider (Google's API), it acts as a powerful
+       assistant capable of using system tools to answer questions about your files.
+       It orchestrates multiple steps behind the scenes (planning, tool execution, synthesis).
+
+       When using a local provider (e.g., 'ollama', 'llm-studio'), the user's prompt
+       is sent directly to the local model. Tool-use capabilities for local models
+       depend on the model's own training and user's explicit instructions in the prompt.
+       If a local provider is specified but unavailable, it will fall back to the
+       default 'gemini' provider and notify you.
+
+       The entire prompt, if it contains spaces, must be enclosed in double quotes.
+
+MODES
+       -c, --chat
+              Launches the full-screen Gemini Chat application for an interactive
+              conversational experience.
+
+PROVIDERS & MODELS
+       -p, --provider   Specify the provider (e.g., 'ollama', 'gemini').
+                        Defaults to 'gemini'.
+       -m, --model      Specify a model for the provider (e.g., 'llama3').
+                        Defaults to the provider's default model.
+
+OPTIONS
+       -n, --new
+              Starts a new, fresh conversation, clearing any previous
+              conversational memory from the current session.
+       -v, --verbose
+          Only applicable to the 'gemini' provider. Enable verbose logging to see
+          the AI's step-by-step plan and the output of the commands it executes.
+       -f, --force
+              Forces the use of the selected provider for the entire tool-use
+              orchestration (planning, tool execution, and synthesis steps).
+              This allows experimenting with local models to perform structured
+              tool-use. Results may vary significantly based on the local model's
+              training. An API key is only required if 'gemini' is the chosen
+              provider for this orchestration.
+
+EXAMPLES
+       gemini -c
+              Launches the interactive chat application.
+       gemini "Summarize my README.md and list any scripts in this directory"
+              (Uses Google Gemini, leveraging its tool-use capabilities)
+`,
         flagDefinitions: [
             { name: "chat", short: "-c", long: "--chat" },
             { name: "new", short: "-n", long: "--new" },
@@ -44,7 +100,6 @@ ls [-l, -a, -R], cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -type [
                     if (typeof GeminiChat === 'undefined' || typeof GeminiChatUI === 'undefined' || typeof App === 'undefined') {
                         return { success: false, error: "gemini: The GeminiChat application modules are not loaded." };
                     }
-                    // THE FIX: Use AppLayerManager to show the singleton instance
                     AppLayerManager.show(GeminiChat, { provider: flags.provider, model: flags.model });
                     return { success: true, output: "" };
                 }
@@ -67,9 +122,12 @@ ls [-l, -a, -R], cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -type [
                     const apiKeyResult = await new Promise(resolve => {
                         let key = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
                         if (key) resolve({ success: true, key, fromStorage: true });
-                        else ModalInputManager.requestInput(
-                            "Please enter your Gemini API key:",
-                            (providedKey) => {
+                        else ModalManager.request({
+                            context: "terminal",
+                            type: "input",
+                            messageLines: ["Please enter your Gemini API key:"],
+                            obscured: true,
+                            onConfirm: (providedKey) => {
                                 if (!providedKey || providedKey.trim() === "") {
                                     resolve({ success: false, error: "API key entry cancelled or empty." });
                                     return;
@@ -78,12 +136,11 @@ ls [-l, -a, -R], cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -type [
                                 OutputManager.appendToOutput("API Key saved.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
                                 resolve({ success: true, key: providedKey });
                             },
-                            () => {
+                            onCancel: () => {
                                 resolve({ success: false, error: "API key entry cancelled." });
                             },
-                            true, // Obscured input
                             options
-                        );
+                        });
                     });
 
                     if (!apiKeyResult.success) return { success: false, error: `gemini: ${apiKeyResult.error}` };
@@ -233,59 +290,5 @@ ${setResult.output || '(none)'}
             }
         },
     };
-
-    const geminiDescription = "Engages in a context-aware conversation with a configured AI model.";
-    const geminiHelpText = `Usage: gemini [-c | --chat] [-n|--new] [-v|--verbose] [-p provider] [-m model] [-f|--force] "<prompt>"
-
-Engage in a context-aware conversation with an AI model.
-
-DESCRIPTION
-       The gemini command sends a prompt to a configured AI model.
-
-       When using the default 'gemini' provider (Google's API), it acts as a powerful
-       assistant capable of using system tools to answer questions about your files.
-       It orchestrates multiple steps behind the scenes (planning, tool execution, synthesis).
-
-       When using a local provider (e.g., 'ollama', 'llm-studio'), the user's prompt
-       is sent directly to the local model. Tool-use capabilities for local models
-       depend on the model's own training and user's explicit instructions in the prompt.
-       If a local provider is specified but unavailable, it will fall back to the
-       default 'gemini' provider and notify you.
-
-       The entire prompt, if it contains spaces, must be enclosed in double quotes.
-
-MODES
-       -c, --chat
-              Launches the full-screen Gemini Chat application for an interactive
-              conversational experience.
-
-PROVIDERS & MODELS
-       -p, --provider   Specify the provider (e.g., 'ollama', 'gemini').
-                        Defaults to 'gemini'.
-       -m, --model      Specify a model for the provider (e.g., 'llama3').
-                        Defaults to the provider's default model.
-
-OPTIONS
-       -n, --new
-              Starts a new, fresh conversation, clearing any previous
-              conversational memory from the current session.
-       -v, --verbose
-          Only applicable to the 'gemini' provider. Enable verbose logging to see
-          the AI's step-by-step plan and the output of the commands it executes.
-       -f, --force
-              Forces the use of the selected provider for the entire tool-use
-              orchestration (planning, tool execution, and synthesis steps).
-              This allows experimenting with local models to perform structured
-              tool-use. Results may vary significantly based on the local model's
-              training. An API key is only required if 'gemini' is the chosen
-              provider for this orchestration.
-
-EXAMPLES
-       gemini -c
-              Launches the interactive chat application.
-       gemini "Summarize my README.md and list any scripts in this directory"
-              (Uses Google Gemini, leveraging its tool-use capabilities)
-`;
-
-    CommandRegistry.register("gemini", geminiCommandDefinition, geminiDescription, geminiHelpText);
+    CommandRegistry.register(geminiCommandDefinition);
 })();
