@@ -1,30 +1,30 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(
+  all(not(debug_assertions), target_os = "windows"),
+  windows_subsystem = "windows"
+)]
 
 use tauri::Manager;
+use std::path::PathBuf;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-  let context = tauri::generate_context!();
-  tauri::Builder::default()
-    .setup(|app| {
-      // Get the directory where the .exe is running
-      let exe_path = app.path()
-        .executable_dir()
-        .expect("failed to get executable dir");
+// This is the command that will be called from the frontend
+#[tauri::command]
+fn get_data_dir(app: tauri::AppHandle) -> PathBuf {
+    app.path().app_data_dir().unwrap()
+}
 
-      // Define our portable data folder path
-      let data_dir = exe_path.join("OopisOS_Data");
+fn main() {
+    let context = tauri::generate_context!();
 
-      // Manually create the window using the public builder API
-      tauri::window::WindowBuilder::new(app.handle(), "main", tauri::WebviewUrl::App("index.html".into()))
-        .title("OopisOS")
-        .user_data_path(data_dir)
-        .build()
-        .expect("Failed to create portable window");
+    let mut builder = tauri::Builder::default();
 
-      Ok(())
-    })
-    .run(context)
-    .expect("error while running tauri application");
+    // This section is for portability
+    if let Some(exe_dir) = std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.to_path_buf())) {
+        let portable_data_dir = exe_dir.join("OopisOS_Data");
+        builder = builder.plugin(tauri_plugin_persisted-scope::init(Some(portable_data_dir)));
+    }
+
+    builder
+        .invoke_handler(tauri::generate_handler![get_data_dir])
+        .run(context)
+        .expect("error while running tauri application");
 }
