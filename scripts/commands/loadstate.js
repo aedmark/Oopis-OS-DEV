@@ -4,29 +4,8 @@
 
     const loadstateCommandDefinition = {
         commandName: "loadstate",
-        argValidation: {
-            exact: 0,
-        },
-
-        coreLogic: async () => {
-            try {
-                const result = await SessionManager.loadManualState();
-                return {
-                    success: result.success,
-                    output: result.message,
-                    error: result.success
-                        ? undefined
-                        : result.message || "Failed to load state.",
-                };
-            } catch (e) {
-                return { success: false, error: `loadstate: An unexpected error occurred: ${e.message}` };
-            }
-        },
-    };
-
-    const loadstateDescription = "Loads the last manually saved session state.";
-
-    const loadstateHelpText = `Usage: loadstate
+        description: "Loads the last manually saved session state.",
+        helpText: `Usage: loadstate
 
 Load the last manually saved session state for the current user.
 
@@ -42,7 +21,24 @@ DESCRIPTION
 WARNING
        This operation is destructive and will overwrite your current
        file system and session with the saved data. The command will
-       prompt for confirmation before proceeding.`;
-
-    CommandRegistry.register("loadstate", loadstateCommandDefinition, loadstateDescription, loadstateHelpText);
+       prompt for confirmation before proceeding.`,
+        argValidation: {
+            exact: 0,
+        },
+        coreLogic: async () => {
+            try {
+                const result = await SessionManager.loadManualState();
+                return {
+                    success: result.success,
+                    output: result.message,
+                    error: result.success
+                        ? undefined
+                        : result.message || "Failed to load state.",
+                };
+            } catch (e) {
+                return { success: false, error: `loadstate: An unexpected error occurred: ${e.message}` };
+            }
+        },
+    };
+    CommandRegistry.register(loadstateCommandDefinition);
 })();

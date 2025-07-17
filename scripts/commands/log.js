@@ -4,6 +4,30 @@
 
     const logCommandDefinition = {
         commandName: "log",
+        dependencies: [
+            'apps/log/log_ui.js',
+            'apps/log/log_manager.js'
+        ],
+        description: "A personal, timestamped journal and log application.",
+        helpText: `
+Usage: log ["entry text"]
+
+DESCRIPTION
+    The 'log' command is your personal journal within OopisOS.
+
+    Running 'log' with a quoted string as an argument will instantly
+    create a new, timestamped journal entry without opening the app.
+
+    Running 'log' with no arguments launches the full-screen application,
+    allowing you to view, search, and manage all your entries.
+
+EXAMPLES
+    log "Finished the first draft of the proposal."
+        Creates a new entry with the specified text.
+
+    log
+        Opens the main journal application.
+`,
         argValidation: {
             max: 1,
             error: "Usage: log [\"quick entry text\"]"
@@ -46,27 +70,5 @@
             }
         }
     };
-
-    const description = "A personal, timestamped journal and log application.";
-    const helpText = `
-Usage: log ["entry text"]
-
-DESCRIPTION
-    The 'log' command is your personal journal within OopisOS.
-
-    Running 'log' with a quoted string as an argument will instantly
-    create a new, timestamped journal entry without opening the app.
-
-    Running 'log' with no arguments launches the full-screen application,
-    allowing you to view, search, and manage all your entries.
-
-EXAMPLES
-    log "Finished the first draft of the proposal."
-        Creates a new entry with the specified text.
-
-    log
-        Opens the main journal application.
-`;
-
-    CommandRegistry.register("log", logCommandDefinition, description, helpText);
+    CommandRegistry.register(logCommandDefinition);
 })();
