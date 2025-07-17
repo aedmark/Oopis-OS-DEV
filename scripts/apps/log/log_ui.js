@@ -24,7 +24,7 @@ const LogUI = (() => {
         elements.newBtn.addEventListener('click', () => callbacks.onNew());
         elements.saveBtn.addEventListener('click', () => callbacks.onSave());
         elements.exitBtn.addEventListener('click', () => callbacks.onExit());
-        elements.contentView.addEventListener('input', () => callbacks.onContentChange());
+        elements.contentView.addEventListener('input', () => callbacks.onContentChange(elements.contentView.value));
 
         const header = Utils.createElement('header', { className: 'log-app__header' },
             Utils.createElement('h2', { textContent: 'Captain\'s Log' }),

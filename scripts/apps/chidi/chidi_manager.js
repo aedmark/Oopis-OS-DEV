@@ -75,7 +75,17 @@ class ChidiManager extends App {
 
     _createCallbacks() {
         return {
-            onAsk: async (userQuestion) => {
+            onAsk: async () => {
+                const userQuestion = await new Promise(resolve => {
+                    ModalManager.request({
+                        context: 'graphical',
+                        type: 'input',
+                        messageLines: ["Ask a question about all loaded documents:"],
+                        onConfirm: (value) => resolve(value),
+                        onCancel: () => resolve(null)
+                    });
+                });
+
                 if (!userQuestion || !userQuestion.trim()) return;
 
                 ChidiUI.toggleLoader(true);
@@ -139,7 +149,19 @@ class ChidiManager extends App {
                     ChidiUI.showMessage(`Error: ${result.error}`, true);
                 }
             },
-            onSaveSession: async (filename) => {
+            onSaveSession: async () => {
+                const filename = await new Promise(resolve => {
+                    ModalManager.request({
+                        context: 'graphical',
+                        type: 'input',
+                        messageLines: ["Save Chidi Session As:"],
+                        placeholder: `chidi_session_${new Date().toISOString().split('T')[0]}.html`,
+                        onConfirm: (value) => resolve(value.trim()),
+                        onCancel: () => resolve(null)
+                    });
+                });
+                if (!filename) return;
+
                 const htmlContent = ChidiUI.packageSessionAsHTML(this.state);
                 const absPath = FileSystemManager.getAbsolutePath(filename);
                 const saveResult = await FileSystemManager.createOrUpdateFile(absPath, htmlContent, {

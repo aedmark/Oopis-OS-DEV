@@ -12,6 +12,13 @@ class LogManager extends App {
         if (this.isActive) return;
 
         this.isActive = true;
+        this.state = {
+            allEntries: [],
+            filteredEntries: [],
+            selectedPath: null,
+            isDirty: false,
+        };
+
         this.container = LogUI.buildLayout(this.callbacks);
         appLayer.appendChild(this.container);
 
@@ -130,11 +137,10 @@ class LogManager extends App {
                     alert(`Error saving: ${result.error}`);
                 }
             },
-            onContentChange: () => {
+            onContentChange: (newContent) => {
                 const selectedEntry = this.state.allEntries.find(e => e.path === this.state.selectedPath);
                 if (!selectedEntry) return;
-                const currentContent = LogUI.getContent();
-                this.state.isDirty = currentContent !== selectedEntry.content;
+                this.state.isDirty = newContent !== selectedEntry.content;
                 LogUI.updateSaveButton(this.state.isDirty);
             }
         };

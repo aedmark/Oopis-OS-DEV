@@ -105,42 +105,16 @@ const ChidiUI = (() => {
     }
 
     function _setupEventListeners() {
-        elements.closeBtn.addEventListener('click', () => callbacks.onClose());
-        elements.exportBtn.addEventListener('click', () => callbacks.onExport());
-
+        elements.closeBtn.addEventListener('click', callbacks.onClose);
+        elements.exportBtn.addEventListener('click', callbacks.onExport);
         elements.selectorTrigger.addEventListener('click', (e) => {
             e.stopPropagation();
             _toggleDropdown();
         });
-
-        elements.askBtn.addEventListener('click', async () => {
-            const userQuestion = await new Promise(resolve => {
-                ModalManager.request({
-                    context: 'graphical',
-                    type: 'input',
-                    messageLines: ["Ask a question about all loaded documents:"],
-                    onConfirm: (value) => resolve(value),
-                    onCancel: () => resolve(null)
-                });
-            });
-            if (userQuestion) callbacks.onAsk(userQuestion);
-        });
-
-        elements.summarizeBtn.addEventListener('click', () => callbacks.onSummarize());
-        elements.studyBtn.addEventListener('click', () => callbacks.onStudy());
-        elements.saveSessionBtn.addEventListener('click', async () => {
-            const filename = await new Promise(resolve => {
-                ModalManager.request({
-                    context: 'graphical',
-                    type: 'input',
-                    messageLines: ["Save Chidi Session As:"],
-                    placeholder: `chidi_session_${new Date().toISOString().split('T')[0]}.html`,
-                    onConfirm: (value) => resolve(value.trim()),
-                    onCancel: () => resolve(null)
-                });
-            });
-            if (filename) callbacks.onSaveSession(filename);
-        });
+        elements.askBtn.addEventListener('click', callbacks.onAsk);
+        elements.summarizeBtn.addEventListener('click', callbacks.onSummarize);
+        elements.studyBtn.addEventListener('click', callbacks.onStudy);
+        elements.saveSessionBtn.addEventListener('click', callbacks.onSaveSession);
 
         document.addEventListener('keydown', (e) => {
             if (!elements.container?.isConnected) return;
@@ -198,7 +172,7 @@ const ChidiUI = (() => {
     function packageSessionAsHTML(state) {
         const currentFile = state.loadedFiles[state.currentIndex];
         const content = elements.markdownDisplay.innerHTML;
-        const title = `Chidi Session: ${currentFile.name}`;
+        const title = `Chidi Session: ${currentFile?.name || 'Untitled'}`;
         const styles = "body{background-color:#0d0d0d;color:#e4e4e7;font-family:'VT323',monospace;line-height:1.6;padding:2rem}h1,h2,h3{border-bottom:1px solid #444;padding-bottom:.3rem;color:#60a5fa}a{color:#34d399}pre{white-space:pre-wrap;background-color:#000;padding:1rem;border-radius:4px}.chidi-ai-output{border-top:2px dashed #60a5fa;margin-top:2rem;padding-top:1rem}";
         return `<!DOCTYPE html><html lang="en"><head><title>${title}</title><style>${styles}</style></head><body><h1>${title}</h1>${content}</body></html>`;
     }
