@@ -4,6 +4,33 @@
 
     const restoreCommandDefinition = {
         commandName: "restore",
+        description: "Restores the entire system state from a backup file.",
+        helpText: `Usage: restore
+
+Restore the entire OopisOS system state from a backup file.
+
+DESCRIPTION
+       The restore command initiates a full system restoration from a
+       '.json' file previously created with the 'backup' command.
+
+       When run in the Electron desktop app, this command will open a native
+       file selection dialog. Otherwise, it will use the browser's uploader.
+
+       The system will first verify the backup file's integrity using
+       an embedded checksum. If the file is valid, you will be asked
+       for final confirmation.
+
+       Upon confirmation, the entire current state of OopisOS will be
+       wiped and replaced with the data from the backup file. This
+       includes all users, groups, files, directories, aliases, and
+       saved session states.
+
+       After a successful restore, the system will automatically reboot.
+
+WARNING
+       THIS OPERATION IS IRREVERSIBLE AND WILL PERMANENTLY OVERWRITE
+       ALL CURRENT OOPISOS DATA. THE COMMAND WILL PROMPT FOR
+       CONFIRMATION BEFORE PROCEEDING.`,
         argValidation: {
             exact: 0,
         },
@@ -140,34 +167,5 @@
             }
         },
     };
-
-    const restoreDescription = "Restores the entire system state from a backup file.";
-    const restoreHelpText = `Usage: restore
-
-Restore the entire OopisOS system state from a backup file.
-
-DESCRIPTION
-       The restore command initiates a full system restoration from a
-       '.json' file previously created with the 'backup' command.
-
-       When run in the Electron desktop app, this command will open a native
-       file selection dialog. Otherwise, it will use the browser's uploader.
-
-       The system will first verify the backup file's integrity using
-       an embedded checksum. If the file is valid, you will be asked
-       for final confirmation.
-
-       Upon confirmation, the entire current state of OopisOS will be
-       wiped and replaced with the data from the backup file. This
-       includes all users, groups, files, directories, aliases, and
-       saved session states.
-
-       After a successful restore, the system will automatically reboot.
-
-WARNING
-       THIS OPERATION IS IRREVERSIBLE AND WILL PERMANENTLY OVERWRITE
-       ALL CURRENT OOPISOS DATA. THE COMMAND WILL PROMPT FOR
-       CONFIRMATION BEFORE PROCEEDING.`;
-
-    CommandRegistry.register("restore", restoreCommandDefinition, restoreDescription, restoreHelpText);
+    CommandRegistry.register(restoreCommandDefinition);
 })();

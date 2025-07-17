@@ -74,6 +74,38 @@
 
     const ocryptCommandDefinition = {
         commandName: "ocrypt",
+        description: "Securely encrypts or decrypts a file using AES-GCM.",
+        helpText: `Usage: ocrypt <-e|-d> [password] <file>
+
+Encrypt or decrypt a file using a password.
+
+DESCRIPTION
+       ocrypt provides strong, password-based encryption for files using the
+       AES-GCM standard. This is a secure method for protecting sensitive data.
+
+       You must specify either -e to encrypt or -d to decrypt.
+
+       If a password is not provided on the command line, you will be prompted
+       for one in interactive sessions.
+
+OPTIONS
+       -e, --encrypt
+              Encrypt the specified file. If the file exists, it will be
+              overwritten with the encrypted content. If it does not exist,
+              it will be created.
+
+       -d, --decrypt
+              Decrypt the specified file and print its contents to standard
+              output. This does not modify the original encrypted file.
+
+EXAMPLES
+       ocrypt -e mySecretPass /home/Guest/secrets.txt
+              Encrypts the contents of secrets.txt, saving the result back
+              to the same file.
+
+       ocrypt -d mySecretPass /home/Guest/secrets.txt
+              Decrypts secrets.txt and prints the original content to the
+              terminal.`,
         completionType: "paths",
         flagDefinitions: [
             { name: "encrypt", short: "-e", long: "--encrypt" },
@@ -156,39 +188,5 @@
             }
         }
     };
-
-    const ocryptDescription = "Securely encrypts or decrypts a file using AES-GCM.";
-    const ocryptHelpText = `Usage: ocrypt <-e|-d> [password] <file>
-
-Encrypt or decrypt a file using a password.
-
-DESCRIPTION
-       ocrypt provides strong, password-based encryption for files using the
-       AES-GCM standard. This is a secure method for protecting sensitive data.
-
-       You must specify either -e to encrypt or -d to decrypt.
-
-       If a password is not provided on the command line, you will be prompted
-       for one in interactive sessions.
-
-OPTIONS
-       -e, --encrypt
-              Encrypt the specified file. If the file exists, it will be
-              overwritten with the encrypted content. If it does not exist,
-              it will be created.
-
-       -d, --decrypt
-              Decrypt the specified file and print its contents to standard
-              output. This does not modify the original encrypted file.
-
-EXAMPLES
-       ocrypt -e mySecretPass /home/Guest/secrets.txt
-              Encrypts the contents of secrets.txt, saving the result back
-              to the same file.
-
-       ocrypt -d mySecretPass /home/Guest/secrets.txt
-              Decrypts secrets.txt and prints the original content to the
-              terminal.`;
-
-    CommandRegistry.register("ocrypt", ocryptCommandDefinition, ocryptDescription, ocryptHelpText);
+    CommandRegistry.register(ocryptCommandDefinition);
 })();

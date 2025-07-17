@@ -4,6 +4,33 @@
 
     const rmCommandDefinition = {
         commandName: "rm",
+        description: "Removes files or directories.",
+        helpText: `Usage: rm [OPTION]... [FILE]...
+
+Remove files or directories.
+
+DESCRIPTION
+       The rm command removes each specified file. By default, it does not
+       remove directories.
+
+       In an interactive session, rm will prompt for confirmation before
+       removing a file. This behavior can be controlled with the -f and
+       -i flags.
+
+OPTIONS
+       -f, --force
+              Attempt to remove the files without prompting for
+              confirmation, regardless of the file's permissions.
+
+       -i, --interactive
+              Prompt for confirmation before every removal.
+
+       -r, -R, --recursive
+              Remove directories and their contents recursively.
+
+WARNING
+       Use this command with caution. Deleted files and directories
+       cannot be recovered.`,
         completionType: "paths",
         flagDefinitions: [
             { name: "recursive", short: "-r", long: "--recursive", aliases: ["-R"] },
@@ -88,34 +115,5 @@
             }
         },
     };
-
-    const rmDescription = "Removes files or directories.";
-    const rmHelpText = `Usage: rm [OPTION]... [FILE]...
-
-Remove files or directories.
-
-DESCRIPTION
-       The rm command removes each specified file. By default, it does not
-       remove directories.
-
-       In an interactive session, rm will prompt for confirmation before
-       removing a file. This behavior can be controlled with the -f and
-       -i flags.
-
-OPTIONS
-       -f, --force
-              Attempt to remove the files without prompting for
-              confirmation, regardless of the file's permissions.
-
-       -i, --interactive
-              Prompt for confirmation before every removal.
-
-       -r, -R, --recursive
-              Remove directories and their contents recursively.
-
-WARNING
-       Use this command with caution. Deleted files and directories
-       cannot be recovered.`;
-
-    CommandRegistry.register("rm", rmCommandDefinition, rmDescription, rmHelpText);
+    CommandRegistry.register(rmCommandDefinition);
 })();

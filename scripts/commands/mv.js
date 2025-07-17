@@ -4,6 +4,35 @@
 
     const mvCommandDefinition = {
         commandName: "mv",
+        description: "Move or rename files and directories.",
+        helpText: `Usage: mv [OPTION]... <source> <destination>
+       mv [OPTION]... <source>... <directory>
+
+Rename SOURCE to DEST, or move SOURCE(s) to DIRECTORY.
+
+DESCRIPTION
+       The mv command renames the file or directory at <source> to the
+       name given by <destination>, or moves it into an existing
+       <directory>.
+
+       If the last argument is an existing directory, all preceding
+       source files and directories are moved inside of it.
+
+OPTIONS
+       -f, --force
+              Do not prompt before overwriting. This option overrides a
+              previous -i option.
+
+       -i, --interactive
+              Prompt before overwriting an existing file.
+
+EXAMPLES
+       mv old_name.txt new_name.txt
+              Renames 'old_name.txt' to 'new_name.txt'.
+
+       mv report.txt notes.txt /home/Guest/documents/
+              Moves both 'report.txt' and 'notes.txt' into the 
+              'documents' directory.`,
         completionType: "paths",
         flagDefinitions: [
             { name: "force", short: "-f", long: "--force" },
@@ -116,36 +145,5 @@
             }
         }
     };
-
-    const mvDescription = "Move or rename files and directories.";
-    const mvHelpText = `Usage: mv [OPTION]... <source> <destination>
-       mv [OPTION]... <source>... <directory>
-
-Rename SOURCE to DEST, or move SOURCE(s) to DIRECTORY.
-
-DESCRIPTION
-       The mv command renames the file or directory at <source> to the
-       name given by <destination>, or moves it into an existing
-       <directory>.
-
-       If the last argument is an existing directory, all preceding
-       source files and directories are moved inside of it.
-
-OPTIONS
-       -f, --force
-              Do not prompt before overwriting. This option overrides a
-              previous -i option.
-
-       -i, --interactive
-              Prompt before overwriting an existing file.
-
-EXAMPLES
-       mv old_name.txt new_name.txt
-              Renames 'old_name.txt' to 'new_name.txt'.
-
-       mv report.txt notes.txt /home/Guest/documents/
-              Moves both 'report.txt' and 'notes.txt' into the 
-              'documents' directory.`;
-
-    CommandRegistry.register("mv", mvCommandDefinition, mvDescription, mvHelpText);
+    CommandRegistry.register(mvCommandDefinition);
 })();

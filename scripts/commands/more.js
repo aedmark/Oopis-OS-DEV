@@ -3,8 +3,26 @@
     "use strict";
     const moreCommandDefinition = {
         commandName: "more",
+        dependencies: ['utils.js'],
+        description: "Displays content one screen at a time.",
+        helpText: `Usage: more [file]
+
+Displays file content or standard input one screen at a time.
+
+DESCRIPTION
+        more is a filter for paging through text one screenful at a time.
+        When used in a non-interactive script, it prints the entire input
+        without pausing. In an interactive session, press SPACE to view
+        the next page, and 'q' to quit.
+
+EXAMPLES
+        more long_document.txt
+               Displays the document, pausing after each screen.
+
+        ls -l / | more
+               Pages through a long directory listing.`,
         isInputStream: true,
-        completionType: "paths", // Preserved for tab completion
+        completionType: "paths",
         coreLogic: async (context) => {
             const { options, inputItems, inputError } = context;
 
@@ -31,24 +49,5 @@
             }
         },
     };
-
-    const moreDescription = "Displays content one screen at a time.";
-    const moreHelpText = `Usage: more [file]
-
-Displays file content or standard input one screen at a time.
-
-DESCRIPTION
-        more is a filter for paging through text one screenful at a time.
-        When used in a non-interactive script, it prints the entire input
-        without pausing. In an interactive session, press SPACE to view
-        the next page, and 'q' to quit.
-
-EXAMPLES
-        more long_document.txt
-               Displays the document, pausing after each screen.
-
-        ls -l / | more
-               Pages through a long directory listing.`;
-
-    CommandRegistry.register("more", moreCommandDefinition, moreDescription, moreHelpText);
+    CommandRegistry.register(moreCommandDefinition);
 })();

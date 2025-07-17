@@ -4,12 +4,29 @@
 
     const rmdirCommandDefinition = {
         commandName: "rmdir",
+        description: "Removes empty directories.",
+        helpText: `Usage: rmdir [DIRECTORY]...
+
+Remove the DIRECTORY(ies), if they are empty.
+
+DESCRIPTION
+       The rmdir command removes empty directories from the filesystem.
+       This command provides a safe way to clean up directory structures,
+       as it will fail rather than delete a directory that still contains
+       files or other subdirectories.
+
+EXAMPLES
+       rmdir old_project/
+              Removes the 'old_project' directory, but only if it is empty.
+
+SEE ALSO
+       rm(1)`,
         completionType: "paths",
         argValidation: {
             min: 1,
             error: "missing operand"
         },
-        pathValidation: { // Added contract for the executor
+        pathValidation: {
             argIndex: 0,
             options: { expectedType: 'directory' },
             permissions: [] // write permission is checked on parent
@@ -42,24 +59,5 @@
             }
         }
     };
-
-    const rmdirDescription = "Removes empty directories.";
-    const rmdirHelpText = `Usage: rmdir [DIRECTORY]...
-
-Remove the DIRECTORY(ies), if they are empty.
-
-DESCRIPTION
-       The rmdir command removes empty directories from the filesystem.
-       This command provides a safe way to clean up directory structures,
-       as it will fail rather than delete a directory that still contains
-       files or other subdirectories.
-
-EXAMPLES
-       rmdir old_project/
-              Removes the 'old_project' directory, but only if it is empty.
-
-SEE ALSO
-       rm(1)`;
-
-    CommandRegistry.register("rmdir", rmdirCommandDefinition, rmdirDescription, rmdirHelpText);
+    CommandRegistry.register(rmdirCommandDefinition);
 })();

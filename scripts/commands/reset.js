@@ -4,10 +4,31 @@
 
     const resetCommandDefinition = {
         commandName: "reset",
+        description: "Resets the entire OopisOS system to factory defaults and clears caches.",
+        helpText: `Usage: reset
+
+Resets the entire OopisOS system to its factory default state.
+
+DESCRIPTION
+       The reset command is the most powerful and destructive command in
+       the system. It erases ALL data associated with OopisOS from your
+       browser's storage, including:
+       - All user accounts and credentials
+       - The entire file system
+       - All saved states and aliases
+       - All cached application data (from the service worker)
+
+       After running, the system will be as it was when you first
+       visited. This is different from 'clearfs', which only clears the
+       current user's file system.
+
+WARNING
+       THIS OPERATION IS IRREVERSIBLE AND WILL PERMANENTLY DELETE ALL
+       DATA FROM YOUR BROWSER. THE COMMAND WILL PROMPT FOR
+       CONFIRMATION BEFORE PROCEEDING.`,
         argValidation: {
             exact: 0,
         },
-
         coreLogic: async (context) => {
             const { options } = context;
 
@@ -65,29 +86,5 @@
             }
         },
     };
-
-    const resetDescription = "Resets the entire OopisOS system to factory defaults and clears caches.";
-    const resetHelpText = `Usage: reset
-
-Resets the entire OopisOS system to its factory default state.
-
-DESCRIPTION
-       The reset command is the most powerful and destructive command in
-       the system. It erases ALL data associated with OopisOS from your
-       browser's storage, including:
-       - All user accounts and credentials
-       - The entire file system
-       - All saved states and aliases
-       - All cached application data (from the service worker)
-
-       After running, the system will be as it was when you first
-       visited. This is different from 'clearfs', which only clears the
-       current user's file system.
-
-WARNING
-       THIS OPERATION IS IRREVERSIBLE AND WILL PERMANENTLY DELETE ALL
-       DATA FROM YOUR BROWSER. THE COMMAND WILL PROMPT FOR
-       CONFIRMATION BEFORE PROCEEDING.`;
-
-    CommandRegistry.register("reset", resetCommandDefinition, resetDescription, resetHelpText);
+    CommandRegistry.register(resetCommandDefinition);
 })();
