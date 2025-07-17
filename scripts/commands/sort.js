@@ -23,8 +23,8 @@
                     return { success: true, output: "" };
                 }
 
-                const input = inputItems.map(item => item.content).join('\\n');
-                let lines = input.split('\\n');
+                const input = inputItems.map(item => item.content).join('\n');
+                let lines = input.split('\n');
 
                 if (lines.length > 0 && lines.at(-1) === '') {
                     lines.pop();
@@ -60,7 +60,7 @@
 
                 return {
                     success: true,
-                    output: lines.join('\\n')
+                    output: lines.join('\n')
                 };
             } catch (e) {
                 return { success: false, error: `sort: An unexpected error occurred: ${e.message}` };

@@ -27,12 +27,12 @@
                     return { success: true, output: "" };
                 }
 
-                const inputText = inputItems.map(item => item.content).join('\\n');
+                const inputText = inputItems.map(item => item.content).join('\n');
                 if (!inputText) {
                     return { success: true, output: "" };
                 }
 
-                let lines = inputText.split('\\n');
+                let lines = inputText.split('\n');
                 if (lines.length > 0 && lines[lines.length - 1] === '') {
                     lines.pop();
                 }
@@ -60,7 +60,7 @@
                         }
                     }
                 }
-                return { success: true, output: outputLines.join('\\n') };
+                return { success: true, output: outputLines.join('\n') };
             } catch (e) {
                 return { success: false, error: `uniq: An unexpected error occurred: ${e.message}` };
             }

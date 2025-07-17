@@ -22,13 +22,13 @@
                     return { success: true, output: "" };
                 }
 
-                const content = inputItems.map(item => item.content).join('\\n');
+                const content = inputItems.map(item => item.content).join('\n');
 
                 if (flags.numberLines) {
                     let lineCounter = 1;
-                    const lines = content.split('\\n');
+                    const lines = content.split('\n');
                     const processedLines = (lines.length > 0 && lines[lines.length - 1] === '') ? lines.slice(0, -1) : lines;
-                    const numberedOutput = processedLines.map(line => `     ${String(lineCounter++).padStart(5)}  ${line}`).join('\\n');
+                    const numberedOutput = processedLines.map(line => `     ${String(lineCounter++).padStart(5)}  ${line}`).join('\n');
                     return { success: true, output: numberedOutput };
                 }
 

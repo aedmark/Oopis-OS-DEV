@@ -31,7 +31,7 @@
                     return { success: true, output: "" };
                 }
 
-                const inputText = inputItems.map(item => item.content).join('\\n');
+                const inputText = inputItems.map(item => item.content).join('\n');
                 const separator = flags.fieldSeparator ? new RegExp(flags.fieldSeparator) : /\s+/;
                 let outputLines = [];
                 let nr = 0;
@@ -43,7 +43,7 @@
                     }
                 }
 
-                const lines = inputText.split('\\n');
+                const lines = inputText.split('\n');
                 for (const line of lines) {
                     if (line === '' && lines.at(-1) === '') continue;
                     nr++;
@@ -68,7 +68,7 @@
                     }
                 }
 
-                return { success: true, output: outputLines.join('\\n') };
+                return { success: true, output: outputLines.join('\n') };
             } catch (e) {
                 return { success: false, error: `awk: An unexpected error occurred: ${e.message}` };
             }

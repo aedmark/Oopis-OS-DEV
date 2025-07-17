@@ -21,7 +21,7 @@
                     return { success: true, output: "" };
                 }
 
-                const inputData = inputItems.map(item => item.content).join('\\n');
+                const inputData = inputItems.map(item => item.content).join('\n');
 
                 if (flags.decode) {
                     // The 'atob' function in browsers correctly handles whitespace.
@@ -30,7 +30,7 @@
                 } else {
                     const encodedData = btoa(inputData);
                     // Standard base64 output is often wrapped at 76 characters, but 64 is also common.
-                    return { success: true, output: encodedData.replace(/(.{64})/g, "$1\\n") };
+                    return { success: true, output: encodedData.replace(/(.{64})/g, "$1\n") };
                 }
             } catch (e) {
                 // This specifically catches errors from atob() on invalid input.

@@ -26,7 +26,7 @@
                     return { success: false, error: "tail: cannot use both -n and -c" };
                 }
 
-                const input = inputItems.map(item => item.content).join('\\n');
+                const input = inputItems.map(item => item.content).join('\n');
 
                 let lineCount = 10;
                 if (flags.lines) {
@@ -50,10 +50,10 @@
                 if (byteCount !== null) {
                     output = input.substring(input.length - byteCount);
                 } else {
-                    const lines = input.split('\\n');
+                    const lines = input.split('\n');
                     // Per standard 'tail' behavior, don't treat a final blank line as a line to be counted.
                     const relevantLines = lines.at(-1) === '' ? lines.slice(0, -1) : lines;
-                    output = relevantLines.slice(-lineCount).join('\\n');
+                    output = relevantLines.slice(-lineCount).join('\n');
                 }
 
                 return { success: true, output: output };

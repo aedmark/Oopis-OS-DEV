@@ -25,7 +25,7 @@
                     return { success: false, error: "head: cannot use both -n and -c" };
                 }
 
-                const input = inputItems.map(item => item.content).join('\\n');
+                const input = inputItems.map(item => item.content).join('\n');
 
                 let lineCount = 10;
                 if (flags.lines) {
@@ -49,7 +49,7 @@
                 if (byteCount !== null) {
                     output = input.substring(0, byteCount);
                 } else {
-                    output = input.split('\\n').slice(0, lineCount).join('\\n');
+                    output = input.split('\n').slice(0, lineCount).join('\n');
                 }
 
                 return { success: true, output: output };

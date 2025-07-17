@@ -42,12 +42,12 @@
 
                 for (const item of inputItems) {
                     const content = item.content || "";
-                    const lines = content.split('\\n');
+                    const lines = content.split('\n');
                     const lineCount = (lines.length > 0 && lines[lines.length - 1] === '') ? lines.length - 1 : lines.length;
 
                     const counts = {
                         lines: lineCount,
-                        words: content.trim() === '' ? 0 : content.trim().split(/\\s+/).length,
+                        words: content.trim() === '' ? 0 : content.trim().split(/\s+/).length,
                         bytes: content.length
                     };
 
@@ -72,7 +72,7 @@
 
                 return {
                     success: true,
-                    output: outputLines.join('\\n'),
+                    output: outputLines.join('\n'),
                 };
             } catch (e) {
                 return { success: false, error: `wc: An unexpected error occurred: ${e.message}` };
