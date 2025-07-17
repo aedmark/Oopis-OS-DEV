@@ -44,6 +44,7 @@ class EditorManager extends App {
             const confirmed = await new Promise(resolve => {
                 ModalManager.request({
                     context: 'graphical',
+                    type: 'confirm',
                     messageLines: ["You have unsaved changes that will be lost.", "Are you sure you want to exit?"],
                     confirmText: "Discard Changes",
                     cancelText: "Cancel",
@@ -107,7 +108,8 @@ class EditorManager extends App {
                 if (!savePath) {
                     savePath = await new Promise(resolve => {
                         ModalManager.request({
-                            context: 'graphical-input',
+                            context: 'graphical',
+                            type: 'input',
                             messageLines: ["Save New File"],
                             placeholder: "/home/Guest/untitled.txt",
                             onConfirm: (value) => resolve(value),

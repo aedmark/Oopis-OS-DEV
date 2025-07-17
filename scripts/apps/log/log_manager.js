@@ -35,6 +35,7 @@ class LogManager extends App {
         if (this.state.isDirty) {
             ModalManager.request({
                 context: 'graphical',
+                type: 'confirm',
                 messageLines: ["You have unsaved changes that will be lost.", "Exit without saving?"],
                 onConfirm: performExit,
                 onCancel: () => {}
@@ -83,6 +84,7 @@ class LogManager extends App {
                 if (this.state.isDirty) {
                     const confirmed = await new Promise(r => ModalManager.request({
                         context: 'graphical',
+                        type: 'confirm',
                         messageLines: ["You have unsaved changes. Discard them?"],
                         onConfirm: () => r(true), onCancel: () => r(false)
                     }));
@@ -97,10 +99,12 @@ class LogManager extends App {
             },
             onNew: async () => {
                 const title = await new Promise(resolve => ModalManager.request({
-                    context: 'graphical-input',
+                    context: 'graphical',
+                    type: 'input',
                     messageLines: ["Enter New Log Title:"],
                     placeholder: "A new beginning...",
-                    onConfirm: (value) => resolve(value), onCancel: () => resolve(null)
+                    onConfirm: (value) => resolve(value),
+                    onCancel: () => resolve(null)
                 }));
                 if (title) {
                     const newContent = `# ${title}`;

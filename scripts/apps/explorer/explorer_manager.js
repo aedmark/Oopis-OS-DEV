@@ -37,7 +37,8 @@ class ExplorerManager extends App {
             },
             onCreateFile: (path) => {
                 ModalManager.request({
-                    context: 'graphical-input',
+                    context: 'graphical',
+                    type: 'input',
                     messageLines: ["Enter New File Name:"],
                     placeholder: "new_file.txt",
                     onConfirm: async (name) => {
@@ -60,7 +61,8 @@ class ExplorerManager extends App {
             },
             onCreateDirectory: (path) => {
                 ModalManager.request({
-                    context: 'graphical-input',
+                    context: 'graphical',
+                    type: 'input',
                     messageLines: ["Enter New Directory Name:"],
                     placeholder: "new_directory",
                     onConfirm: async (name) => {
@@ -74,7 +76,8 @@ class ExplorerManager extends App {
             },
             onRename: (path, oldName) => {
                 ModalManager.request({
-                    context: 'graphical-input',
+                    context: 'graphical',
+                    type: 'input',
                     messageLines: [`Rename "${oldName}":`],
                     placeholder: oldName,
                     onConfirm: async (newName) => {
@@ -90,6 +93,7 @@ class ExplorerManager extends App {
             onDelete: (path, name) => {
                 ModalManager.request({
                     context: 'graphical',
+                    type: 'confirm',
                     messageLines: [`Are you sure you want to delete "${name}"?`, "This action cannot be undone."],
                     onConfirm: async () => {
                         await CommandExecutor.processSingleCommand(`rm -r "${path}"`, {
@@ -221,5 +225,4 @@ class ExplorerManager extends App {
     }
 }
 
-// Instantiate a single instance of the manager.
 const Explorer = new ExplorerManager();
