@@ -3,8 +3,7 @@
     "use strict";
 
     function formatManPage(commandName, commandData) {
-        const definition = commandData.definition;
-        if (!commandData || !definition) {
+        if (!commandData) {
             return `No manual entry for ${commandName}`;
         }
 
@@ -32,9 +31,9 @@
             output.push("");
         }
 
-        if (definition.flagDefinitions && definition.flagDefinitions.length > 0) {
+        if (commandData.flagDefinitions && commandData.flagDefinitions.length > 0) {
             output.push("OPTIONS");
-            definition.flagDefinitions.forEach(flag => {
+            commandData.flagDefinitions.forEach(flag => {
                 let flagLine = "       ";
                 const short = flag.short;
                 const long = flag.long;
@@ -55,7 +54,20 @@
 
     const manCommandDefinition = {
         commandName: "man",
-        completionType: "commands", // Preserved for tab completion
+        description: "Formats and displays the manual page for a command.",
+        helpText: `Usage: man <command>
+
+Displays the manual page for a given command.
+
+DESCRIPTION
+       The man command formats and displays the manual page for a specified
+       command. Manual pages include a command's synopsis, a detailed
+       description of its function, and a list of its available options.
+
+EXAMPLES
+       man ls
+              Displays the comprehensive manual page for the 'ls' command.`,
+        completionType: "commands",
         argValidation: {
             exact: 1,
             error: "what manual page do you want?",
@@ -95,21 +107,5 @@
             }
         },
     };
-
-    const manDescription = "Formats and displays the manual page for a command.";
-
-    const manHelpText = `Usage: man <command>
-
-Displays the manual page for a given command.
-
-DESCRIPTION
-       The man command formats and displays the manual page for a specified
-       command. Manual pages include a command's synopsis, a detailed
-       description of its function, and a list of its available options.
-
-EXAMPLES
-       man ls
-              Displays the comprehensive manual page for the 'ls' command.`;
-
-    CommandRegistry.register("man", manCommandDefinition, manDescription, manHelpText);
+    CommandRegistry.register(manCommandDefinition);
 })();

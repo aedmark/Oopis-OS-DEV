@@ -19,7 +19,6 @@
         };
     }
 
-    // REFACTORED: This function now correctly formats the date according to POSIX standards.
     function formatLongListItem(itemDetails, effectiveFlags) {
         const perms = FileSystemManager.formatModeToString(itemDetails.node);
         const owner = (itemDetails.node.owner || "unknown").padEnd(10);
@@ -40,17 +39,15 @@
             const day = fileDate.getDate().toString().padStart(2, ' ');
 
             if (fileDate > sixMonthsAgo) {
-                // Recent file: Show HH:MM
                 const hours = fileDate.getHours().toString().padStart(2, '0');
                 const minutes = fileDate.getMinutes().toString().padStart(2, '0');
                 dateStr = `${month} ${day} ${hours}:${minutes}`;
             } else {
-                // Older file: Show YYYY
                 const year = fileDate.getFullYear();
                 dateStr = `${month} ${day}  ${year}`;
             }
         } else {
-            dateStr = "Jan  1  1970"; // Default for invalid dates
+            dateStr = "Jan  1  1970";
         }
 
         const nameSuffix = itemDetails.type === 'directory' && !effectiveFlags.dirsOnly ? '/' : "";
@@ -75,7 +72,6 @@
             if (currentFlags.sortByExtension) {
                 return (a.extension.localeCompare(b.extension) || a.name.localeCompare(b.name)) * sortOrder;
             }
-            // Default sort by name
             return a.name.localeCompare(b.name) * sortOrder;
         });
 
@@ -85,20 +81,18 @@
     function formatToColumns(names) {
         if (names.length === 0) return "";
 
-        // Ensure DOM elements and utility functions are available.
         const terminalDiv = document.getElementById("terminal");
         const getCharDimensions = (typeof Utils !== 'undefined' && Utils.getCharacterDimensions)
             ? Utils.getCharacterDimensions
-            : () => ({ width: 8, height: 16 }); // Fallback
+            : () => ({ width: 8, height: 16 });
 
         const terminalWidth = terminalDiv?.clientWidth || 80 * getCharDimensions().width;
         const charWidth = getCharDimensions().width || 8;
         const displayableCols = Math.floor(terminalWidth / charWidth);
 
         const longestName = names.reduce((max, name) => Math.max(max, name.length), 0);
-        const colWidth = longestName + 2; // Add padding
+        const colWidth = longestName + 2;
 
-        // If even the longest name doesn't fit, default to a single column.
         if (colWidth > displayableCols) {
             return names.join('\\n');
         }
@@ -113,7 +107,6 @@
                 const index = j * numRows + i;
                 if (index < names.length) {
                     const item = names[index];
-                    // Use padEnd to ensure consistent column width.
                     row += item.padEnd(colWidth);
                 }
             }
@@ -176,12 +169,36 @@
             }
         }
 
-        // FIXED: Use correct newline character
         return { success: true, output: currentPathOutputLines.join("\n"), items: itemDetailsList, isDir: targetNode.type === 'directory' };
     }
 
     const lsCommandDefinition = {
         commandName: "ls",
+        description: "Lists directory contents and file information.",
+        helpText: `Usage: ls [OPTION]... [FILE]...
+
+List information about the FILEs (the current directory by default).
+Sort entries alphabetically if none of -tSUXU is specified.
+
+DESCRIPTION
+       The ls command lists files and directories. By default, it lists
+       the contents of the current directory. If one or more files or
+       directories are given, it lists information about them. When the
+       output is not a terminal (e.g., a pipe), it defaults to a single
+       column format.
+
+OPTIONS
+       -l              Use a long listing format.
+       -a              Do not ignore entries starting with .
+       -R              List subdirectories recursively.
+       -r              Reverse order while sorting.
+       -t              Sort by modification time, newest first.
+       -S              Sort by file size, largest first.
+       -X              Sort alphabetically by entry extension.
+       -U              Do not sort; list entries in directory order.
+       -d              List directories themselves, not their contents.
+       -1              List one file per line.
+       -h              With -l, print sizes in human-readable format.`,
         completionType: "paths",
         flagDefinitions: [
             { name: "long", short: "-l" },
@@ -277,39 +294,11 @@
                     outputBlocks = [...errorOutputs, ...outputBlocks];
                 }
 
-                // FIXED: Use correct newline character
                 return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: outputBlocks.join("\n") };
             } catch (e) {
                 return { success: false, error: `ls: An unexpected error occurred: ${e.message}` };
             }
         },
     };
-
-    const lsDescription = "Lists directory contents and file information.";
-    const lsHelpText = `Usage: ls [OPTION]... [FILE]...
-
-List information about the FILEs (the current directory by default).
-Sort entries alphabetically if none of -tSUXU is specified.
-
-DESCRIPTION
-       The ls command lists files and directories. By default, it lists
-       the contents of the current directory. If one or more files or
-       directories are given, it lists information about them. When the
-       output is not a terminal (e.g., a pipe), it defaults to a single
-       column format.
-
-OPTIONS
-       -l              Use a long listing format.
-       -a              Do not ignore entries starting with .
-       -R              List subdirectories recursively.
-       -r              Reverse order while sorting.
-       -t              Sort by modification time, newest first.
-       -S              Sort by file size, largest first.
-       -X              Sort alphabetically by entry extension.
-       -U              Do not sort; list entries in directory order.
-       -d              List directories themselves, not their contents.
-       -1              List one file per line.
-       -h              With -l, print sizes in human-readable format.`;
-
-    CommandRegistry.register("ls", lsCommandDefinition, lsDescription, lsHelpText);
+    CommandRegistry.register(lsCommandDefinition);
 })();
