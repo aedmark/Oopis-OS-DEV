@@ -41,7 +41,9 @@ const CommandExecutor = (() => {
     const dependencies = Config.COMMAND_DEPENDENCIES[commandName] || [];
 
     try {
-      await Promise.all(dependencies.map(dep => _loadScript(dep)));
+      for (const dep of dependencies) {
+        await _loadScript(dep);
+      }
       await _loadScript(commandScriptPath);
     } catch (error) {
       console.error(`Error loading command '${commandName}' or its dependencies.`, error);
@@ -60,6 +62,7 @@ const CommandExecutor = (() => {
 
     return false;
   }
+
 
   async function* _generateInputContent(context, firstFileArgIndex = 0) {
     const {args, options, currentUser} = context;
