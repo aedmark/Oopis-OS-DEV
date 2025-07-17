@@ -15,14 +15,34 @@
   },
   "license": "MIT",
   "author": "Andrew Edmark & Gemini <oopismcgoopis@gmail.com> (https://oopisos.com/)",
+  "main": "electron.js",
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build"
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.oopisos.app",
+    "productName": "OopisOS",
+    "files": [
+      "**/*",
+      "!{dist,release,build}",
+      "!*.{map,ts,md}",
+      "!**/*.{o,h}"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icons/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "deb"
+      ],
+      "icon": "icons/"
+    }
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.6.2"
-  },
-  "dependencies": {
-    "@tauri-apps/api": "^2.6.0"
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12"
   }
 }
