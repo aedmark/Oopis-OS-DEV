@@ -109,8 +109,7 @@ SCRIPTING
 
                     if (!result.success) {
                         await OutputManager.appendToOutput(`Script '${scriptPathArg}' error on line ${i + 1}: ${line}\nError: ${result.error || 'Command failed.'}`, { typeClass: 'text-error' });
-                        overallSuccess = false;
-                        break;
+                        return result;
                     }
                 }
 
