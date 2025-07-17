@@ -164,19 +164,6 @@ const Config = (() => {
             "tree", "unalias", "uniq", "unset", "unzip", "upload", "useradd", "usermod",
             "visudo", "wc", "wget", "whoami", "xor", "zip", "xargs"
         ],
-        COMMAND_DEPENDENCIES: {
-            'adventure': ['apps/adventure/adventure_ui.js', 'apps/adventure/adventure_manager.js', 'apps/adventure/adventure_create.js'],
-            'basic': ['apps/basic/basic_interp.js', 'apps/basic/basic_ui.js', 'apps/basic/basic_manager.js'],
-            'chidi': ['apps/chidi/chidi_ui.js', 'apps/chidi/chidi_manager.js'],
-            'code': ['apps/code/code_ui.js', 'apps/code/code_manager.js'],
-            'edit': ['apps/editor/editor_ui.js', 'apps/editor/editor_manager.js'],
-            'explore': ['apps/explorer/explorer_ui.js', 'apps/explorer/explorer_manager.js'],
-            'gemini': ['apps/gemini_chat/gemini_chat_ui.js', 'apps/gemini_chat/gemini_chat_manager.js'],
-            'log': ['apps/log/log_ui.js', 'apps/log/log_manager.js'],
-            'paint': ['apps/paint/paint_ui.js', 'apps/paint/paint_manager.js'],
-            'less': ['utils.js'],
-            'more': ['utils.js']
-        }
     };
 
     let currentConfig = Utils.deepCopyNode(defaultConfig);

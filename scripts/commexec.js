@@ -30,34 +30,31 @@ const CommandExecutor = (() => {
     if (!commandName || typeof commandName !== 'string') return false;
     if (commands[commandName]) return true;
 
-    // NEW: Check if the command should even exist
     if (!Config.COMMANDS_MANIFEST.includes(commandName)) {
-      // It's not a built-in command, so don't even try to load a script.
-      // This is likely an alias that wasn't resolved or a typo.
       return false;
     }
 
     const commandScriptPath = `commands/${commandName}.js`;
-    const dependencies = Config.COMMAND_DEPENDENCIES[commandName] || [];
-
     try {
-      for (const dep of dependencies) {
-        await _loadScript(dep);
-      }
       await _loadScript(commandScriptPath);
+      const definition = CommandRegistry.getDefinitions()[commandName];
+
+      if (definition) {
+        if (definition.dependencies && Array.isArray(definition.dependencies)) {
+          for (const dep of definition.dependencies) {
+            await _loadScript(dep);
+          }
+        }
+        commands[commandName] = {
+          handler: createCommandHandler(definition),
+          description: definition.description,
+          helpText: definition.helpText,
+        };
+        return true;
+      }
     } catch (error) {
       console.error(`Error loading command '${commandName}' or its dependencies.`, error);
       return false;
-    }
-
-    const definition = CommandRegistry.getDefinitions()[commandName];
-    if (definition) {
-      commands[commandName] = {
-        handler: createCommandHandler(definition.definition),
-        description: definition.description,
-        helpText: definition.helpText,
-      };
-      return true;
     }
 
     return false;
