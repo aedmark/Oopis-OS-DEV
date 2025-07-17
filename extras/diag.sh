@@ -315,12 +315,12 @@ cksum cksum_test.txt
 rm cksum_test.txt
 echo "cksum and sync tests complete."
 delay 400
-echo "--- Test: csplit ---"
-echo "alpha" > csplit_test.txt
-echo "bravo" >> csplit_test.txt
-echo "charlie" >> csplit_test.txt
-echo "delta" >> csplit_test.txt
-echo "echo" >> csplit_test.txt
+# --- Test: csplit ---
+echo -e "alpha\n" > csplit_test.txt
+echo -e "bravo\n" >> csplit_test.txt
+echo -e "charlie\n" >> csplit_test.txt
+echo -e "delta\n" >> csplit_test.txt
+echo -e "echo" >> csplit_test.txt
 csplit csplit_test.txt 3
 ls xx*
 rm -f xx00 xx01 csplit_test.txt
