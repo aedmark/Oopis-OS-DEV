@@ -43,35 +43,29 @@ MESSAGES.WELCOME_SUFFIX=!`;
         await createUserHomeDirectory(guestUsername);
         const rootNode = fsData[Config.FILESYSTEM.ROOT_PATH];
         if (rootNode) {
-            if (rootNode) {
-                rootNode.children["etc"] = {
-                    type: Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE,
-                    children: {},
+            rootNode.children["etc"] = {
+                type: Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE,
+                children: {},
+                owner: "root",
+                group: "root",
+                mode: 0o755,
+                mtime: nowISO,
+            };
+            rootNode.mtime = nowISO;
+
+            const etcNode = rootNode.children["etc"];
+            if (etcNode) {
+                etcNode.children["oopis.conf"] = {
+                    type: Config.FILESYSTEM.DEFAULT_FILE_TYPE,
+                    content: OOPIS_CONF_CONTENT,
                     owner: "root",
                     group: "root",
-                    mode: 0o755,
+                    mode: 0o644,
                     mtime: nowISO,
                 };
-                rootNode.mtime = nowISO;
-
-                const etcNode = rootNode.children["etc"];
-                if (etcNode) {
-                    etcNode.children["oopis.conf"] = {
-                        type: Config.FILESYSTEM.DEFAULT_FILE_TYPE,
-                        content: OOPIS_CONF_CONTENT,
-                        owner: "root",
-                        group: "root",
-                        mode: 0o644,
-                        mtime: nowISO,
-                    };
-                    etcNode.mtime = nowISO;
-                } else {
-                    console.error("FileSystemManager: Failed to create /etc directory.");
-                }
+                etcNode.mtime = nowISO;
             } else {
-                console.error(
-                    "FileSystemManager: Root node not found during initialization. Critical error."
-                );
+                console.error("FileSystemManager: Failed to create /etc directory.");
             }
         } else {
             console.error(
@@ -455,7 +449,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
 
         const ownerPerms = (node.mode >> 6) & 7;
         const groupPerms = (node.mode >> 3) & 7;
-        let p = node.mode & 7; // Other permissions
+        const otherPerms = node.mode & 7;
 
         const perm_str = (permValue) => {
             let str = "";
@@ -485,7 +479,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
             typeChar +
             perm_str(ownerPerms) +
             perm_str(groupPerms) +
-            perm_str(p)
+            perm_str(otherPerms)
         );
     }
 

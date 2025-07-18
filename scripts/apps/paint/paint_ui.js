@@ -95,7 +95,6 @@ const PaintUI = (() => {
         updateZoom(initialState.zoomLevel);
         _addEventListeners();
 
-        // **THE FIX**: Return the container instead of calling AppLayerManager
         return elements.container;
     }
 

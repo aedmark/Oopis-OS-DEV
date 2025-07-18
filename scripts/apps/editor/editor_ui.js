@@ -44,20 +44,19 @@ const EditorUI = (() => {
     function renderPreview(content, mode) {
         if (!elements.preview) return;
 
-        // Ensure a predictable, clean slate for rendering.
-        elements.preview.innerHTML = '';
-
         if (mode === 'markdown') {
             elements.preview.innerHTML = DOMPurify.sanitize(marked.parse(content));
         } else if (mode === 'html') {
-            // Create and append a new iframe for each render to ensure a clean context
-            const iframe = Utils.createElement('iframe', {style: 'width: 100%; height: 100%; border: none;'});
-            elements.preview.appendChild(iframe);
+            let iframe = elements.preview.querySelector('iframe');
+            if (!iframe) {
+                iframe = Utils.createElement('iframe', {style: 'width: 100%; height: 100%; border: none;'});
+                elements.preview.innerHTML = ''; // Clear any previous content
+                elements.preview.appendChild(iframe);
+            }
 
-            // Access contentWindow *after* appending to the DOM
             const iframeDoc = iframe.contentWindow.document;
             iframeDoc.open();
-            iframeDoc.write(DOMPurify.sanitize(content)); // Sanitize before writing
+            iframeDoc.write(DOMPurify.sanitize(content));
             iframeDoc.close();
         }
     }
