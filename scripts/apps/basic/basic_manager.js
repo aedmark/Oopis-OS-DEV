@@ -7,16 +7,14 @@ class BasicManager extends App {
         this.programBuffer = new Map();
         this.onInputPromiseResolver = null;
         this.loadOptions = {}; // To store the initial file path and content
+        this.callbacks = this._createCallbacks();
     }
 
     enter(appLayer, options = {}) {
         this.isActive = true;
         this.loadOptions = options;
 
-        this.container = BasicUI.buildLayout({
-            onInput: this._handleIdeInput.bind(this),
-            onExit: this.exit.bind(this)
-        });
+        this.container = BasicUI.buildLayout(this.callbacks);
 
         // The manager now handles appending to the app layer
         appLayer.appendChild(this.container);
@@ -50,6 +48,13 @@ class BasicManager extends App {
 
         BasicUI.writeln('READY.');
         setTimeout(() => BasicUI.focusInput(), 0);
+    }
+
+    _createCallbacks() {
+        return {
+            onInput: this._handleIdeInput.bind(this),
+            onExit: this.exit.bind(this)
+        };
     }
 
     _loadContentIntoBuffer(content) {

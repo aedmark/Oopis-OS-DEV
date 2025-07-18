@@ -12,6 +12,7 @@ class EditorManager extends App {
             }
             this.state.redoStack = []; // Clear redo on new action
         }, 500);
+        this.callbacks = this._createCallbacks();
     }
 
     enter(appLayer, options = {}) {
@@ -32,7 +33,7 @@ class EditorManager extends App {
         };
 
         this.isActive = true;
-        this.container = EditorUI.buildAndShow(this.state, this._getCallbacks());
+        this.container = EditorUI.buildAndShow(this.state, this.callbacks);
         appLayer.appendChild(this.container);
         this.container.focus();
     }
@@ -73,11 +74,11 @@ class EditorManager extends App {
         if (event.ctrlKey || event.metaKey) {
             let handled = true;
             switch (event.key.toLowerCase()) {
-                case 's': await this._getCallbacks().onSaveRequest(); break;
+                case 's': await this.callbacks.onSaveRequest(); break;
                 case 'o': this.exit(); break;
-                case 'p': this._getCallbacks().onTogglePreview(); break;
-                case 'z': event.shiftKey ? this._getCallbacks().onRedo() : this._getCallbacks().onUndo(); break;
-                case 'y': this._getCallbacks().onRedo(); break;
+                case 'p': this.callbacks.onTogglePreview(); break;
+                case 'z': event.shiftKey ? this.callbacks.onRedo() : this.callbacks.onUndo(); break;
+                case 'y': this.callbacks.onRedo(); break;
                 default: handled = false; break;
             }
             if (handled) event.preventDefault();
@@ -95,7 +96,7 @@ class EditorManager extends App {
         return 'text';
     }
 
-    _getCallbacks() {
+    _createCallbacks() {
         return {
             onContentChange: (newContent) => {
                 this.state.currentContent = newContent;

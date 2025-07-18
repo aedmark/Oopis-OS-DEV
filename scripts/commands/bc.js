@@ -5,7 +5,7 @@
     const _safeEvaluate = (expression) => {
         const cleanExpression = expression.replace(/\s+/g, '');
 
-        const tokens = cleanExpression.match(/(\d+\.?\d*|\+|\-|\*|\/|%|\(|\))/g);
+        const tokens = cleanExpression.match(/(\d+\.?\d*|\+|-|\*|\/|%|\(|\))/g);
 
         if (!tokens || tokens.join('') !== cleanExpression) {
             throw new Error("Invalid characters in expression.");
