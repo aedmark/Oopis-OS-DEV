@@ -67,13 +67,13 @@ class EditorManager extends App {
         this.state = {};
     }
 
-    handleKeyDown(event) {
+    async handleKeyDown(event) {
         if (!this.isActive) return;
 
         if (event.ctrlKey || event.metaKey) {
             let handled = true;
             switch (event.key.toLowerCase()) {
-                case 's': this._getCallbacks().onSaveRequest(); break;
+                case 's': await this._getCallbacks().onSaveRequest(); break;
                 case 'o': this.exit(); break;
                 case 'p': this._getCallbacks().onTogglePreview(); break;
                 case 'z': event.shiftKey ? this._getCallbacks().onRedo() : this._getCallbacks().onUndo(); break;

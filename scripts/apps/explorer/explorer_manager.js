@@ -126,14 +126,14 @@ class ExplorerManager extends App {
         };
     }
 
-    enter(appLayer, options = {}) {
+    async enter(appLayer, options = {}) {
         const startPath = options.startPath || FileSystemManager.getCurrentPath();
         const pathValidation = FileSystemManager.validatePath(startPath, {
             allowMissing: false
         });
 
         if (pathValidation.error) {
-            OutputManager.appendToOutput(`explore: ${pathValidation.error}`, {
+            await OutputManager.appendToOutput(`explore: ${pathValidation.error}`, {
                 typeClass: 'text-error'
             });
             return;
