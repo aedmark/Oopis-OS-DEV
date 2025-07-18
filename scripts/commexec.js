@@ -19,8 +19,7 @@ const CommandExecutor = (() => {
         resolve(true);
       };
       script.onerror = () => {
-        console.error(`Failed to load script: ${scriptPath}`);
-        reject(new Error(`Failed to load script: ${scriptPath}`));
+        reject(new Error(`Failed to fetch script: ${scriptPath}`));
       };
       document.head.appendChild(script);
     });
@@ -39,23 +38,27 @@ const CommandExecutor = (() => {
       await _loadScript(commandScriptPath);
       const definition = CommandRegistry.getDefinitions()[commandName];
 
-      if (definition) {
-        if (definition.dependencies && Array.isArray(definition.dependencies)) {
-          for (const dep of definition.dependencies) {
+      if (!definition) {
+        throw new Error(`Script loaded but command '${commandName}' not found in registry.`);
+      }
+
+      if (definition.dependencies && Array.isArray(definition.dependencies)) {
+        for (const dep of definition.dependencies) {
+          try {
             await _loadScript(dep);
+          } catch (depError) {
+            throw new Error(`Failed to load dependency '${dep}' for command '${commandName}'.`);
           }
         }
-        commands[commandName] = {
-          handler: createCommandHandler(definition)
-        };
-        return true;
       }
+      commands[commandName] = {
+        handler: createCommandHandler(definition)
+      };
+      return true;
     } catch (error) {
-      console.error(`Error loading command '${commandName}' or its dependencies.`, error);
+      await OutputManager.appendToOutput(`Error: Command '${commandName}' could not be loaded. ${error.message}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
       return false;
     }
-
-    return false;
   }
 
 
