@@ -264,7 +264,7 @@ OPTIONS
                         if (!pathValidationResult.success) {
                             errorOutputs.push(`ls: cannot access '${path}': ${pathValidationResult.error.replace(path + ':', '').trim()}`);
                             overallSuccess = false;
-                        } else if (pathValidationResult.data.node.type === 'directory' || effectiveFlags.dirsOnly) {
+                        } else if (pathValidationResult.data.node.type === 'directory' && !effectiveFlags.dirsOnly) {
                             dirArgs.push(path);
                         } else {
                             fileArgs.push(path);
@@ -272,16 +272,28 @@ OPTIONS
                     }
 
                     if (fileArgs.length > 0) {
-                        const fileListResult = await listSinglePathContents(fileArgs[0], effectiveFlags, currentUser); // temp fix for multiple files
-                        if(fileListResult.success) outputBlocks.push(fileListResult.data.output);
-                        else {
-                            errorOutputs.push(fileListResult.error);
-                            overallSuccess = false;
+                        const fileDetailsList = [];
+                        for (const filePath of fileArgs) {
+                            const pathValidationResult = FileSystemManager.validatePath(filePath);
+                            if (pathValidationResult.success) {
+                                const details = getItemDetails(filePath, pathValidationResult.data.node, pathValidationResult.data.resolvedPath);
+                                if (details) fileDetailsList.push(details);
+                            }
+                        }
+
+                        const sortedFileItems = sortItems(fileDetailsList, effectiveFlags);
+
+                        if (effectiveFlags.long) {
+                            sortedFileItems.forEach(item => outputBlocks.push(formatLongListItem(item, effectiveFlags)));
+                        } else if (effectiveFlags.oneColumn) {
+                            sortedFileItems.forEach(item => outputBlocks.push(item.name));
+                        } else {
+                            outputBlocks.push(formatToColumns(sortedFileItems.map(item => item.name)));
                         }
                     }
 
                     for (let i = 0; i < dirArgs.length; i++) {
-                        if (fileArgs.length > 0 || i > 0) {
+                        if (fileArgs.length > 0 || i > 0 || errorOutputs.length > 0) {
                             outputBlocks.push("");
                         }
                         if (pathsToList.length > 1) {
