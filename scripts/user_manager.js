@@ -4,21 +4,98 @@ const UserManager = (() => {
         name: Config.USER.DEFAULT_NAME,
     };
 
+    // =================================================================
+    // NEW & IMPROVED SECURE PASSWORD FUNCTIONS (THE ARCHITECT'S DIRECTIVE)
+    // =================================================================
+
+    /**
+     * The new heart of our password security! This function takes a password,
+     * generates a unique salt, and then uses PBKDF2 to create a super-strong hash.
+     * @param {string} password The user's plain-text password.
+     * @returns {Promise<{salt: string, hash: string}>} An object containing the salt and the derived hash.
+     * @private
+     */
     async function _secureHashPassword(password) {
-        if (!password || typeof password !== "string" || password.trim() === "") {
-            return null;
-        }
-        try {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(password);
-            const hashBuffer = await window.crypto.subtle.digest("SHA-256", data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-        } catch (error) {
-            console.error("Password hashing failed:", error);
-            return null;
-        }
+        // Step 1: Generate a unique, random salt.
+        const salt = new Uint8Array(16);
+        window.crypto.getRandomValues(salt);
+        const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+
+        // Step 2: Use PBKDF2 to derive a key from the password.
+        const keyMaterial = await window.crypto.subtle.importKey(
+            'raw',
+            new TextEncoder().encode(password),
+            { name: 'PBKDF2' },
+            false,
+            ['deriveKey']
+        );
+
+        const key = await window.crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt: salt,
+                iterations: 100000,
+                hash: 'SHA-256',
+            },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            true,
+            ['encrypt', 'decrypt']
+        );
+
+        // Step 3: Export the derived key as our final hash.
+        const rawHash = await window.crypto.subtle.exportKey('raw', key);
+        const hashHex = Array.from(new Uint8Array(rawHash)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+        return { salt: saltHex, hash: hashHex };
     }
+
+    /**
+     * Verifies a password attempt against the stored salt and hash.
+     * @param {string} passwordAttempt The password entered by the user.
+     * @param {string} saltHex The user's stored salt (in hex).
+     * @param {string} storedHashHex The user's stored hash (in hex).
+     * @returns {Promise<boolean>} True if the password is correct, false otherwise.
+     * @private
+     */
+    async function _verifyPasswordWithSalt(passwordAttempt, saltHex, storedHashHex) {
+        // Convert hex salt back to Uint8Array.
+        const salt = new Uint8Array(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+
+        // Re-run the hash process with the provided password and stored salt.
+        const keyMaterial = await window.crypto.subtle.importKey(
+            'raw',
+            new TextEncoder().encode(passwordAttempt),
+            { name: 'PBKDF2' },
+            false,
+            ['deriveKey']
+        );
+
+        const key = await window.crypto.subtle.deriveKey(
+            {
+                name: 'PBKDF2',
+                salt: salt,
+                iterations: 100000,
+                hash: 'SHA-256',
+            },
+            keyMaterial,
+            { name: 'AES-GCM', length: 256 },
+            true,
+            ['encrypt', 'decrypt']
+        );
+
+        const rawHash = await window.crypto.subtle.exportKey('raw', key);
+        const attemptHashHex = Array.from(new Uint8Array(rawHash)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+        // Timing-safe comparison.
+        return attemptHashHex.length === storedHashHex.length &&
+            attemptHashHex.split('').every((char, i) => char === storedHashHex[i]);
+    }
+
+
+    // =================================================================
+    // EXISTING USER MANAGER FUNCTIONS - NOW REFFACTORED
+    // =================================================================
 
     function getCurrentUser() {
         return currentUser;
@@ -52,12 +129,16 @@ const UserManager = (() => {
                 error: `User '${username}' already exists.`,
             };
 
-        const passwordHash = password ? await _secureHashPassword(password) : null;
-        if (password && !passwordHash) {
-            return {
-                success: false,
-                error: "Failed to securely process password.",
-            };
+        // MODIFIED: Use the new password system.
+        let passwordData = null;
+        if (password) {
+            passwordData = await _secureHashPassword(password);
+            if (!passwordData) {
+                return {
+                    success: false,
+                    error: "Failed to securely process password.",
+                };
+            }
         }
 
         GroupManager.createGroup(username);
@@ -69,8 +150,9 @@ const UserManager = (() => {
             {}
         );
 
+        // MODIFIED: Store passwordData object instead of just a hash.
         users[username] = {
-            passwordHash: passwordHash,
+            passwordData: passwordData, // This can be null for passwordless accounts
             primaryGroup: username,
         };
 
@@ -104,17 +186,19 @@ const UserManager = (() => {
             return { success: false, error: "Invalid username." };
         }
 
-        const storedPasswordHash = userEntry ? userEntry.passwordHash : null;
+        // MODIFIED: Check for the passwordData object.
+        const { salt, hash } = userEntry?.passwordData || {};
 
-        if (storedPasswordHash !== null) {
+        if (salt && hash) { // User has a password
             if (providedPassword === null) {
                 return { success: false, error: "Password required.", requiresPasswordPrompt: true };
             }
-            const providedPasswordHash = await _secureHashPassword(providedPassword);
-            if (providedPasswordHash !== storedPasswordHash) {
+            // MODIFIED: Verify using the new salted hash method.
+            const isValid = await _verifyPasswordWithSalt(providedPassword, salt, hash);
+            if (!isValid) {
                 return { success: false, error: Config.MESSAGES.INVALID_PASSWORD };
             }
-        } else if (providedPassword !== null) {
+        } else if (providedPassword !== null) { // User does NOT have a password
             return { success: false, error: "This account does not require a password." };
         }
 
@@ -129,13 +213,15 @@ const UserManager = (() => {
             return { success: false, error: "User not found." };
         }
 
-        const storedPasswordHash = userEntry.passwordHash;
-        if (storedPasswordHash === null) {
+        // MODIFIED: Check for passwordData object.
+        const { salt, hash } = userEntry?.passwordData || {};
+        if (!salt || !hash) {
             return { success: false, error: "User does not have a password set."};
         }
 
-        const providedPasswordHash = await _secureHashPassword(password);
-        if (providedPasswordHash === storedPasswordHash) {
+        // MODIFIED: Verify using the new salted hash method.
+        const isValid = await _verifyPasswordWithSalt(password, salt, hash);
+        if (isValid) {
             return { success: true };
         } else {
             return { success: false, error: "Incorrect password." };
@@ -150,7 +236,6 @@ const UserManager = (() => {
         } catch (e) {
             return { success: false, error: `sudo: an unexpected error occurred during execution: ${e.message}` };
         } finally {
-            // CRITICAL: Always de-escalate privileges back to the original user.
             currentUser = originalUser;
         }
     }
@@ -176,12 +261,13 @@ const UserManager = (() => {
             return { success: false, error: "New password cannot be empty." };
         }
 
-        const newPasswordHash = await _secureHashPassword(newPassword);
-        if (!newPasswordHash) {
+        // MODIFIED: Use the new password hashing system.
+        const newPasswordData = await _secureHashPassword(newPassword);
+        if (!newPasswordData) {
             return { success: false, error: "Failed to securely process new password." };
         }
 
-        users[targetUsername].passwordHash = newPasswordHash;
+        users[targetUsername].passwordData = newPasswordData;
 
         if (StorageManager.saveItem(
             Config.STORAGE_KEYS.USER_CREDENTIALS,
@@ -194,6 +280,8 @@ const UserManager = (() => {
         }
     }
 
+    // All other functions from the original file remain unchanged as they
+    // correctly call the now-refactored functions above.
     async function _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const authResult = await _authenticateUser(username, providedPassword);
 
@@ -307,9 +395,10 @@ const UserManager = (() => {
         );
         let changesMade = false;
 
-        if (!users["root"]) {
+        // MODIFIED: To handle the new passwordData structure
+        if (!users["root"] || !users["root"].passwordData) {
             users["root"] = {
-                passwordHash: await _secureHashPassword("mcgoopis"),
+                passwordData: await _secureHashPassword("mcgoopis"),
                 primaryGroup: "root",
             };
             changesMade = true;
@@ -317,7 +406,7 @@ const UserManager = (() => {
 
         if (!users[Config.USER.DEFAULT_NAME]) {
             users[Config.USER.DEFAULT_NAME] = {
-                passwordHash: null,
+                passwordData: null,
                 primaryGroup: Config.USER.DEFAULT_NAME,
             };
             changesMade = true;
