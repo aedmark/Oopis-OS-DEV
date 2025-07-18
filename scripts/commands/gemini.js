@@ -112,7 +112,6 @@ EXAMPLES
                 const originalProvider = provider;
                 const model = flags.model || null;
                 let apiKey = null;
-                let isNewKeyProvided = false;
 
                 const userPrompt = args.join(" ");
 
@@ -145,7 +144,6 @@ EXAMPLES
 
                     if (!apiKeyResult.success) return ErrorHandler.createError(`gemini: ${apiKeyResult.error}`);
                     apiKey = apiKeyResult.data.key;
-                    isNewKeyProvided = !apiKeyResult.data.fromStorage;
                 }
 
                 if (flags.new) {
@@ -197,7 +195,6 @@ ${setResult.output || '(none)'}
                         });
                         if (!fallbackApiKeyResult.success) return ErrorHandler.createError(`gemini: ${fallbackApiKeyResult.error}`);
                         apiKey = fallbackApiKeyResult.data.key;
-                        isNewKeyProvided = !fallbackApiKeyResult.data.fromStorage;
 
                         plannerResult = await Utils.callLlmApi(provider, model, plannerConversation, apiKey, PLANNER_SYSTEM_PROMPT);
                     }

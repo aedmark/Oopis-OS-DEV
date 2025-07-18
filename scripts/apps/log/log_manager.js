@@ -8,7 +8,7 @@ class LogManager extends App {
         this.LOG_DIR = "/home/Guest/.journal";
     }
 
-    async enter(appLayer, options = {}) {
+    async enter(appLayer) {
         if (this.isActive) return;
 
         this.isActive = true;
@@ -52,18 +52,18 @@ class LogManager extends App {
         }
     }
 
-    handleKeyDown(event) {
+    async handleKeyDown(event) {
         if (!this.isActive) return;
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
             event.preventDefault();
-            this.callbacks.onSave();
+            await this.callbacks.onSave();
         } else if (event.key === 'Escape') {
             this.exit();
         }
     }
 
     async quickAdd(entryText, currentUser) {
-        await this._ensureLogDir(currentUser);
+        await this._ensureLogDir();
         const timestamp = new Date().toISOString();
         const filename = `${timestamp.replace(/[:.]/g, '-')}.md`;
         const fullPath = `${this.LOG_DIR}/${filename}`;
@@ -155,7 +155,7 @@ class LogManager extends App {
         return result;
     }
 
-    async _ensureLogDir(currentUser) {
+    async _ensureLogDir() {
         const pathInfo = FileSystemManager.validatePath(this.LOG_DIR, {allowMissing: true});
         if (!pathInfo.node) {
             await CommandExecutor.processSingleCommand(`mkdir -p ${this.LOG_DIR}`, { isInteractive: false });
