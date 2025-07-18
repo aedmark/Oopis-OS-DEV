@@ -59,19 +59,19 @@ const Adventure_create = (() => {
 
         switch (command.toLowerCase()) {
             case 'create':
-                _handleCreate(args);
+                await _handleCreate(args);
                 break;
             case 'edit':
-                _handleEdit(joinedArgs);
+                await _handleEdit(joinedArgs);
                 break;
             case 'set':
-                _handleSet(joinedArgs);
+                await _handleSet(joinedArgs);
                 break;
             case 'link':
-                _handleLink(args);
+                await _handleLink(args);
                 break;
             case 'status':
-                _handleStatus();
+                await _handleStatus();
                 break;
             case 'save':
                 await _handleSave();
@@ -80,7 +80,7 @@ const Adventure_create = (() => {
                 await exit();
                 break;
             case 'help':
-                _handleHelp();
+                await _handleHelp();
                 break;
             case '':
                 break;
@@ -95,16 +95,16 @@ const Adventure_create = (() => {
         return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     }
 
-    function _handleCreate(args) {
+    async function _handleCreate(args) {
         const type = args.shift()?.toLowerCase();
         const name = args.join(' ').replace(/["']/g, '');
 
         if (!['room', 'item', 'npc'].includes(type)) {
-            OutputManager.appendToOutput("Error: Must specify type: 'room', 'item', or 'npc'.", {typeClass: 'text-error'});
+            await OutputManager.appendToOutput("Error: Must specify type: 'room', 'item', or 'npc'.", {typeClass: 'text-error'});
             return;
         }
         if (!name) {
-            OutputManager.appendToOutput("Error: You must provide a name in quotes.", {typeClass: 'text-error'});
+            await OutputManager.appendToOutput("Error: You must provide a name in quotes.", {typeClass: 'text-error'});
             return;
         }
 
@@ -125,8 +125,8 @@ const Adventure_create = (() => {
         }
 
         state.isDirty = true;
-        OutputManager.appendToOutput(`Created ${type} '${name}' with ID '${id}'.`, {typeClass: 'text-success'});
-        _handleEdit(`${type} "${name}"`);
+        await OutputManager.appendToOutput(`Created ${type} '${name}' with ID '${id}'.`, {typeClass: 'text-success'});
+        await _handleEdit(`${type} "${name}"`);
     }
 
     function _findEntity(type, name) {
@@ -142,7 +142,7 @@ const Adventure_create = (() => {
         return null;
     }
 
-    function _handleEdit(argString) {
+    async function _handleEdit(argString) {
         const typeMatch = argString.match(/^(room|item|npc)\s+/i);
         if(!typeMatch) {
             state.editContext = null; // Exit edit mode
@@ -155,21 +155,21 @@ const Adventure_create = (() => {
 
         if (entity) {
             state.editContext = { type, id: entity.id, name: entity.name };
-            OutputManager.appendToOutput(`Now editing ${type} '${entity.name}'. Use 'set <prop> "<value>"'. Type 'edit' to stop editing.`, {typeClass: 'text-info'});
+            await OutputManager.appendToOutput(`Now editing ${type} '${entity.name}'. Use 'set <prop> "<value>"'. Type 'edit' to stop editing.`, {typeClass: 'text-info'});
         } else {
-            OutputManager.appendToOutput(`Error: Cannot find ${type} with name '${name}'.`, {typeClass: 'text-error'});
+            await OutputManager.appendToOutput(`Error: Cannot find ${type} with name '${name}'.`, {typeClass: 'text-error'});
         }
     }
 
-    function _handleSet(argString) {
+    async function _handleSet(argString) {
         if (!state.editContext) {
-            OutputManager.appendToOutput("Error: You must 'edit' an entity before you can 'set' its properties.", {typeClass: 'text-error'});
+            await OutputManager.appendToOutput("Error: You must 'edit' an entity before you can 'set' its properties.", {typeClass: 'text-error'});
             return;
         }
 
         const match = argString.match(/^(\w+)\s+(.*)/);
         if (!match) {
-            OutputManager.appendToOutput("Error: Invalid format. Use: set <property> \"<value>\"", {typeClass: 'text-error'});
+            await OutputManager.appendToOutput("Error: Invalid format. Use: set <property> \"<value>\"", {typeClass: 'text-error'});
             return;
         }
 
@@ -178,7 +178,7 @@ const Adventure_create = (() => {
 
         const entity = state.adventureData[state.editContext.type + 's'][state.editContext.id];
         if(!entity) {
-            OutputManager.appendToOutput("Error: Current entity context is invalid. Exiting edit mode.", {typeClass: 'text-error'});
+            await OutputManager.appendToOutput("Error: Current entity context is invalid. Exiting edit mode.", {typeClass: 'text-error'});
             state.editContext = null;
             return;
         }
@@ -192,15 +192,15 @@ const Adventure_create = (() => {
                 entity[prop] = value;
             }
             state.isDirty = true;
-            OutputManager.appendToOutput(`Set ${prop} to "${entity[prop]}" for ${entity.name}.`, {typeClass: 'text-success'});
+            await OutputManager.appendToOutput(`Set ${prop} to "${entity[prop]}" for ${entity.name}.`, {typeClass: 'text-success'});
         } else {
-            OutputManager.appendToOutput(`Error: '${prop}' is not a valid property for type '${state.editContext.type}'.`, {typeClass: 'text-error'});
+            await OutputManager.appendToOutput(`Error: '${prop}' is not a valid property for type '${state.editContext.type}'.`, {typeClass: 'text-error'});
         }
     }
 
-    function _handleLink(args) {
+    async function _handleLink(args) {
         if (args.length < 3) {
-            OutputManager.appendToOutput("Error: Invalid format. Use: link \"<room1>\" <direction> \"<room2>\"", {typeClass: 'text-error'});
+            await OutputManager.appendToOutput("Error: Invalid format. Use: link \"<room1>\" <direction> \"<room2>\"", {typeClass: 'text-error'});
             return;
         }
 
@@ -210,13 +210,13 @@ const Adventure_create = (() => {
         const room2 = _findEntity('room', room2Name);
 
         if (!room1 || !room2) {
-            OutputManager.appendToOutput("Error: One or both rooms not found.", {typeClass: 'text-error'});
+            await OutputManager.appendToOutput("Error: One or both rooms not found.", {typeClass: 'text-error'});
             return;
         }
 
         const oppositeDirection = { north: 'south', south: 'north', east: 'west', west: 'east', up: 'down', down: 'up'}[direction];
         if (!oppositeDirection) {
-            OutputManager.appendToOutput(`Error: Invalid direction '${direction}'.`, {typeClass: 'text-error'});
+            await OutputManager.appendToOutput(`Error: Invalid direction '${direction}'.`, {typeClass: 'text-error'});
             return;
         }
 
@@ -224,10 +224,10 @@ const Adventure_create = (() => {
         room2.exits[oppositeDirection] = room1.id;
 
         state.isDirty = true;
-        OutputManager.appendToOutput(`Linked ${room1.name} (${direction}) <-> ${room2.name} (${oppositeDirection}).`, {typeClass: 'text-success'});
+        await OutputManager.appendToOutput(`Linked ${room1.name} (${direction}) <-> ${room2.name} (${oppositeDirection}).`, {typeClass: 'text-success'});
     }
 
-    function _handleStatus() {
+    async function _handleStatus() {
         const rooms = Object.keys(state.adventureData.rooms || {}).length;
         const items = Object.keys(state.adventureData.items || {}).length;
         const npcs = Object.keys(state.adventureData.npcs || {}).length;
@@ -236,7 +236,7 @@ File: ${state.targetFilename} (${state.isDirty ? 'UNSAVED CHANGES' : 'saved'})
 - Rooms: ${rooms}
 - Items: ${items}
 - NPCs: ${npcs}`;
-        OutputManager.appendToOutput(status);
+        await OutputManager.appendToOutput(status);
     }
 
     async function _handleSave() {
@@ -268,7 +268,7 @@ File: ${state.targetFilename} (${state.isDirty ? 'UNSAVED CHANGES' : 'saved'})
         }
     }
 
-    function _handleHelp() {
+    async function _handleHelp() {
         const helpText = `Adventure Creator Commands:
   create <type> "<name>"   - Create a new room, item, or npc.
   edit <type> "<name>"     - Select an entity to modify its properties.
@@ -278,7 +278,7 @@ File: ${state.targetFilename} (${state.isDirty ? 'UNSAVED CHANGES' : 'saved'})
   status                   - Show a summary of the current adventure data.
   save                     - Save your work to the file.
   exit                     - Exit the creator (will prompt if unsaved).`;
-        OutputManager.appendToOutput(helpText);
+        await OutputManager.appendToOutput(helpText);
     }
 
     async function exit() {

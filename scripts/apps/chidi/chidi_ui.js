@@ -153,7 +153,7 @@ const ChidiUI = (() => {
         panel.classList.toggle('hidden', !shouldBeVisible);
     }
 
-    function showMessage(msg, forceShow = false) {
+    function showMessage(msg) {
         if (elements.messageBox) elements.messageBox.textContent = `֎ ${msg}`;
     }
 
@@ -162,7 +162,7 @@ const ChidiUI = (() => {
         outputBlock.innerHTML = DOMPurify.sanitize(marked.parse(`### ${title}\n\n${content}`));
         elements.markdownDisplay.appendChild(outputBlock);
         outputBlock.scrollIntoView({behavior: 'smooth', block: 'start'});
-        showMessage(`AI Response received for "${title}".`, true);
+        showMessage(`AI Response received for "${title}".`);
     }
 
     function toggleLoader(show) {

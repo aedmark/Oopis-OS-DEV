@@ -58,7 +58,7 @@ WARNING
                             return ErrorHandler.createError(`restore: Could not read file '${filePath}': ${readResult.error}`);
                         }
                         fileContent = readResult.output;
-                        fileName = filePath.split(/[\\\\/]/).pop();
+                        fileName = filePath.split(/[\\/]/).pop();
                     } else {
                         return ErrorHandler.createSuccess(Config.MESSAGES.RESTORE_CANCELLED_NO_FILE);
                     }
