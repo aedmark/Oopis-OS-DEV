@@ -6,6 +6,7 @@ class CodeManager extends App {
         this.state = {};
         this.uiElements = {};
         this.debouncedHighlight = Utils.debounce(this._highlight.bind(this), 100);
+        this.callbacks = this._createCallbacks();
     }
 
     // Highlighter logic, now part of the class
@@ -59,47 +60,48 @@ class CodeManager extends App {
         this.uiElements = {};
     }
 
-    // Callbacks object defined as a class property
-    callbacks = {
-        onSave: async (filePath, content) => {
-            if (!filePath || !filePath.trim()) {
-                await OutputManager.appendToOutput("Error: Filename cannot be empty.", { typeClass: 'text-error' });
-                return;
-            }
-            const currentUser = UserManager.getCurrentUser().name;
-            const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
-            const saveResult = await FileSystemManager.createOrUpdateFile(filePath, content, {
-                currentUser,
-                primaryGroup
-            });
+    _createCallbacks() {
+        return {
+            onSave: async (filePath, content) => {
+                if (!filePath || !filePath.trim()) {
+                    await OutputManager.appendToOutput("Error: Filename cannot be empty.", { typeClass: 'text-error' });
+                    return;
+                }
+                const currentUser = UserManager.getCurrentUser().name;
+                const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
+                const saveResult = await FileSystemManager.createOrUpdateFile(filePath, content, {
+                    currentUser,
+                    primaryGroup
+                });
 
-            if (saveResult.success && await FileSystemManager.save()) {
-                this._performExit();
-            } else {
-                await OutputManager.appendToOutput(`Error saving file: ${saveResult.error || "Filesystem error"}`, { typeClass: 'text-error' });
+                if (saveResult.success && await FileSystemManager.save()) {
+                    this._performExit();
+                } else {
+                    await OutputManager.appendToOutput(`Error saving file: ${saveResult.error || "Filesystem error"}`, { typeClass: 'text-error' });
+                }
+            },
+            onExit: this.exit.bind(this),
+            onTab: (textarea) => {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const value = textarea.value;
+                textarea.value = value.substring(0, start) + '  ' + value.substring(end);
+                textarea.selectionStart = textarea.selectionEnd = start + 2;
+                this.callbacks.onInput(textarea.value);
+            },
+            onInput: (content) => {
+                this.debouncedHighlight(content);
+            },
+            onPaste: (textarea, pastedText) => {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const value = textarea.value;
+                textarea.value = value.substring(0, start) + pastedText + value.substring(end);
+                textarea.selectionStart = textarea.selectionEnd = start + pastedText.length;
+                this.callbacks.onInput(textarea.value);
             }
-        },
-        onExit: this.exit.bind(this),
-        onTab: (textarea) => {
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            const value = textarea.value;
-            textarea.value = value.substring(0, start) + '  ' + value.substring(end);
-            textarea.selectionStart = textarea.selectionEnd = start + 2;
-            this.callbacks.onInput(textarea.value);
-        },
-        onInput: (content) => {
-            this.debouncedHighlight(content);
-        },
-        onPaste: (textarea, pastedText) => {
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            const value = textarea.value;
-            textarea.value = value.substring(0, start) + pastedText + value.substring(end);
-            textarea.selectionStart = textarea.selectionEnd = start + pastedText.length;
-            this.callbacks.onInput(textarea.value);
-        }
-    };
+        };
+    }
 }
 
 // Instantiate the singleton that the 'code' command needs

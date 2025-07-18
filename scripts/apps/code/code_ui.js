@@ -1,108 +1,90 @@
-// scripts/apps/code/code_manager.js
+// scripts/apps/code/code_ui.js
+const CodeUI = (() => {
+    "use strict";
 
-class CodeManager extends App {
-    constructor() {
-        super();
-        this.state = {};
-        this.uiElements = {};
-        this.debouncedHighlight = Utils.debounce(this._highlight.bind(this), 100);
-        this.callbacks = this._createCallbacks();
-    }
+    let elements = {};
 
-    // Highlighter logic, now part of the class
-    _jsHighlighter(text) {
-        const escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return escapedText
-            .replace(/(\/\*[\s\S]*?\*\/|\/\/.+)/g, '<em>$1</em>') // Comments
-            .replace(/\b(new|if|else|do|while|switch|for|in|of|continue|break|return|typeof|function|var|const|let|async|await|class|extends|true|false|null)(?=\w)/g, '<strong>$1</strong>') // Keywords
-            .replace(/(".*?"|'.*?'|`.*?`)/g, '<strong><em>$1</em></strong>') // Strings
-            .replace(/\b(\d+)/g, '<em><strong>$1</strong></em>'); // Numbers
-    }
+    function buildAndShow(initialState, onReady, callbacks) {
+        elements.titleInput = Utils.createElement('input', {
+            id: 'code-editor-title',
+            className: 'code-editor-title-input',
+            type: 'text',
+            value: initialState.filePath || 'Untitled'
+        });
 
-    _highlight(content) {
-        if (this.uiElements.highlighter) {
-            this.uiElements.highlighter.innerHTML = this._jsHighlighter(content);
+        const saveBtn = Utils.createElement('button', { className: 'btn btn--confirm', textContent: 'Save & Exit' });
+        const exitBtn = Utils.createElement('button', { className: 'btn btn--cancel', textContent: 'Exit' });
+        saveBtn.addEventListener('click', () => callbacks.onSave(elements.titleInput.value, elements.textarea.value));
+        exitBtn.addEventListener('click', () => callbacks.onExit());
+
+        const header = Utils.createElement('header', { className: 'code-editor-header' }, [
+            elements.titleInput,
+            Utils.createElement('div', { className: 'editor-toolbar-group' }, [saveBtn, exitBtn])
+        ]);
+
+        elements.textarea = Utils.createElement('textarea', {
+            id: 'code-editor-textarea',
+            className: 'code-editor-textarea',
+            spellcheck: 'false',
+            autocapitalize: 'none',
+            textContent: initialState.fileContent || ""
+        });
+
+        elements.highlighter = Utils.createElement('pre', {
+            id: 'code-editor-highlighter',
+            className: 'code-editor-highlighter',
+            'aria-hidden': 'true'
+        });
+
+        const editorWrapper = Utils.createElement('div', {
+            className: 'code-editor-wrapper'
+        }, [elements.highlighter, elements.textarea]);
+
+        const main = Utils.createElement('main', { className: 'code-editor-main' }, editorWrapper);
+        elements.container = Utils.createElement('div', {
+            id: 'code-editor-container',
+            className: 'code-editor-container'
+        }, [header, main]);
+
+        _addEventListeners(callbacks);
+
+        if (typeof onReady === 'function') {
+            onReady(elements.textarea, elements.highlighter);
         }
+
+        elements.textarea.focus();
+
+        return elements.container; // Return the container for the manager to handle
     }
 
-    enter(appLayer, options = {}) {
-        if (this.isActive) return;
-
-        this.state = {
-            isActive: true,
-            filePath: options.filePath,
-            originalContent: options.fileContent || "",
-        };
-
-        this.container = CodeUI.buildAndShow({
-            filePath: options.filePath,
-            fileContent: options.fileContent || ""
-        }, (textarea, highlighter) => {
-            this.uiElements.textarea = textarea;
-            this.uiElements.highlighter = highlighter;
-            this.callbacks.onInput(options.fileContent || "");
-        }, this.callbacks);
-
-        appLayer.appendChild(this.container);
-        this.isActive = true;
+    function hideAndReset() {
+        // The container is removed by AppLayerManager, so no need to call hide() here
+        elements = {};
     }
 
-    exit() {
-        if (!this.isActive) return;
-        this._performExit();
-    }
-
-    _performExit() {
-        CodeUI.hideAndReset();
-        AppLayerManager.hide(this);
-        this.isActive = false;
-        this.state = {};
-        this.uiElements = {};
-    }
-
-    _createCallbacks() {
-        return {
-            onSave: async (filePath, content) => {
-                if (!filePath || !filePath.trim()) {
-                    await OutputManager.appendToOutput("Error: Filename cannot be empty.", { typeClass: 'text-error' });
-                    return;
-                }
-                const currentUser = UserManager.getCurrentUser().name;
-                const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
-                const saveResult = await FileSystemManager.createOrUpdateFile(filePath, content, {
-                    currentUser,
-                    primaryGroup
-                });
-
-                if (saveResult.success && await FileSystemManager.save()) {
-                    this._performExit();
-                } else {
-                    await OutputManager.appendToOutput(`Error saving file: ${saveResult.error || "Filesystem error"}`, { typeClass: 'text-error' });
-                }
-            },
-            onExit: this.exit.bind(this),
-            onTab: (textarea) => {
-                const start = textarea.selectionStart;
-                const end = textarea.selectionEnd;
-                const value = textarea.value;
-                textarea.value = value.substring(0, start) + '  ' + value.substring(end);
-                textarea.selectionStart = textarea.selectionEnd = start + 2;
-                this.callbacks.onInput(textarea.value);
-            },
-            onInput: (content) => {
-                this.debouncedHighlight(content);
-            },
-            onPaste: (textarea, pastedText) => {
-                const start = textarea.selectionStart;
-                const end = textarea.selectionEnd;
-                const value = textarea.value;
-                textarea.value = value.substring(0, start) + pastedText + value.substring(end);
-                textarea.selectionStart = textarea.selectionEnd = start + pastedText.length;
-                this.callbacks.onInput(textarea.value);
+    function _addEventListeners(callbacks) {
+        elements.textarea.addEventListener('keydown', e => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                callbacks.onTab(e.target);
             }
-        };
-    }
-}
+        });
 
-// Instantiate the singleton that the 'code' command needs
-const Code = new CodeManager();
+        elements.textarea.addEventListener('input', (e) => {
+            callbacks.onInput(e.target.value);
+        });
+
+        elements.textarea.addEventListener('scroll', () => {
+            elements.highlighter.scrollTop = elements.textarea.scrollTop;
+            elements.highlighter.scrollLeft = elements.textarea.scrollLeft;
+        });
+
+        elements.textarea.addEventListener('paste', e => {
+            e.preventDefault();
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text/plain');
+            callbacks.onPaste(e.target, pastedText);
+        });
+    }
+
+    return { buildAndShow, hideAndReset };
+})();
