@@ -51,89 +51,43 @@ EXAMPLES
                 const destPathArg = args.pop();
                 const sourcePathArgs = args;
 
-                const destValidationResult = FileSystemManager.validatePath(destPathArg, { allowMissing: true });
-                if (!destValidationResult.success && destValidationResult.data?.node === undefined) {
-                    return ErrorHandler.createError(`mv: ${destValidationResult.error}`);
-                }
-                const destValidation = destValidationResult.data;
-                const isDestADirectory = destValidation.node && destValidation.node.type === 'directory';
+                const planResult = await FileSystemManager.prepareFileOperation(sourcePathArgs, destPathArg, { isMove: true });
 
-                if (sourcePathArgs.length > 1 && !isDestADirectory) {
-                    return ErrorHandler.createError(`mv: target '${destPathArg}' is not a directory`);
+                if (!planResult.success) {
+                    return ErrorHandler.createError(`mv: ${planResult.error}`);
                 }
 
-                for (const sourcePathArg of sourcePathArgs) {
-                    const sourceValidationResult = FileSystemManager.validatePath(sourcePathArg);
-                    if (!sourceValidationResult.success) {
-                        return ErrorHandler.createError(`mv: ${sourceValidationResult.error}`);
-                    }
-                    const { node: sourceNode, resolvedPath: sourceAbsPath } = sourceValidationResult.data;
+                const operationsPlan = planResult.data;
 
-
-                    if (sourceAbsPath === '/') {
-                        return ErrorHandler.createError("mv: cannot move root directory");
-                    }
-
-                    const sourceName = sourceAbsPath.substring(sourceAbsPath.lastIndexOf('/') + 1);
-                    const sourceParentPath = sourceAbsPath.substring(0, sourceAbsPath.lastIndexOf('/')) || '/';
-
-                    const sourceParentValidationResult = FileSystemManager.validatePath(sourceParentPath, {expectedType: 'directory', permissions: ['write']});
-                    if (!sourceParentValidationResult.success) {
-                        return ErrorHandler.createError(`mv: cannot move '${sourcePathArg}': Permission denied in source directory`);
-                    }
-                    const sourceParentNode = sourceParentValidationResult.data.node;
-
-                    let finalDestPath;
-                    let targetContainerNode;
-                    let finalDestName;
-
-                    if (isDestADirectory) {
-                        finalDestName = sourceName;
-                        targetContainerNode = destValidation.node;
-                        finalDestPath = FileSystemManager.getAbsolutePath(finalDestName, destValidation.resolvedPath);
-                    } else {
-                        finalDestName = destValidation.resolvedPath.substring(destValidation.resolvedPath.lastIndexOf('/') + 1);
-                        const destParentPath = destValidation.resolvedPath.substring(0, destValidation.resolvedPath.lastIndexOf('/')) || '/';
-                        const destParentValidationResult = FileSystemManager.validatePath(destParentPath, {expectedType: 'directory', permissions: ['write']});
-                        if (!destParentValidationResult.success){
-                            return ErrorHandler.createError(`mv: ${destParentValidationResult.error}`);
-                        }
-                        targetContainerNode = destParentValidationResult.data.node;
-                        finalDestPath = destValidation.resolvedPath;
-                    }
-
-                    if (sourceAbsPath === finalDestPath) {
+                for (const operation of operationsPlan) {
+                    if (operation.sourceAbsPath === operation.destinationAbsPath) {
                         continue;
                     }
 
-                    if (sourceNode.type === 'directory' && finalDestPath.startsWith(sourceAbsPath + '/')) {
-                        return ErrorHandler.createError(`mv: cannot move '${sourcePathArg}' to a subdirectory of itself, '${finalDestPath}'`);
-                    }
-
-                    const existingNodeAtDest = targetContainerNode.children[finalDestName];
-                    if (existingNodeAtDest) {
-                        const isPromptRequired = flags.interactive || (options.isInteractive && !flags.force);
-                        if (isPromptRequired) {
-                            const confirmed = await new Promise((resolve) => {
-                                ModalManager.request({
-                                    context: "terminal",
-                                    type: "confirm",
-                                    messageLines: [`Overwrite '${finalDestPath}'?`],
-                                    onConfirm: () => resolve(true),
-                                    onCancel: () => resolve(false),
-                                    options,
-                                });
+                    if (operation.willOverwrite && (flags.interactive || (options.isInteractive && !flags.force))) {
+                        const confirmed = await new Promise((resolve) => {
+                            ModalManager.request({
+                                context: "terminal",
+                                type: "confirm",
+                                messageLines: [`Overwrite '${operation.destinationAbsPath}'?`],
+                                onConfirm: () => resolve(true),
+                                onCancel: () => resolve(false),
+                                options,
                             });
-                            if (!confirmed) {
-                                continue;
-                            }
+                        });
+                        if (!confirmed) {
+                            continue;
                         }
                     }
 
-                    const movedNode = Utils.deepCopyNode(sourceNode);
+                    const sourceName = operation.sourceAbsPath.substring(operation.sourceAbsPath.lastIndexOf('/') + 1);
+                    const sourceParentPath = operation.sourceAbsPath.substring(0, operation.sourceAbsPath.lastIndexOf('/')) || '/';
+                    const sourceParentNode = FileSystemManager.getNodeByPath(sourceParentPath);
+
+                    const movedNode = Utils.deepCopyNode(operation.sourceNode);
                     movedNode.mtime = nowISO;
-                    targetContainerNode.children[finalDestName] = movedNode;
-                    targetContainerNode.mtime = nowISO;
+                    operation.destinationParentNode.children[operation.finalName] = movedNode;
+                    operation.destinationParentNode.mtime = nowISO;
                     delete sourceParentNode.children[sourceName];
                     sourceParentNode.mtime = nowISO;
                     changesMade = true;

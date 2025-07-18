@@ -624,6 +624,110 @@ MESSAGES.WELCOME_SUFFIX=!`;
         return username === 'root' || node.owner === username;
     }
 
+    /**
+     * Validates and prepares a list of source paths and a destination for a file operation.
+     * @param {string[]} sourcePathArgs - An array of source paths to process.
+     * @param {string} destPathArg - The single destination path.
+     * @param {object} options - Configuration for the operation.
+     * @param {boolean} [options.isCopy=false] - True if the operation is a copy (checks read permissions on source).
+     * @param {boolean} [options.isMove=false] - True if the operation is a move (checks write permissions on source's parent).
+     * @returns {object} An object containing either the prepared plan or an error.
+     */
+    async function prepareFileOperation(sourcePathArgs, destPathArg, options = {}) {
+        const { isCopy = false, isMove = false } = options;
+
+        // 1. Destination Analysis
+        const destValidationResult = validatePath(destPathArg, { allowMissing: true });
+        if (!destValidationResult.success && destValidationResult.data?.node === undefined) {
+            return ErrorHandler.createError(`target '${destPathArg}': ${destValidationResult.error}`);
+        }
+        const isDestADirectory = destValidationResult.data.node && destValidationResult.data.node.type === 'directory';
+
+        // 2. Input Validation
+        if (sourcePathArgs.length > 1 && !isDestADirectory) {
+            return ErrorHandler.createError(`target '${destPathArg}' is not a directory`);
+        }
+
+        // 3. Operation Plan Creation
+        const operationsPlan = [];
+        for (const sourcePath of sourcePathArgs) {
+            // 3.1. Validate Source Path
+            let sourceValidationResult;
+            if (isCopy) {
+                sourceValidationResult = validatePath(sourcePath, { permissions: ['read'] });
+            } else { // isMove
+                sourceValidationResult = validatePath(sourcePath);
+                if (sourceValidationResult.success) {
+                    const sourceParentPath = sourceValidationResult.data.resolvedPath.substring(0, sourceValidationResult.data.resolvedPath.lastIndexOf('/')) || '/';
+                    const parentValidation = validatePath(sourceParentPath, { permissions: ['write'] });
+                    if (!parentValidation.success) {
+                        return ErrorHandler.createError(`cannot move '${sourcePath}', permission denied in source directory`);
+                    }
+                }
+            }
+
+            if (!sourceValidationResult.success) {
+                return ErrorHandler.createError(`${sourcePath}: ${sourceValidationResult.error}`);
+            }
+
+            const { node: sourceNode, resolvedPath: sourceAbsPath } = sourceValidationResult.data;
+
+            // 3.2. Determine Final Destination Path
+            let destinationAbsPath;
+            let finalName;
+            let destinationParentNode;
+
+            if (isDestADirectory) {
+                finalName = sourceAbsPath.substring(sourceAbsPath.lastIndexOf('/') + 1);
+                destinationAbsPath = getAbsolutePath(finalName, destValidationResult.data.resolvedPath);
+                destinationParentNode = destValidationResult.data.node;
+            } else {
+                finalName = destValidationResult.data.resolvedPath.substring(destValidationResult.data.resolvedPath.lastIndexOf('/') + 1);
+                destinationAbsPath = destValidationResult.data.resolvedPath;
+                const destParentPath = destinationAbsPath.substring(0, destinationAbsPath.lastIndexOf('/')) || '/';
+                const destParentValidation = validatePath(destParentPath, { expectedType: 'directory', permissions: ['write'] });
+                if (!destParentValidation.success) {
+                    return ErrorHandler.createError(destParentValidation.error);
+                }
+                destinationParentNode = destParentValidation.data.node;
+            }
+
+            // 3.3. Check for Overwrite
+            const willOverwrite = !!destinationParentNode.children[finalName];
+
+            // 3.4. Validate Destination Parent Writable (already done for non-directory dest)
+            if (isDestADirectory) {
+                const parentValidation = validatePath(destValidationResult.data.resolvedPath, { permissions: ['write'] });
+                if (!parentValidation.success) {
+                    return ErrorHandler.createError(parentValidation.error);
+                }
+            }
+
+            // 3.5. Critical check for move
+            if (isMove) {
+                if (sourceAbsPath === '/') {
+                    return ErrorHandler.createError("cannot move root directory");
+                }
+                if (sourceNode.type === 'directory' && destinationAbsPath.startsWith(sourceAbsPath + '/')) {
+                    return ErrorHandler.createError(`cannot move '${sourcePath}' to a subdirectory of itself, '${destinationAbsPath}'`);
+                }
+            }
+
+            // 3.6. Push to Plan
+            operationsPlan.push({
+                sourceNode,
+                sourceAbsPath,
+                destinationAbsPath,
+                destinationParentNode,
+                finalName,
+                willOverwrite
+            });
+        }
+
+        // 4. Return Plan
+        return ErrorHandler.createSuccess(operationsPlan);
+    }
+
     return {
         createUserHomeDirectory,
         save,
@@ -646,5 +750,6 @@ MESSAGES.WELCOME_SUFFIX=!`;
         deleteNodeRecursive,
         createOrUpdateFile,
         canUserModifyNode,
+        prepareFileOperation
     };
 })();
