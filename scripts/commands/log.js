@@ -37,17 +37,11 @@ EXAMPLES
 
             try {
                 if (!options.isInteractive) {
-                    return {
-                        success: false,
-                        error: "log: Can only be run in interactive mode."
-                    };
+                    return ErrorHandler.createError("log: Can only be run in interactive mode.");
                 }
 
                 if (typeof Log === 'undefined' || typeof LogUI === 'undefined' || typeof App === 'undefined') {
-                    return {
-                        success: false,
-                        error: "log: The Log application module is not loaded."
-                    };
+                    return ErrorHandler.createError("log: The Log application module is not loaded.");
                 }
 
                 if (args.length === 1) {
@@ -55,18 +49,18 @@ EXAMPLES
                     const result = await Log.quickAdd(entryText, currentUser);
                     if (result.success) {
                         await OutputManager.appendToOutput(result.message, { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
-                        return { success: true, output: "" };
+                        return ErrorHandler.createSuccess("");
                     } else {
-                        return { success: false, error: result.error };
+                        return ErrorHandler.createError(result.error);
                     }
                 }
 
                 // Launch the full application using the AppLayerManager
                 AppLayerManager.show(Log);
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `log: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`log: An unexpected error occurred: ${e.message}`);
             }
         }
     };

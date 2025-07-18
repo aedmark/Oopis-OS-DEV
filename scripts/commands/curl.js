@@ -64,10 +64,7 @@ EXAMPLES
 
                     if (response.status >= 300 && response.status < 400 && response.headers.has('location')) {
                         if (!flags.location) {
-                            return {
-                                success: false,
-                                error: `curl: Redirected to ${response.headers.get('location')}. Use -L to follow.`
-                            };
+                            return ErrorHandler.createError(`curl: Redirected to ${response.headers.get('location')}. Use -L to follow.`);
                         }
                         currentUrl = new URL(response.headers.get('location'), currentUrl).href;
                         continue;
@@ -87,24 +84,22 @@ EXAMPLES
                     outputString += content;
 
                     if (flags.output) {
-                        const pathValidation = FileSystemManager.validatePath(flags.output, {
+                        const pathValidationResult = FileSystemManager.validatePath(flags.output, {
                             allowMissing: true,
                             expectedType: 'file'
                         });
 
-                        if (pathValidation.error && !(pathValidation.node === null && pathValidation.error.includes("No such file or directory"))) {
-                            return { success: false, error: `curl: ${pathValidation.error}` };
+                        if (!pathValidationResult.success) {
+                            return ErrorHandler.createError(`curl: ${pathValidationResult.error}`);
                         }
+                        const pathValidation = pathValidationResult.data;
                         if (pathValidation.node && pathValidation.node.type === 'directory') {
-                            return { success: false, error: `curl: output file '${flags.output}' is a directory` };
+                            return ErrorHandler.createError(`curl: output file '${flags.output}' is a directory`);
                         }
 
                         const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
                         if (!primaryGroup) {
-                            return {
-                                success: false,
-                                error: "curl: critical - could not determine primary group for user."
-                            };
+                            return ErrorHandler.createError("curl: critical - could not determine primary group for user.");
                         }
 
                         const saveResult = await FileSystemManager.createOrUpdateFile(
@@ -116,28 +111,16 @@ EXAMPLES
                         );
 
                         if (!saveResult.success) {
-                            return {
-                                success: false,
-                                error: `curl: ${saveResult.error}`
-                            };
+                            return ErrorHandler.createError(`curl: ${saveResult.error}`);
                         }
                         await FileSystemManager.save();
-                        return {
-                            success: true,
-                            output: ""
-                        };
+                        return ErrorHandler.createSuccess("");
                     } else {
-                        return {
-                            success: true,
-                            output: outputString
-                        };
+                        return ErrorHandler.createSuccess(outputString);
                     }
                 }
 
-                return {
-                    success: false,
-                    error: 'curl: Too many redirects.'
-                };
+                return ErrorHandler.createError('curl: Too many redirects.');
 
             } catch (e) {
                 let errorMsg = `curl: (7) Failed to connect to host. This is often a network issue or a CORS policy preventing access.`;
@@ -146,10 +129,7 @@ EXAMPLES
                 } else if (e instanceof URIError) {
                     errorMsg = `curl: (3) URL using bad/illegal format or missing URL`;
                 }
-                return {
-                    success: false,
-                    error: errorMsg
-                };
+                return ErrorHandler.createError(errorMsg);
             }
         },
     };

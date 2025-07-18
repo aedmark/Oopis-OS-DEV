@@ -118,14 +118,15 @@
 
     async function listSinglePathContents(targetPathArg, effectiveFlags, currentUser) {
         const resolvedPath = FileSystemManager.getAbsolutePath(targetPathArg);
-        const targetNode = FileSystemManager.getNodeByPath(resolvedPath);
+        const pathValidationResult = FileSystemManager.validatePath(resolvedPath);
 
-        if (!targetNode) {
-            return { success: false, error: `ls: cannot access '${targetPathArg}': No such file or directory` };
+        if (!pathValidationResult.success) {
+            return ErrorHandler.createError(`ls: cannot access '${targetPathArg}': ${pathValidationResult.error.replace(resolvedPath + ':', '').trim()}`);
         }
+        const { node: targetNode } = pathValidationResult.data;
 
         if (!FileSystemManager.hasPermission(targetNode, currentUser, "read")) {
-            return { success: false, error: `ls: cannot open directory '${targetPathArg}': Permission denied` };
+            return ErrorHandler.createError(`ls: cannot open directory '${targetPathArg}': Permission denied`);
         }
 
         let itemDetailsList = [];
@@ -169,7 +170,7 @@
             }
         }
 
-        return { success: true, output: currentPathOutputLines.join("\n"), items: itemDetailsList, isDir: targetNode.type === 'directory' };
+        return ErrorHandler.createSuccess({ output: currentPathOutputLines.join("\n"), items: itemDetailsList, isDir: targetNode.type === 'directory' });
     }
 
     const lsCommandDefinition = {
@@ -235,14 +236,17 @@ OPTIONS
                         if (!listResult.success) {
                             outputBlocks.push(listResult.error);
                             overallSuccess = false;
-                        } else if (listResult.output) {
-                            outputBlocks.push(listResult.output);
-                        }
+                        } else {
+                            const { output, items, isDir } = listResult.data;
+                            if (output) {
+                                outputBlocks.push(output);
+                            }
 
-                        if (listResult.items && listResult.isDir) {
-                            const subdirectories = listResult.items.filter(item => item.type === 'directory' && !item.name.startsWith("."));
-                            for (const dirItem of subdirectories) {
-                                await displayRecursive(dirItem.path, depth + 1);
+                            if (items && isDir) {
+                                const subdirectories = items.filter(item => item.type === 'directory' && !item.name.startsWith("."));
+                                for (const dirItem of subdirectories) {
+                                    await displayRecursive(dirItem.path, depth + 1);
+                                }
                             }
                         }
                     }
@@ -256,11 +260,11 @@ OPTIONS
                     const errorOutputs = [];
 
                     for (const path of pathsToList) {
-                        const pathValidation = FileSystemManager.validatePath(path);
-                        if (pathValidation.error) {
-                            errorOutputs.push(`ls: cannot access '${path}': No such file or directory`);
+                        const pathValidationResult = FileSystemManager.validatePath(path);
+                        if (!pathValidationResult.success) {
+                            errorOutputs.push(`ls: cannot access '${path}': ${pathValidationResult.error.replace(path + ':', '').trim()}`);
                             overallSuccess = false;
-                        } else if (pathValidation.node.type === 'directory' || effectiveFlags.dirsOnly) {
+                        } else if (pathValidationResult.data.node.type === 'directory' || effectiveFlags.dirsOnly) {
                             dirArgs.push(path);
                         } else {
                             fileArgs.push(path);
@@ -269,7 +273,7 @@ OPTIONS
 
                     if (fileArgs.length > 0) {
                         const fileListResult = await listSinglePathContents(fileArgs[0], effectiveFlags, currentUser); // temp fix for multiple files
-                        if(fileListResult.success) outputBlocks.push(fileListResult.output);
+                        if(fileListResult.success) outputBlocks.push(fileListResult.data.output);
                         else {
                             errorOutputs.push(fileListResult.error);
                             overallSuccess = false;
@@ -285,7 +289,7 @@ OPTIONS
                         }
                         const listResult = await listSinglePathContents(dirArgs[i], effectiveFlags, currentUser);
                         if (listResult.success) {
-                            outputBlocks.push(listResult.output);
+                            outputBlocks.push(listResult.data.output);
                         } else {
                             errorOutputs.push(listResult.error);
                             overallSuccess = false;
@@ -294,9 +298,12 @@ OPTIONS
                     outputBlocks = [...errorOutputs, ...outputBlocks];
                 }
 
-                return { success: overallSuccess, [overallSuccess ? 'output' : 'error']: outputBlocks.join("\n") };
+                if(!overallSuccess) {
+                    return ErrorHandler.createError(outputBlocks.join("\n"));
+                }
+                return ErrorHandler.createSuccess(outputBlocks.join("\n"));
             } catch (e) {
-                return { success: false, error: `ls: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`ls: An unexpected error occurred: ${e.message}`);
             }
         },
     };

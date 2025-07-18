@@ -49,15 +49,15 @@ EXAMPLES
             const { args, flags, currentUser } = context;
 
             try {
-                const fileValidation = FileSystemManager.validatePath(args[0], {
+                const fileValidationResult = FileSystemManager.validatePath(args[0], {
                     expectedType: 'file',
                     permissions: ['read']
                 });
 
-                if (fileValidation.error) {
-                    return { success: false, error: `csplit: ${fileValidation.error}` };
+                if (!fileValidationResult.success) {
+                    return ErrorHandler.createError(`csplit: ${fileValidationResult.error}`);
                 }
-                const fileNode = fileValidation.node;
+                const fileNode = fileValidationResult.data.node;
 
                 const content = fileNode.content || "";
                 const lines = content.split('\n');
@@ -67,7 +67,7 @@ EXAMPLES
                 const numDigits = flags.digits ? parseInt(flags.digits, 10) : 2;
 
                 if (isNaN(numDigits) || numDigits < 1) {
-                    return { success: false, error: `csplit: invalid number of digits: '${flags.digits}'` };
+                    return ErrorHandler.createError(`csplit: invalid number of digits: '${flags.digits}'`);
                 }
 
                 const segments = [];
@@ -87,18 +87,18 @@ EXAMPLES
                                 }
                             }
                         } catch (e) {
-                            return { success: false, error: `csplit: invalid regular expression: '${pattern}'` };
+                            return ErrorHandler.createError(`csplit: invalid regular expression: '${pattern}'`);
                         }
                     } else {
                         const lineNum = parseInt(pattern, 10);
                         if (isNaN(lineNum) || lineNum <= 0 || lineNum > lines.length) {
-                            return { success: false, error: `csplit: '${pattern}': line number out of range` };
+                            return ErrorHandler.createError(`csplit: '${pattern}': line number out of range`);
                         }
                         splitLine = lineNum - 1;
                     }
 
                     if (splitLine === -1 || splitLine < lastSplitLine) {
-                        return { success: false, error: `csplit: '${pattern}': pattern not found or out of order` };
+                        return ErrorHandler.createError(`csplit: '${pattern}': pattern not found or out of order`);
                     }
 
                     segments.push(lines.slice(lastSplitLine, splitLine));
@@ -129,9 +129,12 @@ EXAMPLES
                             for (const f of createdFileNames) {
                                 await CommandExecutor.processSingleCommand(`rm -f ${f}`, { isInteractive: false });
                             }
-                            await FileSystemManager.save();
+                            const fsSaveResult = await FileSystemManager.save();
+                            if(!fsSaveResult.success) {
+                                return ErrorHandler.createError(`csplit: failed to write to ${fileName} and also failed to cleanup: ${saveResult.error} & ${fsSaveResult.error}`);
+                            }
                         }
-                        return { success: false, error: `csplit: failed to write to ${fileName}: ${saveResult.error}` };
+                        return ErrorHandler.createError(`csplit: failed to write to ${fileName}: ${saveResult.error}`);
                     }
 
                     createdFileNames.push(fileName);
@@ -143,12 +146,15 @@ EXAMPLES
                 }
 
                 if (anyChangeMade) {
-                    await FileSystemManager.save();
+                    const fsSaveResult = await FileSystemManager.save();
+                    if(!fsSaveResult.success) {
+                        return ErrorHandler.createError(`csplit: Failed to save file system changes: ${fsSaveResult.error}`);
+                    }
                 }
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `csplit: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`csplit: An unexpected error occurred: ${e.message}`);
             }
         }
     };

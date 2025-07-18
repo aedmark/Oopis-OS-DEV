@@ -36,20 +36,20 @@ DESCRIPTION
 
             try {
                 if (!options.isInteractive) {
-                    return { success: false, error: "code: Can only be run in interactive mode." };
+                    return ErrorHandler.createError("code: Can only be run in interactive mode.");
                 }
 
                 if (typeof Code === 'undefined' || typeof CodeUI === 'undefined' || typeof App === 'undefined') {
-                    return { success: false, error: "code: The code editor application modules are not loaded." };
+                    return ErrorHandler.createError("code: The code editor application modules are not loaded.");
                 }
 
                 const fileContent = node ? node.content || "" : "";
 
                 AppLayerManager.show(Code, { filePath: resolvedPath, fileContent });
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `code: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`code: An unexpected error occurred: ${e.message}`);
             }
         }
     };

@@ -56,11 +56,11 @@ SYSTEM BRIDGE
 
             try {
                 if (!options.isInteractive) {
-                    return { success: false, error: "basic: Cannot be run in a non-interactive mode." };
+                    return ErrorHandler.createError("basic: Cannot be run in a non-interactive mode.");
                 }
 
                 if (typeof Basic === 'undefined' || typeof BasicUI === 'undefined' || typeof Basic_interp === 'undefined' || typeof App === 'undefined') {
-                    return { success: false, error: "basic: The BASIC application modules are not loaded." };
+                    return ErrorHandler.createError("basic: The BASIC application modules are not loaded.");
                 }
 
                 let fileContent = null;
@@ -68,18 +68,19 @@ SYSTEM BRIDGE
 
                 if (args.length > 0) {
                     const pathArg = args[0];
-                    const pathValidation = FileSystemManager.validatePath(pathArg, {
+                    const pathValidationResult = FileSystemManager.validatePath(pathArg, {
                         allowMissing: true,
                         expectedType: 'file'
                     });
 
-                    if (pathValidation.error && !pathValidation.node) {
-                        return { success: false, error: `basic: ${pathValidation.error}` };
+                    if (!pathValidationResult.success && pathValidationResult.data?.node) {
+                        return ErrorHandler.createError(`basic: ${pathValidationResult.error}`);
                     }
+                    const pathValidation = pathValidationResult.data;
 
                     if (pathValidation.node) {
                         if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, 'read')) {
-                            return { success: false, error: `basic: cannot read file '${pathArg}': Permission denied`};
+                            return ErrorHandler.createError(`basic: cannot read file '${pathArg}': Permission denied`);
                         }
                         filePath = pathValidation.resolvedPath;
                         fileContent = pathValidation.node.content;
@@ -90,12 +91,11 @@ SYSTEM BRIDGE
                     }
                 }
 
-                // Launch the app via the AppLayerManager
                 AppLayerManager.show(Basic, { content: fileContent, path: filePath });
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `basic: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`basic: An unexpected error occurred: ${e.message}`);
             }
         }
     };

@@ -12,16 +12,16 @@
             const jobId = context.options?.jobId;
 
             if (jobId === undefined) {
-                return { success: false, error: "read_messages: can only be run from within a background job." };
+                return ErrorHandler.createError("read_messages: can only be run from within a background job.");
             }
 
             const messages = MessageBusManager.getMessages(jobId);
 
             if (messages.length === 0) {
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             }
 
-            return { success: true, output: messages.join('\n') };
+            return ErrorHandler.createSuccess(messages.join('\n'));
         },
     };
 

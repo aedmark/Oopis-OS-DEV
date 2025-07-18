@@ -48,7 +48,7 @@ EXAMPLES
 
         try {
             if (args.length === 0) {
-                return { success: false, error: "grep: missing pattern" };
+                return ErrorHandler.createError("grep: missing pattern");
             }
 
             const patternStr = args[0];
@@ -58,7 +58,7 @@ EXAMPLES
             try {
                 regex = new RegExp(patternStr, flags.ignoreCase ? "i" : "");
             } catch (e) {
-                return { success: false, error: `grep: invalid regular expression '${patternStr}': ${e.message}` };
+                return ErrorHandler.createError(`grep: invalid regular expression '${patternStr}': ${e.message}`);
             }
 
             const outputLines = [];
@@ -158,16 +158,15 @@ EXAMPLES
             } else if (options.stdinContent !== null) {
                 processContent(options.stdinContent, '(standard input)', false);
             } else {
-                return { success: false, error: "grep: missing operand" };
+                return ErrorHandler.createError("grep: missing operand");
             }
 
-            return {
-                success: !hadError,
-                output: outputLines.join("\\n"),
-                error: hadError ? "One or more errors occurred." : null
-            };
+            if(hadError) {
+                return ErrorHandler.createError(outputLines.join("\\n"));
+            }
+            return ErrorHandler.createSuccess(outputLines.join("\\n"));
         } catch (e) {
-            return { success: false, error: `grep: An unexpected error occurred: ${e.message}` };
+            return ErrorHandler.createError(`grep: An unexpected error occurred: ${e.message}`);
         }
     },
 };

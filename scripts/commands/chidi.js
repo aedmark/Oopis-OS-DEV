@@ -113,16 +113,16 @@ EXAMPLES
 
             try {
                 if (!options.isInteractive) {
-                    return { success: false, error: "chidi: Can only be run in interactive mode." };
+                    return ErrorHandler.createError("chidi: Can only be run in interactive mode.");
                 }
 
                 if (typeof Chidi === 'undefined' || typeof ChidiUI === 'undefined' || typeof App === 'undefined') {
-                    return { success: false, error: "chidi: The Chidi application modules are not properly loaded." };
+                    return ErrorHandler.createError("chidi: The Chidi application modules are not properly loaded.");
                 }
 
                 const provider = flags.provider || 'gemini';
                 if (provider === 'gemini' && !StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY)) {
-                    return { success: false, error: "chidi: Gemini API key not set. Please run 'gemini' once to set it." };
+                    return ErrorHandler.createError("chidi: Gemini API key not set. Please run 'gemini' once to set it.");
                 }
 
                 let files = [];
@@ -130,16 +130,17 @@ EXAMPLES
                 const SUPPORTED_EXTENSIONS = new Set(['md', 'txt', 'js', 'sh']);
 
                 if (options.stdinContent) {
-                    if (args.length > 0) return { success: false, error: "chidi: does not accept file arguments when receiving piped input." };
+                    if (args.length > 0) return ErrorHandler.createError("chidi: does not accept file arguments when receiving piped input.");
                     const pathsFromPipe = options.stdinContent.trim().split('\n');
                     for (const path of pathsFromPipe) {
                         if (!path.trim()) continue;
-                        const pathValidation = FileSystemManager.validatePath(path, { expectedType: 'file', permissions: ['read'] });
-                        if (pathValidation.error) {
+                        const pathValidationResult = FileSystemManager.validatePath(path, { expectedType: 'file', permissions: ['read'] });
+                        if (!pathValidationResult.success) {
                             await OutputManager.appendToOutput(`chidi: Skipping invalid or unreadable path from pipe: ${path}`, {typeClass: Config.CSS_CLASSES.WARNING_MSG});
                             hadErrors = true;
                             continue;
                         }
+                        const pathValidation = pathValidationResult.data;
                         if (SUPPORTED_EXTENSIONS.has(Utils.getFileExtension(pathValidation.resolvedPath))) {
                             files.push({
                                 name: pathValidation.resolvedPath.split('/').pop(),
@@ -150,15 +151,16 @@ EXAMPLES
                     }
                 } else {
                     const startPathArg = args.length > 0 ? args[0] : ".";
-                    const pathValidation = FileSystemManager.validatePath(startPathArg, { permissions: ["read"] });
-                    if (pathValidation.error) {
-                        return { success: false, error: `chidi: ${pathValidation.error}` };
+                    const pathValidationResult = FileSystemManager.validatePath(startPathArg, { permissions: ["read"] });
+                    if (!pathValidationResult.success) {
+                        return ErrorHandler.createError(`chidi: ${pathValidationResult.error}`);
                     }
+                    const pathValidation = pathValidationResult.data;
                     files = await _getFilesForAnalysis(pathValidation.resolvedPath, pathValidation.node, currentUser);
                 }
 
                 if (files.length === 0) {
-                    return { success: true, output: `No supported files (.md, .txt, .js, .sh) found to open.` };
+                    return ErrorHandler.createSuccess(`No supported files (.md, .txt, .js, .sh) found to open.`);
                 }
 
                 AppLayerManager.show(Chidi, {
@@ -170,10 +172,13 @@ EXAMPLES
                     }
                 });
 
-                return { success: !hadErrors, output: "" };
+                if(hadErrors) {
+                    return ErrorHandler.createError("One or more paths from pipe were invalid.");
+                }
+                return ErrorHandler.createSuccess("");
 
             } catch (e) {
-                return { success: false, error: `chidi: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`chidi: An unexpected error occurred: ${e.message}`);
             }
         }
     };

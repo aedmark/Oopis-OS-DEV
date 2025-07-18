@@ -41,28 +41,26 @@ KEYBOARD SHORTCUTS
 
             try {
                 if (!options.isInteractive) {
-                    return { success: false, error: "paint: Can only be run in interactive mode." };
+                    return ErrorHandler.createError("paint: Can only be run in interactive mode.");
                 }
 
                 if (typeof Paint === 'undefined' || typeof PaintUI === 'undefined' || typeof App === 'undefined') {
-                    return {
-                        success: false,
-                        error: "paint: The Paint application module is not loaded."
-                    };
+                    return ErrorHandler.createError("paint: The Paint application module is not loaded.");
                 }
 
                 const pathArg = args.length > 0 ? args[0] : `untitled-${new Date().getTime()}.oopic`;
-                const pathValidation = FileSystemManager.validatePath(pathArg, {
+                const pathValidationResult = FileSystemManager.validatePath(pathArg, {
                     allowMissing: true,
                     expectedType: 'file',
                     permissions: ['read']
                 });
 
-                if (pathValidation.error && !pathValidation.node) {
-                    return { success: false, error: `paint: ${pathValidation.error}` };
+                if (!pathValidationResult.success && pathValidationResult.data?.node) {
+                    return ErrorHandler.createError(`paint: ${pathValidationResult.error}`);
                 }
+                const pathValidation = pathValidationResult.data;
                 if (Utils.getFileExtension(pathValidation.resolvedPath) !== 'oopic') {
-                    return { success: false, error: `paint: can only edit .oopic files.` };
+                    return ErrorHandler.createError(`paint: can only edit .oopic files.`);
                 }
 
 
@@ -70,12 +68,9 @@ KEYBOARD SHORTCUTS
 
                 AppLayerManager.show(Paint, { filePath: pathValidation.resolvedPath, fileContent });
 
-                return {
-                    success: true,
-                    output: ""
-                };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `paint: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`paint: An unexpected error occurred: ${e.message}`);
             }
         }
     };

@@ -45,21 +45,20 @@ KEYBOARD SHORTCUTS
 
             try {
                 if (!options.isInteractive) {
-                    return { success: false, error: "edit: Can only be run in interactive mode." };
+                    return ErrorHandler.createError("edit: Can only be run in interactive mode.");
                 }
 
                 if (typeof Editor === 'undefined' || typeof EditorUI === 'undefined' || typeof App === 'undefined') {
-                    return { success: false, error: "edit: The editor application modules are not loaded." };
+                    return ErrorHandler.createError("edit: The editor application modules are not loaded.");
                 }
 
                 const fileContent = node ? node.content || "" : "";
 
-                // Use AppLayerManager to show the singleton Editor instance
                 AppLayerManager.show(Editor, { filePath: resolvedPath, fileContent });
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `edit: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`edit: An unexpected error occurred: ${e.message}`);
             }
         }
     };

@@ -95,17 +95,17 @@ EXAMPLES
             try {
                 if (flags.chat) {
                     if (!options.isInteractive) {
-                        return { success: false, error: "gemini: Chat mode can only be run in interactive mode." };
+                        return ErrorHandler.createError("gemini: Chat mode can only be run in interactive mode.");
                     }
                     if (typeof GeminiChat === 'undefined' || typeof GeminiChatUI === 'undefined' || typeof App === 'undefined') {
-                        return { success: false, error: "gemini: The GeminiChat application modules are not loaded." };
+                        return ErrorHandler.createError("gemini: The GeminiChat application modules are not loaded.");
                     }
                     AppLayerManager.show(GeminiChat, { provider: flags.provider, model: flags.model });
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 if (args.length === 0) {
-                    return { success: false, error: 'Insufficient arguments. Usage: gemini [-p provider] [-m model] "<prompt>"'};
+                    return ErrorHandler.createError('Insufficient arguments. Usage: gemini [-p provider] [-m model] "<prompt>"');
                 }
 
                 let provider = flags.provider || 'gemini';
@@ -129,23 +129,23 @@ EXAMPLES
                             obscured: true,
                             onConfirm: (providedKey) => {
                                 if (!providedKey || providedKey.trim() === "") {
-                                    resolve({ success: false, error: "API key entry cancelled or empty." });
+                                    resolve(ErrorHandler.createError("API key entry cancelled or empty."));
                                     return;
                                 }
                                 StorageManager.saveItem(Config.STORAGE_KEYS.GEMINI_API_KEY, providedKey, "Gemini API Key");
                                 OutputManager.appendToOutput("API Key saved.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
-                                resolve({ success: true, key: providedKey });
+                                resolve(ErrorHandler.createSuccess({ key: providedKey, fromStorage: false }));
                             },
                             onCancel: () => {
-                                resolve({ success: false, error: "API key entry cancelled." });
+                                resolve(ErrorHandler.createError("API key entry cancelled."));
                             },
                             options
                         });
                     });
 
-                    if (!apiKeyResult.success) return { success: false, error: `gemini: ${apiKeyResult.error}` };
-                    apiKey = apiKeyResult.key;
-                    isNewKeyProvided = !apiKeyResult.fromStorage;
+                    if (!apiKeyResult.success) return ErrorHandler.createError(`gemini: ${apiKeyResult.error}`);
+                    apiKey = apiKeyResult.data.key;
+                    isNewKeyProvided = !apiKeyResult.data.fromStorage;
                 }
 
                 if (flags.new) {
@@ -192,12 +192,12 @@ ${setResult.output || '(none)'}
                         provider = 'gemini';
                         const fallbackApiKeyResult = await new Promise(resolve => {
                             let key = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
-                            if (key) resolve({ success: true, key: key, fromStorage: true });
-                            else resolve({ success: false, error: "Google Gemini API key not found for fallback." });
+                            if (key) resolve(ErrorHandler.createSuccess({ key: key, fromStorage: true }));
+                            else resolve(ErrorHandler.createError("Google Gemini API key not found for fallback."));
                         });
-                        if (!fallbackApiKeyResult.success) return { success: false, error: `gemini: ${fallbackApiKeyResult.error}` };
-                        apiKey = fallbackApiKeyResult.key;
-                        isNewKeyProvided = !fallbackApiKeyResult.fromStorage;
+                        if (!fallbackApiKeyResult.success) return ErrorHandler.createError(`gemini: ${fallbackApiKeyResult.error}`);
+                        apiKey = fallbackApiKeyResult.data.key;
+                        isNewKeyProvided = !fallbackApiKeyResult.data.fromStorage;
 
                         plannerResult = await Utils.callLlmApi(provider, model, plannerConversation, apiKey, PLANNER_SYSTEM_PROMPT);
                     }
@@ -208,19 +208,19 @@ ${setResult.output || '(none)'}
                             if (options.isInteractive) {
                                 await OutputManager.appendToOutput("Gemini API key was invalid and has been removed.", {typeClass: Config.CSS_CLASSES.WARNING_MSG});
                             }
-                            return { success: false, error: "gemini: Your API key is invalid. Please run the command again." };
+                            return ErrorHandler.createError("gemini: Your API key is invalid. Please run the command again.");
                         }
-                        return { success: false, error: `gemini: Planner stage failed. ${plannerResult.error}` };
+                        return ErrorHandler.createError(`gemini: Planner stage failed. ${plannerResult.error}`);
                     }
 
                     const planText = plannerResult.answer?.trim();
-                    if (!planText) return { success: false, error: "gemini: AI failed to generate a valid plan or response." };
+                    if (!planText) return ErrorHandler.createError("gemini: AI failed to generate a valid plan or response.");
 
                     const firstWordOfPlan = planText.split(/\s+/)[0];
                     if (!COMMAND_WHITELIST.includes(firstWordOfPlan)) {
                         conversationHistory.push({ role: "user", parts: [{ text: userPrompt }] });
                         conversationHistory.push({ role: "model", parts: [{ text: planText }] });
-                        return { success: true, output: planText };
+                        return ErrorHandler.createSuccess(planText);
                     }
 
                     let executedCommandsOutput = "";
@@ -233,7 +233,7 @@ ${setResult.output || '(none)'}
                         const commandName = commandStr.split(' ')[0];
                         if (!COMMAND_WHITELIST.includes(commandName)) {
                             await OutputManager.appendToOutput(`Execution HALTED: AI attempted to run a non-whitelisted command: '${commandName}'.`, {typeClass: Config.CSS_CLASSES.ERROR_MSG});
-                            return { success: false, error: `Attempted to run restricted command: ${commandName}` };
+                            return ErrorHandler.createError(`Attempted to run restricted command: ${commandName}`);
                         }
 
                         if (flags.verbose && options.isInteractive) {
@@ -248,18 +248,18 @@ ${setResult.output || '(none)'}
                     const synthesizerResult = await Utils.callLlmApi(provider, model, [{ role: "user", parts: [{ text: synthesizerPrompt }] }], apiKey, SYNTHESIZER_SYSTEM_PROMPT);
 
                     if (!synthesizerResult.success) {
-                        return { success: false, error: `gemini: Synthesizer stage failed. ${synthesizerResult.error}` };
+                        return ErrorHandler.createError(`gemini: Synthesizer stage failed. ${synthesizerResult.error}`);
                     }
 
                     const finalAnswer = synthesizerResult.answer;
                     if (!finalAnswer) {
-                        return { success: false, error: "gemini: AI failed to synthesize a final answer." };
+                        return ErrorHandler.createError("gemini: AI failed to synthesize a final answer.");
                     }
 
                     conversationHistory.push({ role: "user", parts: [{ text: userPrompt }] });
                     conversationHistory.push({ role: "model", parts: [{ text: finalAnswer }] });
 
-                    return { success: true, output: finalAnswer };
+                    return ErrorHandler.createSuccess(finalAnswer);
 
                 } else {
                     const directConversation = [...conversationHistory, { role: "user", parts: [{ text: userPrompt }] }];
@@ -270,23 +270,27 @@ ${setResult.output || '(none)'}
                                 await OutputManager.appendToOutput(`gemini: Could not connect to '${originalProvider}'. Falling back to default 'gemini' provider.`, {typeClass: Config.CSS_CLASSES.WARNING_MSG});
                             }
                             const fallbackCommand = `gemini ${flags.new ? '-n ' : ''}${flags.verbose ? '-v ' : ''}"${userPrompt}"`;
-                            return await CommandExecutor.processSingleCommand(fallbackCommand, options);
+                            const fallbackResult = await CommandExecutor.processSingleCommand(fallbackCommand, options);
+                            if(fallbackResult.success){
+                                return ErrorHandler.createSuccess(fallbackResult.output);
+                            }
+                            return ErrorHandler.createError(fallbackResult.error);
                         }
-                        return { success: false, error: `gemini: Local LLM interaction failed. ${directResult.error}` };
+                        return ErrorHandler.createError(`gemini: Local LLM interaction failed. ${directResult.error}`);
                     }
 
                     const finalAnswer = directResult.answer;
                     if (!finalAnswer) {
-                        return { success: false, error: "gemini: Local LLM failed to generate a response." };
+                        return ErrorHandler.createError("gemini: Local LLM failed to generate a response.");
                     }
 
                     conversationHistory.push({ role: "user", parts: [{ text: userPrompt }] });
                     conversationHistory.push({ role: "model", parts: [{ text: finalAnswer }] });
 
-                    return { success: true, output: finalAnswer };
+                    return ErrorHandler.createSuccess(finalAnswer);
                 }
             } catch (e) {
-                return { success: false, error: `gemini: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`gemini: An unexpected error occurred: ${e.message}`);
             }
         },
     };

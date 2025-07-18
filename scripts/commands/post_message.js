@@ -17,19 +17,19 @@
             const message = args[1];
 
             if (isNaN(jobId)) {
-                return { success: false, error: `Invalid job ID: '${args[0]}'` };
+                return ErrorHandler.createError(`Invalid job ID: '${args[0]}'`);
             }
 
             if (!MessageBusManager.hasJob(jobId)) {
-                return { success: false, error: `No active job with ID: ${jobId}` };
+                return ErrorHandler.createError(`No active job with ID: ${jobId}`);
             }
 
             const result = MessageBusManager.postMessage(jobId, message);
 
             if (result.success) {
-                return { success: true, output: `Message sent to job ${jobId}.` };
+                return ErrorHandler.createSuccess(`Message sent to job ${jobId}.`);
             } else {
-                return { success: false, error: result.error };
+                return ErrorHandler.createError(result.error);
             }
         },
     };
