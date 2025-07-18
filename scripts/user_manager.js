@@ -1,3 +1,4 @@
+// scripts/user_manager.js
 const UserManager = (() => {
     "use strict";
     let currentUser = {
@@ -117,27 +118,19 @@ const UserManager = (() => {
 
     async function register(username, password) {
         const formatValidation = Utils.validateUsernameFormat(username);
-        if (!formatValidation.isValid)
-            return {
-                success: false,
-                error: formatValidation.error,
-            };
+        if (!formatValidation.isValid) {
+            return ErrorHandler.createError(formatValidation.error);
+        }
 
-        if (await userExists(username))
-            return {
-                success: false,
-                error: `User '${username}' already exists.`,
-            };
+        if (await userExists(username)) {
+            return ErrorHandler.createError(`User '${username}' already exists.`);
+        }
 
-        // MODIFIED: Use the new password system.
         let passwordData = null;
         if (password) {
             passwordData = await _secureHashPassword(password);
             if (!passwordData) {
-                return {
-                    success: false,
-                    error: "Failed to securely process password.",
-                };
+                return ErrorHandler.createError("Failed to securely process password.");
             }
         }
 
@@ -150,13 +143,13 @@ const UserManager = (() => {
             {}
         );
 
-        // MODIFIED: Store passwordData object instead of just a hash.
         users[username] = {
-            passwordData: passwordData, // This can be null for passwordless accounts
+            passwordData: passwordData,
             primaryGroup: username,
         };
 
         await FileSystemManager.createUserHomeDirectory(username);
+        const fsSaveResult = await FileSystemManager.save();
 
         if (
             StorageManager.saveItem(
@@ -164,17 +157,11 @@ const UserManager = (() => {
                 users,
                 "User list"
             ) &&
-            (await FileSystemManager.save())
+            fsSaveResult.success
         ) {
-            return {
-                success: true,
-                message: `User '${username}' registered. Home directory created at /home/${username}.`,
-            };
+            return ErrorHandler.createSuccess(`User '${username}' registered. Home directory created at /home/${username}.`);
         } else {
-            return {
-                success: false,
-                error: "Failed to save new user and filesystem.",
-            };
+            return ErrorHandler.createError("Failed to save new user and filesystem.");
         }
     }
 
@@ -183,26 +170,24 @@ const UserManager = (() => {
         const userEntry = users[username];
 
         if (!userEntry && username !== Config.USER.DEFAULT_NAME && username !== 'root') {
-            return { success: false, error: "Invalid username." };
+            return ErrorHandler.createError("Invalid username.");
         }
 
-        // MODIFIED: Check for the passwordData object.
         const { salt, hash } = userEntry?.passwordData || {};
 
-        if (salt && hash) { // User has a password
+        if (salt && hash) {
             if (providedPassword === null) {
                 return { success: false, error: "Password required.", requiresPasswordPrompt: true };
             }
-            // MODIFIED: Verify using the new salted hash method.
             const isValid = await _verifyPasswordWithSalt(providedPassword, salt, hash);
             if (!isValid) {
-                return { success: false, error: Config.MESSAGES.INVALID_PASSWORD };
+                return ErrorHandler.createError(Config.MESSAGES.INVALID_PASSWORD);
             }
-        } else if (providedPassword !== null) { // User does NOT have a password
-            return { success: false, error: "This account does not require a password." };
+        } else if (providedPassword !== null) {
+            return ErrorHandler.createError("This account does not require a password.");
         }
 
-        return { success: true };
+        return ErrorHandler.createSuccess();
     }
 
     async function verifyPassword(username, password) {
@@ -210,21 +195,19 @@ const UserManager = (() => {
         const userEntry = users[username];
 
         if (!userEntry) {
-            return { success: false, error: "User not found." };
+            return ErrorHandler.createError("User not found.");
         }
 
-        // MODIFIED: Check for passwordData object.
         const { salt, hash } = userEntry?.passwordData || {};
         if (!salt || !hash) {
-            return { success: false, error: "User does not have a password set."};
+            return ErrorHandler.createError("User does not have a password set.");
         }
 
-        // MODIFIED: Verify using the new salted hash method.
         const isValid = await _verifyPasswordWithSalt(password, salt, hash);
         if (isValid) {
-            return { success: true };
+            return ErrorHandler.createSuccess();
         } else {
-            return { success: false, error: "Incorrect password." };
+            return ErrorHandler.createError("Incorrect password.");
         }
     }
 
@@ -234,7 +217,7 @@ const UserManager = (() => {
             currentUser = { name: 'root' };
             return await CommandExecutor.processSingleCommand(commandStr, options);
         } catch (e) {
-            return { success: false, error: `sudo: an unexpected error occurred during execution: ${e.message}` };
+            return ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`);
         } finally {
             currentUser = originalUser;
         }
@@ -244,27 +227,26 @@ const UserManager = (() => {
         const users = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
 
         if (!await userExists(targetUsername)) {
-            return { success: false, error: `User '${targetUsername}' not found.` };
+            return ErrorHandler.createError(`User '${targetUsername}' not found.`);
         }
 
         if (actorUsername !== 'root') {
             if (actorUsername !== targetUsername) {
-                return { success: false, error: "You can only change your own password." };
+                return ErrorHandler.createError("You can only change your own password.");
             }
             const authResult = await _authenticateUser(actorUsername, oldPassword);
             if (!authResult.success) {
-                return { success: false, error: "Incorrect current password." };
+                return ErrorHandler.createError("Incorrect current password.");
             }
         }
 
         if (!newPassword || newPassword.trim() === '') {
-            return { success: false, error: "New password cannot be empty." };
+            return ErrorHandler.createError("New password cannot be empty.");
         }
 
-        // MODIFIED: Use the new password hashing system.
         const newPasswordData = await _secureHashPassword(newPassword);
         if (!newPasswordData) {
-            return { success: false, error: "Failed to securely process new password." };
+            return ErrorHandler.createError("Failed to securely process new password.");
         }
 
         users[targetUsername].passwordData = newPasswordData;
@@ -274,14 +256,12 @@ const UserManager = (() => {
             users,
             "User list"
         )) {
-            return { success: true, message: `Password for '${targetUsername}' updated successfully.` };
+            return ErrorHandler.createSuccess(`Password for '${targetUsername}' updated successfully.`);
         } else {
-            return { success: false, error: "Failed to save updated password." };
+            return ErrorHandler.createError("Failed to save updated password.");
         }
     }
 
-    // All other functions from the original file remain unchanged as they
-    // correctly call the now-refactored functions above.
     async function _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const authResult = await _authenticateUser(username, providedPassword);
 
@@ -297,10 +277,10 @@ const UserManager = (() => {
                         if (finalAuthResult.success) {
                             resolve(await successCallback(username));
                         } else {
-                            resolve({ success: false, error: finalAuthResult.error || failureMessage });
+                            resolve(ErrorHandler.createError(finalAuthResult.error || failureMessage));
                         }
                     },
-                    () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED }),
+                    () => resolve(ErrorHandler.createSuccess({ output: Config.MESSAGES.OPERATION_CANCELLED })),
                     true,
                     options
                 );
@@ -315,14 +295,11 @@ const UserManager = (() => {
 
         if (username === currentUserName) {
             const message = `${Config.MESSAGES.ALREADY_LOGGED_IN_AS_PREFIX}${username}${Config.MESSAGES.ALREADY_LOGGED_IN_AS_SUFFIX}`;
-            return { success: true, message: message, noAction: true };
+            return ErrorHandler.createSuccess({ message: message, noAction: true });
         }
 
         if (currentStack.includes(username)) {
-            return {
-                success: false,
-                error: `${Config.MESSAGES.ALREADY_LOGGED_IN_AS_PREFIX}${username}${Config.MESSAGES.ALREADY_LOGGED_IN_AS_SUFFIX}`
-            };
+            return ErrorHandler.createError(`${Config.MESSAGES.ALREADY_LOGGED_IN_AS_PREFIX}${username}${Config.MESSAGES.ALREADY_LOGGED_IN_AS_SUFFIX}`);
         }
 
         return _handleAuthFlow(username, providedPassword, _performLogin, "Login failed.", options);
@@ -342,12 +319,12 @@ const UserManager = (() => {
         } else {
             FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
         }
-        return { success: true, message: `Logged in as ${username}.`, isLogin: true };
+        return ErrorHandler.createSuccess({ message: `Logged in as ${username}.`, isLogin: true });
     }
 
     async function su(username, providedPassword, options = {}) {
         if (currentUser.name === username) {
-            return { success: true, message: `Already user '${username}'.`, noAction: true };
+            return ErrorHandler.createSuccess({ message: `Already user '${username}'.`, noAction: true });
         }
         return _handleAuthFlow(username, providedPassword, _performSu, "su: Authentication failure.", options);
     }
@@ -363,13 +340,16 @@ const UserManager = (() => {
         } else {
             FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
         }
-        return { success: true, message: `Switched to user: ${username}.` };
+        return ErrorHandler.createSuccess({ message: `Switched to user: ${username}.` });
     }
 
     async function logout() {
         const oldUser = currentUser.name;
         if (SessionManager.getStack().length <= 1) {
-            return { success: true, message: `Cannot log out from user '${oldUser}'. This is the only active session. Use 'login' to switch to a different user.`, noAction: true };
+            return ErrorHandler.createSuccess({
+                message: `Cannot log out from user '${oldUser}'. This is the only active session. Use 'login' to switch to a different user.`,
+                noAction: true
+            });
         }
 
         SessionManager.saveAutomaticState(oldUser);
@@ -384,7 +364,11 @@ const UserManager = (() => {
         } else {
             FileSystemManager.setCurrentPath(Config.FILESYSTEM.ROOT_PATH);
         }
-        return { success: true, message: `Logged out from ${oldUser}. Now logged in as ${newUsername}.`, isLogout: true, newUser: newUsername };
+        return ErrorHandler.createSuccess({
+            message: `Logged out from ${oldUser}. Now logged in as ${newUsername}.`,
+            isLogout: true,
+            newUser: newUsername
+        });
     }
 
     async function initializeDefaultUsers() {
@@ -395,7 +379,6 @@ const UserManager = (() => {
         );
         let changesMade = false;
 
-        // MODIFIED: To handle the new passwordData structure
         if (!users["root"] || !users["root"].passwordData) {
             users["root"] = {
                 passwordData: await _secureHashPassword("mcgoopis"),
