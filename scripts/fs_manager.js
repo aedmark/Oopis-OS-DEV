@@ -1,3 +1,4 @@
+// scripts/fs_manager.js
 const FileSystemManager = (() => {
     "use strict";
 
@@ -105,11 +106,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
         try {
             db = IndexedDBManager.getDbInstance();
         } catch (e) {
-            // This is a critical failure, returning an error object is appropriate.
-            return {
-                success: false,
-                error: "File system storage not available for saving."
-            };
+            return ErrorHandler.createError("File system storage not available for saving.");
         }
 
         return new Promise((resolve) => {
@@ -122,15 +119,9 @@ MESSAGES.WELCOME_SUFFIX=!`;
                 id: Config.DATABASE.UNIFIED_FS_KEY,
                 data: Utils.deepCopyNode(fsData),
             });
-            request.onsuccess = () => resolve({
-                success: true
-            });
+            request.onsuccess = () => resolve(ErrorHandler.createSuccess());
             request.onerror = (event) => {
-                // The transaction failed. Report it back.
-                resolve({
-                    success: false,
-                    error: `OopisOs failed to save the file system: ${event.target.error}`
-                });
+                resolve(ErrorHandler.createError(`OopisOs failed to save the file system: ${event.target.error}`));
             };
         });
     }
@@ -142,10 +133,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
             db = IndexedDBManager.getDbInstance();
         } catch (e) {
             await initialize(Config.USER.DEFAULT_NAME);
-            return {
-                success: false,
-                error: Config.INTERNAL_ERRORS.DB_NOT_INITIALIZED_FS_LOAD
-            };
+            return ErrorHandler.createError(Config.INTERNAL_ERRORS.DB_NOT_INITIALIZED_FS_LOAD);
         }
         return new Promise(async (resolve) => {
             const transaction = db.transaction(
@@ -167,16 +155,11 @@ MESSAGES.WELCOME_SUFFIX=!`;
                     await initialize(Config.USER.DEFAULT_NAME);
                     await save();
                 }
-                resolve({
-                    success: true
-                });
+                resolve(ErrorHandler.createSuccess());
             };
             request.onerror = async (event) => {
                 await initialize(Config.USER.DEFAULT_NAME);
-                resolve({
-                    success: false,
-                    error: event.target.error
-                });
+                resolve(ErrorHandler.createError(event.target.error));
             };
         });
     }
@@ -186,10 +169,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
         try {
             db = IndexedDBManager.getDbInstance();
         } catch (e) {
-            return {
-                success: false,
-                error: "File system storage not available for clearing all data."
-            };
+            return ErrorHandler.createError("File system storage not available for clearing all data.");
         }
         return new Promise((resolve) => {
             const transaction = db.transaction(
@@ -198,15 +178,10 @@ MESSAGES.WELCOME_SUFFIX=!`;
             );
             const store = transaction.objectStore(Config.DATABASE.FS_STORE_NAME);
             const request = store.clear();
-            request.onsuccess = () => resolve({
-                success: true
-            });
+            request.onsuccess = () => resolve(ErrorHandler.createSuccess());
             request.onerror = (event) => {
                 console.error("Error clearing FileSystemsStore:", event.target.error);
-                resolve({
-                    success: false,
-                    error: `Could not clear all user file systems: ${event.target.error}`
-                });
+                resolve(ErrorHandler.createError(`Could not clear all user file systems: ${event.target.error}`));
             };
         });
     }
@@ -301,54 +276,30 @@ MESSAGES.WELCOME_SUFFIX=!`;
         // 3. Validate Node Existence
         if (!node) {
             if (allowMissing) {
-                return {
-                    node: null,
-                    resolvedPath,
-                    error: null
-                };
+                return ErrorHandler.createSuccess({ node: null, resolvedPath });
             }
-            return {
-                node: null,
-                resolvedPath,
-                error: `${pathArg}: No such file or directory`
-            };
+            return ErrorHandler.createError(`${pathArg}: No such file or directory`);
         }
 
         // 4. Validate Expected Type
         if (expectedType && node.type !== expectedType) {
             if (expectedType === 'file') {
-                return {
-                    node,
-                    resolvedPath,
-                    error: `${pathArg}: Is not a file`
-                };
+                return ErrorHandler.createError(`${pathArg}: Is not a file`);
             }
             if (expectedType === 'directory') {
-                return {
-                    node,
-                    resolvedPath,
-                    error: `${pathArg}: Is not a directory`
-                };
+                return ErrorHandler.createError(`${pathArg}: Is not a directory`);
             }
         }
 
         // 5. Validate Permissions
         for (const perm of permissions) {
             if (!hasPermission(node, currentUser, perm)) {
-                return {
-                    node,
-                    resolvedPath,
-                    error: `${pathArg}: Permission denied`
-                };
+                return ErrorHandler.createError(`${pathArg}: Permission denied`);
             }
         }
 
         // 6. Success
-        return {
-            node,
-            resolvedPath,
-            error: null
-        };
+        return ErrorHandler.createSuccess({ node, resolvedPath });
     }
 
     function calculateNodeSize(node) {
@@ -386,11 +337,9 @@ MESSAGES.WELCOME_SUFFIX=!`;
     function createParentDirectoriesIfNeeded(fullPath) {
         const currentUserForCPDIF = UserManager.getCurrentUser().name;
         const nowISO = new Date().toISOString();
-        if (fullPath === Config.FILESYSTEM.ROOT_PATH)
-            return {
-                parentNode: null,
-                error: "Cannot create directory structure for root.",
-            };
+        if (fullPath === Config.FILESYSTEM.ROOT_PATH) {
+            return ErrorHandler.createError("Cannot create directory structure for root.");
+        }
         const lastSlashIndex = fullPath.lastIndexOf(
             Config.FILESYSTEM.PATH_SEPARATOR
         );
@@ -398,11 +347,9 @@ MESSAGES.WELCOME_SUFFIX=!`;
             lastSlashIndex === 0 ?
                 Config.FILESYSTEM.ROOT_PATH :
                 fullPath.substring(0, lastSlashIndex);
-        if (parentPathForSegments === Config.FILESYSTEM.ROOT_PATH)
-            return {
-                parentNode: fsData[Config.FILESYSTEM.ROOT_PATH],
-                error: null,
-            };
+        if (parentPathForSegments === Config.FILESYSTEM.ROOT_PATH) {
+            return ErrorHandler.createSuccess(fsData[Config.FILESYSTEM.ROOT_PATH]);
+        }
         const segmentsToCreate = parentPathForSegments
             .substring(1)
             .split(Config.FILESYSTEM.PATH_SEPARATOR)
@@ -413,11 +360,9 @@ MESSAGES.WELCOME_SUFFIX=!`;
             !currentParentNode ||
             typeof currentParentNode.owner === "undefined" ||
             typeof currentParentNode.mode === "undefined"
-        )
-            return {
-                parentNode: null,
-                error: "Internal error: Root FS node is malformed.",
-            };
+        ) {
+            return ErrorHandler.createError("Internal error: Root FS node is malformed.");
+        }
         for (const segment of segmentsToCreate) {
             if (
                 !currentParentNode.children ||
@@ -425,18 +370,12 @@ MESSAGES.WELCOME_SUFFIX=!`;
             ) {
                 const errorMsg = `Internal error: currentParentNode.children is not an object at path "${currentProcessedPath}" for segment "${segment}". FS may be corrupted.`;
                 console.error(errorMsg, currentParentNode);
-                return {
-                    parentNode: null,
-                    error: errorMsg,
-                };
+                return ErrorHandler.createError(errorMsg);
             }
             if (!currentParentNode.children[segment]) {
                 if (!hasPermission(currentParentNode, currentUserForCPDIF, "write")) {
                     const errorMsg = `Cannot create directory '${segment}' in '${currentProcessedPath}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}`;
-                    return {
-                        parentNode: null,
-                        error: errorMsg,
-                    };
+                    return ErrorHandler.createError(errorMsg);
                 }
                 currentParentNode.children[segment] = {
                     type: Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE,
@@ -455,10 +394,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
                     segment,
                     currentProcessedPath
                 )}' is not a directory.`;
-                return {
-                    parentNode: null,
-                    error: errorMsg,
-                };
+                return ErrorHandler.createError(errorMsg);
             }
             currentParentNode = currentParentNode.children[segment];
             currentProcessedPath = getAbsolutePath(segment, currentProcessedPath);
@@ -467,15 +403,9 @@ MESSAGES.WELCOME_SUFFIX=!`;
                 typeof currentParentNode.owner === "undefined" ||
                 typeof currentParentNode.mode === "undefined"
             )
-                return {
-                    parentNode: null,
-                    error: `Internal error: Node for "${currentProcessedPath}" became malformed during parent creation.`,
-                };
+                return ErrorHandler.createError(`Internal error: Node for "${currentProcessedPath}" became malformed during parent creation.`);
         }
-        return {
-            parentNode: currentParentNode,
-            error: null,
-        };
+        return ErrorHandler.createSuccess(currentParentNode);
     }
 
     function hasPermission(node, username, permissionType) {
@@ -563,23 +493,16 @@ MESSAGES.WELCOME_SUFFIX=!`;
         const {
             force = false, currentUser
         } = options;
-        const pathValidation = validatePath(path, {
+        const pathValidationResult = validatePath(path, {
             disallowRoot: true
         });
-        if (pathValidation.error) {
-            if (force && !pathValidation.node) {
-                return {
-                    success: true,
-                    messages: [],
-                };
+        if (!pathValidationResult.success) {
+            if (force && !pathValidationResult.data?.node) {
+                return ErrorHandler.createSuccess({ messages: [] });
             }
-            return {
-                success: false,
-                messages: [pathValidation.error],
-            };
+            return ErrorHandler.createError({ messages: [pathValidationResult.error] });
         }
-        const node = pathValidation.node;
-        const resolvedPath = pathValidation.resolvedPath;
+        const { node, resolvedPath } = pathValidationResult.data;
         const parentPath =
             resolvedPath.substring(
                 0,
@@ -594,10 +517,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
         let anyChangeMade = false;
         if (!parentNode || !hasPermission(parentNode, currentUser, "write")) {
             const permError = `cannot remove '${path}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}`;
-            return {
-                success: force,
-                messages: force ? [] : [permError],
-            };
+            return ErrorHandler.createError({ messages: force ? [] : [permError] });
         }
         if (node.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE) {
             if (node.children && typeof node.children === 'object') {
@@ -605,12 +525,9 @@ MESSAGES.WELCOME_SUFFIX=!`;
                 for (const childName of childrenNames) {
                     const childPath = getAbsolutePath(childName, resolvedPath);
                     const result = await deleteNodeRecursive(childPath, options);
-                    messages.push(...result.messages);
                     if (!result.success) {
-                        return {
-                            success: false,
-                            messages,
-                        };
+                        messages.push(...result.error.messages);
+                        return ErrorHandler.createError({ messages });
                     }
                 }
             } else {
@@ -620,11 +537,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
         delete parentNode.children[itemName];
         parentNode.mtime = nowISO;
         anyChangeMade = true;
-        return {
-            success: true,
-            messages,
-            anyChangeMade,
-        };
+        return ErrorHandler.createSuccess({ messages, anyChangeMade });
     }
 
     function _createNewFileNode(name, content, owner, group, mode = null) {
@@ -672,49 +585,31 @@ MESSAGES.WELCOME_SUFFIX=!`;
         const changeInBytes = content.length - (existingNode?.content?.length || 0);
 
         if (_willOperationExceedQuota(changeInBytes)) {
-            return {
-                success: false,
-                error: `Disk quota exceeded. Cannot write ${content.length} bytes.`
-            };
+            return ErrorHandler.createError(`Disk quota exceeded. Cannot write ${content.length} bytes.`);
         }
 
         if (existingNode) {
             if (existingNode.type !== Config.FILESYSTEM.DEFAULT_FILE_TYPE) {
-                return {
-                    success: false,
-                    error: `Cannot overwrite non-file '${absolutePath}'`
-                };
+                return ErrorHandler.createError(`Cannot overwrite non-file '${absolutePath}'`);
             }
             if (!hasPermission(existingNode, currentUser, "write")) {
-                return {
-                    success: false,
-                    error: `'${absolutePath}': Permission denied`
-                };
+                return ErrorHandler.createError(`'${absolutePath}': Permission denied`);
             }
             existingNode.content = content;
             existingNode.mtime = nowISO;
         } else {
             const parentDirResult = createParentDirectoriesIfNeeded(absolutePath);
-            if (parentDirResult.error) {
-                return {
-                    success: false,
-                    error: parentDirResult.error
-                };
+            if (!parentDirResult.success) {
+                return parentDirResult;
             }
-            const parentNode = parentDirResult.parentNode;
+            const parentNode = parentDirResult.data;
 
             if (!parentNode) {
-                return {
-                    success: false,
-                    error: `Could not find or create parent directory for '${absolutePath}'.`
-                };
+                return ErrorHandler.createError(`Could not find or create parent directory for '${absolutePath}'.`);
             }
 
             if (!hasPermission(parentNode, currentUser, "write")) {
-                return {
-                    success: false,
-                    error: `Cannot create file in parent directory: Permission denied`
-                };
+                return ErrorHandler.createError(`Cannot create file in parent directory: Permission denied`);
             }
 
             if (!parentNode.children || typeof parentNode.children !== 'object') {
@@ -727,9 +622,7 @@ MESSAGES.WELCOME_SUFFIX=!`;
             parentNode.mtime = nowISO;
         }
 
-        return {
-            success: true
-        };
+        return ErrorHandler.createSuccess();
     }
 
 
