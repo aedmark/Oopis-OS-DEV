@@ -378,7 +378,9 @@ const SessionManager = (() => {
         )
             return {
                 success: true,
-                message: `${Config.MESSAGES.SESSION_SAVED_FOR_PREFIX}${currentUser.name}.`,
+                data: {
+                    message: `${Config.MESSAGES.SESSION_SAVED_FOR_PREFIX}${currentUser.name}.`
+                }
             };
         else
             return {
@@ -403,7 +405,9 @@ const SessionManager = (() => {
                 );
                 return {
                     success: false,
-                    message: `Saved state user mismatch. Current: ${currentUser.name}, Saved: ${manualStateData.user}.`,
+                    data: {
+                        message: `Saved state user mismatch. Current: ${currentUser.name}, Saved: ${manualStateData.user}.`,
+                    }
                 };
             }
             ModalManager.request({
@@ -449,12 +453,16 @@ const SessionManager = (() => {
             });
             return {
                 success: true,
-                message: "Confirmation requested for loading state.",
+                data: {
+                    message: "Confirmation requested for loading state.",
+                }
             };
         } else
             return {
                 success: false,
-                message: `${Config.MESSAGES.NO_MANUAL_SAVE_FOUND_PREFIX}${currentUser.name}.`,
+                data: {
+                    message: `${Config.MESSAGES.NO_MANUAL_SAVE_FOUND_PREFIX}${currentUser.name}.`,
+                }
             };
     }
 
