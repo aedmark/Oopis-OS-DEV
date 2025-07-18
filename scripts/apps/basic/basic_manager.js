@@ -152,7 +152,7 @@ class BasicManager extends App {
                 inputCallback: async () => new Promise(resolve => {
                     this.onInputPromiseResolver = resolve;
                 }),
-                pokeCallback: (x, y, char, color) => {
+                pokeCallback: (_x, _y, _char, _color) => {
                     // This could be implemented to draw directly on the BASIC UI's output div
                 }
             });

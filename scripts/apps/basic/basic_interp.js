@@ -11,7 +11,7 @@ class Basic_interp {
         this.programCounter = null;
         this.outputCallback = (text) => console.log(text);
         this.inputCallback = async () => "? ";
-        this.pokeCallback = (x, y, char, color) => { /* System Poke Implementation */
+        this.pokeCallback = (_x, _y, _char, _color) => { /* System Poke Implementation */
         };
 
         // --- RND function state ---
@@ -418,7 +418,6 @@ class Basic_interp {
 
         const parts = expression.split('+').map(p => p.trim());
         if (parts.length > 1) {
-            let tempResult = "";
             let isStringConcat = false;
             const evaluatedParts = await Promise.all(parts.map(p => this._evaluateSinglePart(p)));
             if (evaluatedParts.some(p => typeof p === 'string')) {
@@ -477,9 +476,9 @@ class Basic_interp {
         const right = await this._evaluateExpression(parts[1]);
         switch (operator) {
             case '=':
-                return left == right;
+                return left === right;
             case '<>':
-                return left != right;
+                return left !== right;
             case '<':
                 return left < right;
             case '>':

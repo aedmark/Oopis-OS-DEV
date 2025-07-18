@@ -39,16 +39,14 @@ const CommandExecutor = (() => {
       const definition = CommandRegistry.getDefinitions()[commandName];
 
       if (!definition) {
-        throw new Error(`Script loaded but command '${commandName}' not found in registry.`);
+        await OutputManager.appendToOutput(`Error: Script loaded but command '${commandName}' not found in registry.`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+        return false;
       }
+
 
       if (definition.dependencies && Array.isArray(definition.dependencies)) {
         for (const dep of definition.dependencies) {
-          try {
-            await _loadScript(dep);
-          } catch (depError) {
-            throw new Error(`Failed to load dependency '${dep}' for command '${commandName}'.`);
-          }
+          await _loadScript(dep);
         }
       }
       commands[commandName] = {
@@ -300,7 +298,7 @@ const CommandExecutor = (() => {
           });
         return redirValResult;
       }
-      const { resolvedPath: absRedirPath, node: targetNode } = redirValResult.data;
+      const { resolvedPath: absRedirPath } = redirValResult.data;
       const pDirRes =
           FileSystemManager.createParentDirectoriesIfNeeded(absRedirPath);
       if (!pDirRes.success) {
@@ -459,7 +457,7 @@ const CommandExecutor = (() => {
       });
     }
 
-    commandToProcess = commandToProcess.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g, (match, var1, var2) => {
+    commandToProcess = commandToProcess.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)}/g, (match, var1, var2) => {
       const varName = var1 || var2;
       return EnvironmentManager.get(varName);
     });

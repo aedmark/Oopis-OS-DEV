@@ -1,6 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const fs = require('fs');
 
 // --- START: ENFORCED PORTABLE APP LOGIC ---
 
@@ -22,8 +21,6 @@ console.log("OopisOS is running in Portable Mode. Data will be stored at:", port
 // --- END: ENFORCED PORTABLE APP LOGIC ---
 
 
-let mainWindow;
-
 function createWindow() {
     const mainWindow = new BrowserWindow({
         width: 1280,
@@ -37,7 +34,8 @@ function createWindow() {
         }
     });
 
-    mainWindow.loadFile('index.html');
+    mainWindow.loadFile('index.html').catch(err => console.error('Failed to load index.html', err));
+
 
     // For debugging, you can uncomment the next line
     // mainWindow.webContents.openDevTools();
