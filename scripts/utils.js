@@ -430,7 +430,6 @@ var TimestampParser = (() => {
 
     function parseStampToISO(stampStr) {
         let year, monthVal, day, hours, minutes, seconds = 0;
-        const currentDate = new Date();
         let s = stampStr;
         if (s.includes(".")) {
             const parts = s.split(".");

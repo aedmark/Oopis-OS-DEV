@@ -30,9 +30,9 @@ const GeminiChatUI = (() => {
 
         // Add event listeners
         exitBtn.addEventListener('click', () => managerCallbacks.onExit());
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            managerCallbacks.onSendMessage(elements.input.value);
+            await managerCallbacks.onSendMessage(elements.input.value);
             elements.input.value = '';
         });
         elements.input.addEventListener('keydown', (e) => {
@@ -66,10 +66,16 @@ const GeminiChatUI = (() => {
             messageDiv.innerHTML = sanitizedHtml;
 
             const copyBtn = Utils.createElement('button', { class: 'btn', style: 'position: absolute; top: 5px; right: 5px; font-size: 0.75rem; padding: 2px 5px;', textContent: 'Copy' });
-            copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(message);
-                copyBtn.textContent = 'Copied!';
-                setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(message);
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+                } catch (err) {
+                    console.error("Failed to copy text:", err);
+                    copyBtn.textContent = 'Error!';
+                    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+                }
             });
             messageDiv.style.position = 'relative';
             messageDiv.appendChild(copyBtn);

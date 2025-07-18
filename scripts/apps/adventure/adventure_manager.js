@@ -12,7 +12,7 @@ class AdventureManager extends App {
         this.engineLogic = this._createEngineLogic();
     }
 
-    enter(appLayer, options = {}) {
+    async enter(appLayer, options = {}) {
         if (this.isActive) return;
 
         this.isActive = true;
@@ -24,7 +24,7 @@ class AdventureManager extends App {
         this.engineLogic.displayCurrentRoom();
 
         if (this.state.scriptingContext?.isScripting) {
-            this._runScript();
+            await this._runScript();
         } else {
             setTimeout(() => this.container.focus(), 0);
         }

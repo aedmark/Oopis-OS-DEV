@@ -43,7 +43,7 @@ EXAMPLES
             error: "Usage: mv [OPTION]... <source> <destination> or mv [OPTION]... <source>... <directory>",
         },
         coreLogic: async (context) => {
-            const { args, currentUser, flags, options } = context;
+            const { args, flags, options } = context;
             const nowISO = new Date().toISOString();
             let changesMade = false;
 

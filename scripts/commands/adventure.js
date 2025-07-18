@@ -192,7 +192,7 @@ CREATION COMMANDS
                     } else {
                         initialData = { title: "New Adventure", rooms: {}, items: {}, npcs: {}, daemons: {} };
                     }
-                    Adventure_create.enter(filename, initialData, context);
+                    await Adventure_create.enter(filename, initialData, context);
                     return ErrorHandler.createSuccess("");
                 }
 

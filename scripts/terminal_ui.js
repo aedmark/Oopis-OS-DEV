@@ -434,7 +434,16 @@ var TerminalUI = (() => {
             elements.editableInputDiv.textContent = "*".repeat(originalInputForObscure.length);
             setCaretPosition(elements.editableInputDiv, start + pastedText.length);
         } else {
-            document.execCommand("insertText", false, pastedText);
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            const textNode = document.createTextNode(pastedText);
+            range.insertNode(textNode);
+            range.setStartAfter(textNode);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
         }
     }
 
