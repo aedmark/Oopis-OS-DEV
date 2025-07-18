@@ -50,24 +50,21 @@ EXAMPLES
 
             try {
                 if (inputError) {
-                    return { success: false, error: "xargs: No readable input provided or permission denied." };
+                    return ErrorHandler.createError("xargs: No readable input provided or permission denied.");
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const inputText = inputItems.map(item => item.content).join('\n');
                 if (inputText.trim() === "") {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const baseCommandArgs = args;
                 const lines = inputText.trim().split('\n').filter(Boolean);
-                let lastResult = {
-                    success: true,
-                    output: ""
-                };
+                let lastResult = { success: true, output: "" };
                 let combinedOutput = [];
 
                 const replaceStr = flags.replaceStr;
@@ -104,19 +101,13 @@ EXAMPLES
 
                     if (!lastResult.success) {
                         const errorMsg = `xargs: ${commandToExecute}: ${lastResult.error || 'Command failed'}`;
-                        return {
-                            success: false,
-                            error: errorMsg
-                        };
+                        return ErrorHandler.createError(errorMsg);
                     }
                 }
 
-                return {
-                    success: lastResult.success,
-                    output: combinedOutput.join('\n')
-                };
+                return ErrorHandler.createSuccess(combinedOutput.join('\n'));
             } catch (e) {
-                return { success: false, error: `xargs: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`xargs: An unexpected error occurred: ${e.message}`);
             }
         },
     };

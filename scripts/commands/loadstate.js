@@ -28,15 +28,12 @@ WARNING
         coreLogic: async () => {
             try {
                 const result = await SessionManager.loadManualState();
-                return {
-                    success: result.success,
-                    output: result.message,
-                    error: result.success
-                        ? undefined
-                        : result.message || "Failed to load state.",
-                };
+                if (result.success) {
+                    return ErrorHandler.createSuccess(result.data.message);
+                }
+                return ErrorHandler.createError(result.data.message || "Failed to load state.");
             } catch (e) {
-                return { success: false, error: `loadstate: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`loadstate: An unexpected error occurred: ${e.message}`);
             }
         },
     };

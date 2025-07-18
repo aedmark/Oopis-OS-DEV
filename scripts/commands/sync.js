@@ -22,15 +22,15 @@ DESCRIPTION
         },
         coreLogic: async () => {
             try {
-                const saveSuccessful = await FileSystemManager.save();
-                if (saveSuccessful) {
-                    return { success: true, output: "" };
+                const saveResult = await FileSystemManager.save();
+                if (saveResult.success) {
+                    return ErrorHandler.createSuccess("");
                 } else {
-                    return { success: false, error: "sync: Filesystem failed to save state." };
+                    return ErrorHandler.createError("sync: Filesystem failed to save state.");
                 }
             } catch (error) {
                 console.error("Error during sync operation:", error);
-                return { success: false, error: "sync: An unexpected error occurred." };
+                return ErrorHandler.createError("sync: An unexpected error occurred.");
             }
         }
     };

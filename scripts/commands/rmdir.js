@@ -37,14 +37,14 @@ SEE ALSO
 
             try {
                 if (Object.keys(node.children).length > 0) {
-                    return { success: false, error: `rmdir: failed to remove '${pathArg}': Directory not empty` };
+                    return ErrorHandler.createError(`rmdir: failed to remove '${pathArg}': Directory not empty`);
                 }
 
                 const parentPath = resolvedPath.substring(0, resolvedPath.lastIndexOf('/')) || '/';
                 const parentNode = FileSystemManager.getNodeByPath(parentPath);
 
                 if (!FileSystemManager.hasPermission(parentNode, currentUser, "write")) {
-                    return { success: false, error: `rmdir: failed to remove '${pathArg}': Permission denied` };
+                    return ErrorHandler.createError(`rmdir: failed to remove '${pathArg}': Permission denied`);
                 }
 
                 const dirName = resolvedPath.split('/').pop();
@@ -53,9 +53,9 @@ SEE ALSO
 
                 await FileSystemManager.save();
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `rmdir: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`rmdir: An unexpected error occurred: ${e.message}`);
             }
         }
     };

@@ -32,18 +32,21 @@ EXAMPLES
             try {
                 const result = await UserManager.logout();
 
-                if (result.success && result.isLogout) {
-                    OutputManager.clearOutput();
-                    await OutputManager.appendToOutput(`${Config.MESSAGES.WELCOME_PREFIX} ${result.newUser}${Config.MESSAGES.WELCOME_SUFFIX}`);
+                if (result.success) {
+                    const resultData = result.data || {};
+                    if (resultData.isLogout) {
+                        OutputManager.clearOutput();
+                        await OutputManager.appendToOutput(`${Config.MESSAGES.WELCOME_PREFIX} ${resultData.newUser}${Config.MESSAGES.WELCOME_SUFFIX}`);
+                    }
+                    if (resultData.noAction) {
+                        return ErrorHandler.createSuccess(resultData.message);
+                    }
+                    return ErrorHandler.createSuccess(null);
+                } else {
+                    return result;
                 }
-
-                return {
-                    ...result,
-                    output: result.noAction ? result.message : null,
-                    error: result.success ? null : result.error,
-                };
             } catch (e) {
-                return { success: false, error: `logout: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`logout: An unexpected error occurred: ${e.message}`);
             }
         },
     };

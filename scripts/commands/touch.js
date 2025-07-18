@@ -51,7 +51,7 @@ EXAMPLES
                     "touch"
                 );
                 if (timestampResult.error)
-                    return { success: false, error: timestampResult.error };
+                    return ErrorHandler.createError(timestampResult.error);
 
                 const timestampToUse = timestampResult.timestampISO;
                 let allSuccess = true;
@@ -61,14 +61,15 @@ EXAMPLES
                 const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
 
                 for (const pathArg of args) {
-                    const pathValidation = FileSystemManager.validatePath(pathArg, { allowMissing: true });
-                    const { node, resolvedPath, error } = pathValidation;
+                    const pathValidationResult = FileSystemManager.validatePath(pathArg, { allowMissing: true });
 
-                    if (error && !(node === null && error.includes("No such file or directory"))) {
-                        messages.push(`touch: ${error}`);
+                    if (!pathValidationResult.success && pathValidationResult.data?.node !== null) {
+                        messages.push(`touch: ${pathValidationResult.error}`);
                         allSuccess = false;
                         continue;
                     }
+
+                    const { node, resolvedPath } = pathValidationResult.data;
 
                     if (resolvedPath === '/') {
                         messages.push(`touch: cannot touch root directory`);
@@ -116,14 +117,11 @@ EXAMPLES
                 }
 
                 if (!allSuccess)
-                    return {
-                        success: false,
-                        error: messages.join("\\n") || "touch: Not all operations were successful.",
-                    };
+                    return ErrorHandler.createError(messages.join("\\n") || "touch: Not all operations were successful.");
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `touch: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`touch: An unexpected error occurred: ${e.message}`);
             }
         },
     };

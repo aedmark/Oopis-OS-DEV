@@ -33,7 +33,7 @@ EXAMPLES
             try {
                 const userCheck = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
                 if (userCheck[username]) {
-                    return { success: false, error: `useradd: User '${username}' already exists.` };
+                    return ErrorHandler.createError(`useradd: User '${username}' already exists.`);
                 }
 
                 return new Promise(async (resolve) => {
@@ -44,7 +44,7 @@ EXAMPLES
                         obscured: true,
                         onConfirm: (firstPassword) => {
                             if (firstPassword.trim() === "") {
-                                resolve({success: false, error: Config.MESSAGES.EMPTY_PASSWORD_NOT_ALLOWED});
+                                resolve(ErrorHandler.createError(Config.MESSAGES.EMPTY_PASSWORD_NOT_ALLOWED));
                                 return;
                             }
                             ModalManager.request({
@@ -54,27 +54,27 @@ EXAMPLES
                                 obscured: true,
                                 onConfirm: async (confirmedPassword) => {
                                     if (firstPassword !== confirmedPassword) {
-                                        resolve({success: false, error: Config.MESSAGES.PASSWORD_MISMATCH});
+                                        resolve(ErrorHandler.createError(Config.MESSAGES.PASSWORD_MISMATCH));
                                         return;
                                     }
                                     const registerResult = await UserManager.register(username, firstPassword);
                                     resolve(registerResult);
                                 },
-                                onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED }),
+                                onCancel: () => resolve(ErrorHandler.createSuccess(Config.MESSAGES.OPERATION_CANCELLED)),
                                 options
                             });
                         },
-                        onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED }),
+                        onCancel: () => resolve(ErrorHandler.createSuccess(Config.MESSAGES.OPERATION_CANCELLED)),
                         options
                     });
                 }).then(result => {
-                    if (result.success && result.message) {
-                        return {success: true, output: result.message };
+                    if (result.success) {
+                        return ErrorHandler.createSuccess(result.data);
                     }
                     return result;
                 });
             } catch (e) {
-                return { success: false, error: `useradd: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`useradd: An unexpected error occurred: ${e.message}`);
             }
         },
     };

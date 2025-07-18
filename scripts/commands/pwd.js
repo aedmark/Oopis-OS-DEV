@@ -17,12 +17,9 @@ DESCRIPTION
         },
         coreLogic: async () => {
             try {
-                return {
-                    success: true,
-                    output: FileSystemManager.getCurrentPath(),
-                };
+                return ErrorHandler.createSuccess(FileSystemManager.getCurrentPath());
             } catch (e) {
-                return { success: false, error: `pwd: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`pwd: An unexpected error occurred: ${e.message}`);
             }
         },
     };

@@ -30,21 +30,18 @@ EXAMPLES
 
             try {
                 if (!await UserManager.userExists(targetUser)) {
-                    return { success: false, error: `groups: user '${targetUser}' does not exist` };
+                    return ErrorHandler.createError(`groups: user '${targetUser}' does not exist`);
                 }
 
                 const userGroups = GroupManager.getGroupsForUser(targetUser);
 
                 if (userGroups.length === 0) {
-                    return { success: true, output: `groups: user '${targetUser}' is not a member of any group` };
+                    return ErrorHandler.createSuccess(`groups: user '${targetUser}' is not a member of any group`);
                 }
 
-                return {
-                    success: true,
-                    output: userGroups.join(' '),
-                };
+                return ErrorHandler.createSuccess(userGroups.join(' '));
             } catch (e) {
-                return { success: false, error: `groups: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`groups: An unexpected error occurred: ${e.message}`);
             }
         },
     };

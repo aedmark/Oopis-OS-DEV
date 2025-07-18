@@ -41,12 +41,11 @@ EXAMPLES
                 const { flags, inputItems, inputError } = context;
 
                 if (inputError) {
-                    return { success: false, error: "cat: One or more files could not be read." };
+                    return ErrorHandler.createError("cat: One or more files could not be read.");
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    // If there are no file args and no stdin, it's not an error, just empty output.
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const content = inputItems.map(item => item.content).join('\n');
@@ -56,12 +55,12 @@ EXAMPLES
                     const lines = content.split('\n');
                     const processedLines = (lines.length > 0 && lines[lines.length - 1] === '') ? lines.slice(0, -1) : lines;
                     const numberedOutput = processedLines.map(line => `     ${String(lineCounter++).padStart(5)}  ${line}`).join('\n');
-                    return { success: true, output: numberedOutput };
+                    return ErrorHandler.createSuccess(numberedOutput);
                 }
 
-                return { success: true, output: content };
+                return ErrorHandler.createSuccess(content);
             } catch (e) {
-                return { success: false, error: `cat: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`cat: An unexpected error occurred: ${e.message}`);
             }
         },
     };

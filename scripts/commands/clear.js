@@ -24,12 +24,9 @@ DESCRIPTION
                 if (context.options.isInteractive) {
                     OutputManager.clearOutput();
                 }
-                return {
-                    success: true,
-                    output: "",
-                };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `clear: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`clear: An unexpected error occurred: ${e.message}`);
             }
         },
     };

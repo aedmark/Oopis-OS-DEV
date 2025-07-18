@@ -38,21 +38,18 @@ EXAMPLES
                 const jobId = parseInt(args[0], 10);
 
                 if (isNaN(jobId)) {
-                    return {
-                        success: false,
-                        error: `kill: invalid job ID: ${args[0]}`,
-                    };
+                    return ErrorHandler.createError(`kill: invalid job ID: ${args[0]}`);
                 }
 
                 const result = await CommandExecutor.killJob(jobId);
 
-                return {
-                    success: result.success,
-                    output: result.message || "",
-                    error: result.error || null,
-                };
+                if (result.success) {
+                    return ErrorHandler.createSuccess(result.data || "");
+                } else {
+                    return ErrorHandler.createError(result.error || "Failed to kill job.");
+                }
             } catch (e) {
-                return { success: false, error: `kill: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`kill: An unexpected error occurred: ${e.message}`);
             }
         },
     };

@@ -51,11 +51,11 @@ PERMISSIONS
 
             try {
                 if (currentUser !== 'root') {
-                    return { success: false, error: "visudo: only root can run this command." };
+                    return ErrorHandler.createError("visudo: only root can run this command.");
                 }
 
                 if (!options.isInteractive) {
-                    return { success: false, error: "visudo: can only be run in interactive mode." };
+                    return ErrorHandler.createError("visudo: can only be run in interactive mode.");
                 }
 
                 const sudoersPath = Config.SUDO.SUDOERS_PATH;
@@ -69,8 +69,12 @@ PERMISSIONS
                         content,
                         { currentUser: 'root', primaryGroup }
                     );
-                    if (!saveResult.success || !(await FileSystemManager.save())) {
-                        return { success: false, error: "visudo: failed to create /etc/sudoers file." };
+                    if (!saveResult.success) {
+                        return ErrorHandler.createError("visudo: failed to create /etc/sudoers file.");
+                    }
+                    const fsSaveResult = await FileSystemManager.save();
+                    if(!fsSaveResult.success){
+                        return ErrorHandler.createError("visudo: failed to save /etc/sudoers file.");
                     }
                     sudoersNode = FileSystemManager.getNodeByPath(sudoersPath);
                 }
@@ -91,12 +95,9 @@ PERMISSIONS
 
                 AppLayerManager.show(Editor, { filePath: sudoersPath, fileContent: sudoersNode.content, onSaveCallback: onSudoersSave });
 
-                return {
-                    success: true,
-                    output: `Opening /etc/sudoers. Please be careful.`,
-                };
+                return ErrorHandler.createSuccess(`Opening /etc/sudoers. Please be careful.`);
             } catch (e) {
-                return { success: false, error: `visudo: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`visudo: An unexpected error occurred: ${e.message}`);
             }
         }
     };

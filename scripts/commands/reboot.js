@@ -30,9 +30,9 @@ DESCRIPTION
                 setTimeout(() => {
                     window.location.reload();
                 }, 500);
-                return { success: true, output: null };
+                return ErrorHandler.createSuccess(null);
             } catch (e) {
-                return { success: false, error: `reboot: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`reboot: An unexpected error occurred: ${e.message}`);
             }
         },
     };

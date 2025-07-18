@@ -42,11 +42,11 @@ EXAMPLES
 
             try {
                 if (inputError) {
-                    return { success: false, error: "sort: No readable input provided or permission denied." };
+                    return ErrorHandler.createError("sort: No readable input provided or permission denied.");
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const input = inputItems.map(item => item.content).join('\n');
@@ -84,12 +84,9 @@ EXAMPLES
                     lines = uniqueLines;
                 }
 
-                return {
-                    success: true,
-                    output: lines.join('\n')
-                };
+                return ErrorHandler.createSuccess(lines.join('\n'));
             } catch (e) {
-                return { success: false, error: `sort: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`sort: An unexpected error occurred: ${e.message}`);
             }
         }
     };

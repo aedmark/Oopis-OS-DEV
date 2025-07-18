@@ -39,18 +39,19 @@ EXAMPLES
 
             try {
                 const result = await UserManager.su(targetUser, providedPassword, options);
-                if (result.success && !result.noAction) {
-                    OutputManager.clearOutput();
-                    await OutputManager.appendToOutput(`${Config.MESSAGES.WELCOME_PREFIX} ${targetUser}${Config.MESSAGES.WELCOME_SUFFIX}`);
+                if (result.success) {
+                    const resultData = result.data || {};
+                    if (!resultData.noAction) {
+                        OutputManager.clearOutput();
+                        await OutputManager.appendToOutput(`${Config.MESSAGES.WELCOME_PREFIX} ${targetUser}${Config.MESSAGES.WELCOME_SUFFIX}`);
+                        return ErrorHandler.createSuccess(null);
+                    }
+                    return ErrorHandler.createSuccess(resultData.message);
+                } else {
+                    return result;
                 }
-
-                return {
-                    success: result.success,
-                    output: result.noAction ? result.message : null,
-                    error: result.success ? null : result.error,
-                };
             } catch (e) {
-                return { success: false, error: `su: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`su: An unexpected error occurred: ${e.message}`);
             }
         },
     };

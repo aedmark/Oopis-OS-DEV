@@ -34,11 +34,11 @@ EXAMPLES
 
             try {
                 if (inputError) {
-                    return { success: false, error: "cksum: No readable input provided or permission denied." };
+                    return ErrorHandler.createError("cksum: No readable input provided or permission denied.");
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const crc32 = (str) => {
@@ -66,12 +66,9 @@ EXAMPLES
                     outputLines.push(`${checksum} ${byteCount}${fileName}`);
                 }
 
-                return {
-                    success: true,
-                    output: outputLines.join('\\n')
-                };
+                return ErrorHandler.createSuccess(outputLines.join('\\n'));
             } catch (e) {
-                return { success: false, error: `cksum: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`cksum: An unexpected error occurred: ${e.message}`);
             }
         }
     };

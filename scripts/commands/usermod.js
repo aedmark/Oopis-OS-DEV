@@ -42,46 +42,28 @@ EXAMPLES
                 const username = args[2];
 
                 if (currentUser !== "root") {
-                    return {
-                        success: false,
-                        error: "usermod: only root can modify user groups.",
-                    };
+                    return ErrorHandler.createError("usermod: only root can modify user groups.");
                 }
 
                 if (flag !== "-aG") {
-                    return {
-                        success: false,
-                        error: "usermod: invalid flag. Only '-aG' is supported.",
-                    };
+                    return ErrorHandler.createError("usermod: invalid flag. Only '-aG' is supported.");
                 }
 
                 if (!GroupManager.groupExists(groupName)) {
-                    return {
-                        success: false,
-                        error: `usermod: group '${groupName}' does not exist.`,
-                    };
+                    return ErrorHandler.createError(`usermod: group '${groupName}' does not exist.`);
                 }
 
                 if (!await UserManager.userExists(username) && username !== Config.USER.DEFAULT_NAME) {
-                    return {
-                        success: false,
-                        error: `usermod: user '${username}' does not exist.`,
-                    };
+                    return ErrorHandler.createError(`usermod: user '${username}' does not exist.`);
                 }
 
                 if (GroupManager.addUserToGroup(username, groupName)) {
-                    return {
-                        success: true,
-                        output: `Added user '${username}' to group '${groupName}'.`,
-                    };
+                    return ErrorHandler.createSuccess(`Added user '${username}' to group '${groupName}'.`);
                 } else {
-                    return {
-                        success: true,
-                        output: `User '${username}' is already in group '${groupName}'.`,
-                    };
+                    return ErrorHandler.createSuccess(`User '${username}' is already in group '${groupName}'.`);
                 }
             } catch (e) {
-                return { success: false, error: `usermod: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`usermod: An unexpected error occurred: ${e.message}`);
             }
         },
     };

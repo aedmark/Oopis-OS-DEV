@@ -60,35 +60,24 @@ PERMISSIONS
 
             try {
                 if (!/^[0-7]{3,4}$/.test(modeArg)) {
-                    return {
-                        success: false,
-                        error: `chmod: invalid mode: ‘${modeArg}’ (must be 3 or 4 octal digits)`,
-                    };
+                    return ErrorHandler.createError(`chmod: invalid mode: ‘${modeArg}’ (must be 3 or 4 octal digits)`);
                 }
 
                 if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
-                    return {
-                        success: false,
-                        error: `chmod: changing permissions of '${pathArg}': Operation not permitted`,
-                    };
+                    return ErrorHandler.createError(`chmod: changing permissions of '${pathArg}': Operation not permitted`);
                 }
 
                 const newMode = parseInt(modeArg, 8);
                 node.mode = newMode;
                 node.mtime = nowISO;
 
-                if (!(await FileSystemManager.save())) {
-                    return {
-                        success: false,
-                        error: "chmod: Failed to save file system changes.",
-                    };
+                const saveResult = await FileSystemManager.save();
+                if (!saveResult.success) {
+                    return ErrorHandler.createError("chmod: Failed to save file system changes.");
                 }
-                return {
-                    success: true,
-                    output: "", // No output on success
-                };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `chmod: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`chmod: An unexpected error occurred: ${e.message}`);
             }
         },
     };

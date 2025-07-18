@@ -43,20 +43,20 @@ EXAMPLES
 
             try {
                 if (inputError) {
-                    return { success: false, error: "uniq: One or more input files could not be read." };
+                    return ErrorHandler.createError("uniq: One or more input files could not be read.");
                 }
 
                 if (flags.repeated && flags.unique) {
-                    return { success: false, error: "uniq: printing only unique and repeated lines is mutually exclusive" };
+                    return ErrorHandler.createError("uniq: printing only unique and repeated lines is mutually exclusive");
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const inputText = inputItems.map(item => item.content).join('\n');
                 if (!inputText) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 let lines = inputText.split('\n');
@@ -87,9 +87,9 @@ EXAMPLES
                         }
                     }
                 }
-                return { success: true, output: outputLines.join('\n') };
+                return ErrorHandler.createSuccess(outputLines.join('\n'));
             } catch (e) {
-                return { success: false, error: `uniq: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`uniq: An unexpected error occurred: ${e.message}`);
             }
         }
     };

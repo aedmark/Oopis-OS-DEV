@@ -41,20 +41,14 @@ EXAMPLES
                 if (args.length === 0) {
                     const allAliases = AliasManager.getAllAliases();
                     if (Object.keys(allAliases).length === 0) {
-                        return {
-                            success: true,
-                            output: "",
-                        };
+                        return ErrorHandler.createSuccess("");
                     }
                     const outputLines = [];
                     for (const name in allAliases) {
                         const value = allAliases[name];
                         outputLines.push(`alias ${name}='${value}'`);
                     }
-                    return {
-                        success: true,
-                        output: outputLines.sort().join("\\n"),
-                    };
+                    return ErrorHandler.createSuccess(outputLines.sort().join("\\n"));
                 }
 
                 const combinedArg = args.join(" ");
@@ -64,10 +58,7 @@ EXAMPLES
                     const name = combinedArg.substring(0, eqIndex).trim();
                     let value = combinedArg.substring(eqIndex + 1).trim();
                     if (!name) {
-                        return {
-                            success: false,
-                            error: "alias: invalid format. Missing name.",
-                        };
+                        return ErrorHandler.createError("alias: invalid format. Missing name.");
                     }
                     if (
                         (value.startsWith("'") && value.endsWith("'")) ||
@@ -76,15 +67,9 @@ EXAMPLES
                         value = value.substring(1, value.length - 1);
                     }
                     if (AliasManager.setAlias(name, value)) {
-                        return {
-                            success: true,
-                            output: "",
-                        };
+                        return ErrorHandler.createSuccess("");
                     }
-                    return {
-                        success: false,
-                        error: "alias: failed to set alias.",
-                    };
+                    return ErrorHandler.createError("alias: failed to set alias.");
                 }
                 else {
                     const outputLines = [];
@@ -99,14 +84,14 @@ EXAMPLES
                             allFound = false;
                         }
                     }
-                    return {
-                        success: allFound,
-                        output: outputLines.join("\\n"),
-                        error: allFound ? null : errorLines.join("\\n"),
-                    };
+                    if(allFound) {
+                        return ErrorHandler.createSuccess(outputLines.join("\\n"));
+                    } else {
+                        return ErrorHandler.createError(errorLines.join("\\n"));
+                    }
                 }
             } catch (e) {
-                return { success: false, error: `alias: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`alias: An unexpected error occurred: ${e.message}`);
             }
         },
     };

@@ -32,22 +32,23 @@ EXAMPLES
             const filePathArg = args[0];
 
             try {
-                const pathValidation = FileSystemManager.validatePath(filePathArg, {
+                const pathValidationResult = FileSystemManager.validatePath(filePathArg, {
                     allowMissing: true,
                     expectedType: 'file',
                     disallowRoot: true
                 });
 
-                if (pathValidation.error && !pathValidation.optionsUsed.allowMissing) {
-                    return { success: false, error: `printscreen: ${pathValidation.error}` };
+                if (!pathValidationResult.success && pathValidationResult.data?.node !== null) {
+                    return ErrorHandler.createError(`printscreen: ${pathValidationResult.error}`);
                 }
+                const pathValidation = pathValidationResult.data;
 
                 if (pathValidation.node && pathValidation.node.type === 'directory') {
-                    return { success: false, error: `printscreen: cannot overwrite directory '${filePathArg}' with a file.` };
+                    return ErrorHandler.createError(`printscreen: cannot overwrite directory '${filePathArg}' with a file.`);
                 }
 
                 if (pathValidation.node && !FileSystemManager.hasPermission(pathValidation.node, currentUser, "write")) {
-                    return { success: false, error: `printscreen: '${filePathArg}': Permission denied` };
+                    return ErrorHandler.createError(`printscreen: '${filePathArg}': Permission denied`);
                 }
 
                 const outputDiv = document.getElementById('output');
@@ -60,23 +61,17 @@ EXAMPLES
                 );
 
                 if (!saveResult.success) {
-                    return { success: false, error: `printscreen: ${saveResult.error}`};
+                    return ErrorHandler.createError(`printscreen: ${saveResult.error}`);
                 }
 
                 const fsSaveResult = await FileSystemManager.save();
                 if (!fsSaveResult.success) {
-                    return {
-                        success: false,
-                        error: `printscreen: Failed to save file system changes: ${fsSaveResult.error}`,
-                    };
+                    return ErrorHandler.createError(`printscreen: Failed to save file system changes: ${fsSaveResult.error}`);
                 }
 
-                return {
-                    success: true,
-                    output: `Terminal output saved to '${pathValidation.resolvedPath}'`,
-                };
+                return ErrorHandler.createSuccess(`Terminal output saved to '${pathValidation.resolvedPath}'`);
             } catch (e) {
-                return { success: false, error: `printscreen: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`printscreen: An unexpected error occurred: ${e.message}`);
             }
         },
     };

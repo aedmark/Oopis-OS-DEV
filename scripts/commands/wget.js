@@ -52,23 +52,21 @@ EXAMPLES
                         const segments = urlObj.pathname.split('/');
                         outputFileName = segments.pop() || "index.html";
                     } catch (e) {
-                        return {
-                            success: false,
-                            error: `wget: Invalid URL '${url}'`
-                        };
+                        return ErrorHandler.createError(`wget: Invalid URL '${url}'`);
                     }
                 }
 
-                const pathValidation = FileSystemManager.validatePath(outputFileName, {
+                const pathValidationResult = FileSystemManager.validatePath(outputFileName, {
                     allowMissing: true,
                     disallowRoot: true
                 });
 
-                if (pathValidation.error) {
-                    return { success: false, error: `wget: ${pathValidation.error}` };
+                if (!pathValidationResult.success) {
+                    return ErrorHandler.createError(`wget: ${pathValidationResult.error}`);
                 }
+                const pathValidation = pathValidationResult.data;
                 if(pathValidation.node && pathValidation.node.type === 'directory') {
-                    return { success: false, error: `wget: '${outputFileName}' is a directory` };
+                    return ErrorHandler.createError(`wget: '${outputFileName}' is a directory`);
                 }
 
                 await OutputManager.appendToOutput(`--OopisOS WGET--\\nResolving ${url}...`);
@@ -78,10 +76,7 @@ EXAMPLES
                 await OutputManager.appendToOutput(`HTTP request sent, awaiting response... ${response.status} ${response.statusText}`);
 
                 if (!response.ok) {
-                    return {
-                        success: false,
-                        error: `wget: Server responded with status ${response.status} ${response.statusText}`
-                    };
+                    return ErrorHandler.createError(`wget: Server responded with status ${response.status} ${response.statusText}`);
                 }
 
                 const contentLength = response.headers.get('content-length');
@@ -92,10 +87,7 @@ EXAMPLES
 
                 const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
                 if (!primaryGroup) {
-                    return {
-                        success: false,
-                        error: "wget: critical - could not determine primary group for user."
-                    };
+                    return ErrorHandler.createError("wget: critical - could not determine primary group for user.");
                 }
 
                 const saveResult = await FileSystemManager.createOrUpdateFile(
@@ -107,29 +99,23 @@ EXAMPLES
                 );
 
                 if (!saveResult.success) {
-                    return {
-                        success: false,
-                        error: `wget: ${saveResult.error}`
-                    };
+                    return ErrorHandler.createError(`wget: ${saveResult.error}`);
                 }
 
                 await OutputManager.appendToOutput(`Saving to: ‘${outputFileName}’`);
-                await FileSystemManager.save();
+                const fsSaveResult = await FileSystemManager.save();
+                if (!fsSaveResult.success) {
+                    return ErrorHandler.createError(`wget: Failed to save file system changes: ${fsSaveResult.error}`);
+                }
 
-                return {
-                    success: true,
-                    output: `‘${outputFileName}’ saved [${content.length} bytes]`,
-                };
+                return ErrorHandler.createSuccess(`‘${outputFileName}’ saved [${content.length} bytes]`);
 
             } catch (e) {
                 let errorMsg = `wget: An error occurred. This is often due to a network issue or a CORS policy preventing access.`;
                 if (e instanceof TypeError && e.message.includes('Failed to fetch')) {
                     errorMsg = `wget: Network request failed. The server may be down, or a CORS policy is blocking the request from the browser.`;
                 }
-                return {
-                    success: false,
-                    error: errorMsg
-                };
+                return ErrorHandler.createError(errorMsg);
             }
         },
     };

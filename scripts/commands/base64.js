@@ -37,11 +37,11 @@ EXAMPLES
 
             try {
                 if (inputError) {
-                    return { success: false, error: "base64: No readable input provided or permission denied." };
+                    return ErrorHandler.createError("base64: No readable input provided or permission denied.");
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const inputData = inputItems.map(item => item.content).join('\n');
@@ -49,19 +49,19 @@ EXAMPLES
                 if (flags.decode) {
                     // The 'atob' function in browsers correctly handles whitespace.
                     const decodedData = atob(inputData);
-                    return { success: true, output: decodedData };
+                    return ErrorHandler.createSuccess(decodedData);
                 } else {
                     const encodedData = btoa(inputData);
                     // Standard base64 output is often wrapped at 76 characters, but 64 is also common.
-                    return { success: true, output: encodedData.replace(/(.{64})/g, "$1\n") };
+                    return ErrorHandler.createSuccess(encodedData.replace(/(.{64})/g, "$1\n"));
                 }
             } catch (e) {
                 // This specifically catches errors from atob() on invalid input.
                 if (e instanceof DOMException && e.name === "InvalidCharacterError") {
-                    return { success: false, error: "base64: invalid input" };
+                    return ErrorHandler.createError("base64: invalid input");
                 }
                 // Catch any other unexpected errors.
-                return { success: false, error: `base64: an unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`base64: an unexpected error occurred: ${e.message}`);
             }
         }
     };

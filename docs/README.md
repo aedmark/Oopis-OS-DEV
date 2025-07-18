@@ -85,6 +85,15 @@ OopisOS has a highly modular command architecture. Adding a new command is a dec
 - `pathValidation`: Which arguments are file paths and what type they should be.
 - `permissionChecks`: Which permissions (`read`, `write`, `execute`) the user must have on those paths.
 
+#### The Error Handling Golden Rule: Predictability and Clarity
+
+To ensure stability and ease of debugging, all internal functions and commands that can fail adhere to a strict, unified error handling contract.
+
+- **The Unified Error Object:** Every fallible function returns a consistent object shape.
+  - **On Success:** `{ success: true, data: ... }`
+  - **On Failure:** `{ success: false, error: "A descriptive message." }`
+- **Centralized Logic:** A dedicated `ErrorHandler.js` module provides `ErrorHandler.createSuccess()` and `ErrorHandler.createError()` methods to ensure all parts of the system generate these objects consistently. This eliminates ambiguity and makes the entire codebase more predictable and resilient.
+
 ## For Developers: Contributing to OopisOS
 
 The codebase is organized into modular files with clear responsibilities.
@@ -95,6 +104,7 @@ The codebase is organized into modular files with clear responsibilities.
 - `scripts/commands/*.js`: Self-contained modules for each individual command.
 - `fs_manager.js`: The gatekeeper for all Virtual File System operations and permission checks.
 - `user_manager.js`: Handles all logic for users, groups, and authentication.
+- `error_handler.js`: The central module for creating standardized success and error objects.
 
 To add a new command, simply create a new file in `/scripts/commands/`, define the command's contract and logic using the standard pattern. The command will be loaded dynamically on first use.
 

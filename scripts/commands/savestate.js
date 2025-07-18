@@ -28,18 +28,12 @@ DESCRIPTION
                 const result = await SessionManager.saveManualState();
 
                 if (result.success) {
-                    return {
-                        success: true,
-                        output: result.message,
-                    };
+                    return ErrorHandler.createSuccess(result.data.message);
                 } else {
-                    return {
-                        success: false,
-                        error: result.error,
-                    };
+                    return ErrorHandler.createError(result.error);
                 }
             } catch (e) {
-                return { success: false, error: `savestate: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`savestate: An unexpected error occurred: ${e.message}`);
             }
         },
     };

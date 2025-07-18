@@ -53,23 +53,14 @@ WARNING
 
             try {
                 if (usernameToRemove === currentUser) {
-                    return {
-                        success: false,
-                        error: "removeuser: You cannot remove yourself.",
-                    };
+                    return ErrorHandler.createError("removeuser: You cannot remove yourself.");
                 }
                 if (usernameToRemove === Config.USER.DEFAULT_NAME || usernameToRemove === "root") {
-                    return {
-                        success: false,
-                        error: `removeuser: The '${usernameToRemove}' user cannot be removed.`,
-                    };
+                    return ErrorHandler.createError(`removeuser: The '${usernameToRemove}' user cannot be removed.`);
                 }
 
                 if (!await UserManager.userExists(usernameToRemove)) {
-                    return {
-                        success: true,
-                        output: `removeuser: User '${usernameToRemove}' does not exist. No action taken.`,
-                    };
+                    return ErrorHandler.createSuccess(`removeuser: User '${usernameToRemove}' does not exist. No action taken.`);
                 }
 
                 let confirmed = false;
@@ -96,17 +87,11 @@ WARNING
                         });
                     });
                 } else {
-                    return {
-                        success: false,
-                        error: `removeuser: '${usernameToRemove}' requires confirmation. Use the -f flag in non-interactive scripts.`,
-                    };
+                    return ErrorHandler.createError(`removeuser: '${usernameToRemove}' requires confirmation. Use the -f flag in non-interactive scripts.`);
                 }
 
                 if (!confirmed) {
-                    return {
-                        success: true,
-                        output: `Removal of user '${usernameToRemove}' cancelled.`,
-                    };
+                    return ErrorHandler.createSuccess(`Removal of user '${usernameToRemove}' cancelled.`);
                 }
 
                 let allDeletionsSuccessful = true;
@@ -125,9 +110,9 @@ WARNING
                         );
                         if (!rmResult.success) {
                             allDeletionsSuccessful = false;
-                            errorMessages.push(...rmResult.messages);
+                            errorMessages.push(...(rmResult.error.messages || [rmResult.error]));
                         }
-                        if (rmResult.anyChangeMade) {
+                        if (rmResult.data?.anyChangeMade) {
                             changesMade = true;
                         }
                     }
@@ -153,20 +138,12 @@ WARNING
                     } else {
                         successMsg += " Home directory was preserved.";
                     }
-                    return {
-                        success: true,
-                        output: successMsg,
-                    };
+                    return ErrorHandler.createSuccess(successMsg);
                 } else {
-                    return {
-                        success: false,
-                        error: `removeuser: Failed to completely remove user '${usernameToRemove}'. Details: ${errorMessages.join(
-                            "; "
-                        )}`,
-                    };
+                    return ErrorHandler.createError(`removeuser: Failed to completely remove user '${usernameToRemove}'. Details: ${errorMessages.join("; ")}`);
                 }
             } catch (e) {
-                return { success: false, error: `removeuser: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`removeuser: An unexpected error occurred: ${e.message}`);
             }
         },
     };

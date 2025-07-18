@@ -55,9 +55,9 @@ EXAMPLES
 
                 const output = [header, separator, data].join('\\n');
 
-                return { success: true, output: output };
+                return ErrorHandler.createSuccess(output);
             } catch (e) {
-                return { success: false, error: `df: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`df: An unexpected error occurred: ${e.message}`);
             }
         }
     };

@@ -40,10 +40,7 @@ EXAMPLES
 
             try {
                 if (typeof commandToTest !== "string" || commandToTest.trim() === "") {
-                    return {
-                        success: false,
-                        error: "check_fail: command string argument cannot be empty",
-                    };
+                    return ErrorHandler.createError("check_fail: command string argument cannot be empty");
                 }
 
                 const testResult = await CommandExecutor.processSingleCommand(
@@ -54,28 +51,21 @@ EXAMPLES
                 if (checkEmptyOutput) {
                     const outputIsEmpty = !testResult.output || testResult.output.trim() === '';
                     if (outputIsEmpty) {
-                        return { success: true, output: `CHECK_FAIL: SUCCESS - Command <${commandToTest}> produced empty output as expected.` };
+                        return ErrorHandler.createSuccess(`CHECK_FAIL: SUCCESS - Command <${commandToTest}> produced empty output as expected.`);
                     } else {
-                        return { success: false, error: `CHECK_FAIL: FAILURE - Command <${commandToTest}> did NOT produce empty output.` };
+                        return ErrorHandler.createError(`CHECK_FAIL: FAILURE - Command <${commandToTest}> did NOT produce empty output.`);
                     }
                 } else {
                     if (testResult.success) {
                         const failureMessage = `CHECK_FAIL: FAILURE - Command <${commandToTest}> unexpectedly SUCCEEDED.`;
-                        return {
-                            success: false,
-                            error: failureMessage,
-                        };
+                        return ErrorHandler.createError(failureMessage);
                     } else {
-                        const successMessage = `CHECK_FAIL: SUCCESS - Command <${commandToTest}> failed as expected. (Error: ${testResult.error || "N/A"
-                        })`;
-                        return {
-                            success: true,
-                            output: successMessage,
-                        };
+                        const successMessage = `CHECK_FAIL: SUCCESS - Command <${commandToTest}> failed as expected. (Error: ${testResult.error || "N/A"})`;
+                        return ErrorHandler.createSuccess(successMessage);
                     }
                 }
             } catch (e) {
-                return { success: false, error: `check_fail: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`check_fail: An unexpected error occurred: ${e.message}`);
             }
         },
     };

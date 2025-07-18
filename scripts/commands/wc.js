@@ -44,11 +44,11 @@ EXAMPLES
 
             try {
                 if (inputError) {
-                    return { success: false, error: "wc: No readable input provided or permission denied." };
+                    return ErrorHandler.createError("wc: No readable input provided or permission denied.");
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const showAll = !flags.lines && !flags.words && !flags.bytes;
@@ -98,12 +98,9 @@ EXAMPLES
                     outputLines.push(formatOutput(totalCounts));
                 }
 
-                return {
-                    success: true,
-                    output: outputLines.join('\n'),
-                };
+                return ErrorHandler.createSuccess(outputLines.join('\n'));
             } catch (e) {
-                return { success: false, error: `wc: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`wc: An unexpected error occurred: ${e.message}`);
             }
         }
     };

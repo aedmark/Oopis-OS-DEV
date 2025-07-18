@@ -169,45 +169,49 @@ CREATION COMMANDS
                 if (flags.create) {
                     const filename = args[0];
                     if (!filename) {
-                        return {success: false, error: "Usage: adventure --create <filename.json>"};
+                        return ErrorHandler.createError("Usage: adventure --create <filename.json>");
                     }
                     if (!filename.endsWith('.json')) {
-                        return {success: false, error: "Filename must end with .json"};
+                        return ErrorHandler.createError("Filename must end with .json");
                     }
 
                     // The create logic remains unchanged as it's a CLI tool
                     let initialData = {};
-                    const pathInfo = FileSystemManager.validatePath(filename, {allowMissing: true, expectedType: 'file'});
-                    if (pathInfo.error && pathInfo.node) return {success: false, error: `adventure: ${pathInfo.error}`};
+                    const pathInfoResult = FileSystemManager.validatePath(filename, {allowMissing: true, expectedType: 'file'});
+                    if (!pathInfoResult.success && pathInfoResult.data.node) {
+                        return ErrorHandler.createError(`adventure: ${pathInfoResult.error}`);
+                    }
+                    const pathInfo = pathInfoResult.data;
 
                     if (pathInfo.node) {
                         try {
                             initialData = JSON.parse(pathInfo.node.content || '{}');
                         } catch (e) {
-                            return { success: false, error: `Could not parse existing file '${filename}'. It may be corrupt.` };
+                            return ErrorHandler.createError(`Could not parse existing file '${filename}'. It may be corrupt.`);
                         }
                     } else {
                         initialData = { title: "New Adventure", rooms: {}, items: {}, npcs: {}, daemons: {} };
                     }
                     Adventure_create.enter(filename, initialData, context);
-                    return {success: true, output: ""};
+                    return ErrorHandler.createSuccess("");
                 }
 
                 // Play mode logic
                 if (typeof Adventure === 'undefined' || typeof TextAdventureModal === 'undefined' || typeof App === 'undefined') {
-                    return {success: false, error: "Adventure module is not properly loaded."};
+                    return ErrorHandler.createError("Adventure module is not properly loaded.");
                 }
 
                 let adventureToLoad;
                 if (args.length > 0) {
-                    const pathValidation = FileSystemManager.validatePath(args[0], { expectedType: 'file', permissions: ['read'] });
-                    if (pathValidation.error) {
-                        return {success: false, error: `adventure: ${pathValidation.error}`};
+                    const pathValidationResult = FileSystemManager.validatePath(args[0], { expectedType: 'file', permissions: ['read'] });
+                    if (!pathValidationResult.success) {
+                        return ErrorHandler.createError(`adventure: ${pathValidationResult.error}`);
                     }
+                    const { node } = pathValidationResult.data;
                     try {
-                        adventureToLoad = JSON.parse(pathValidation.node.content);
+                        adventureToLoad = JSON.parse(node.content);
                     } catch (e) {
-                        return { success: false, error: `adventure: Error parsing adventure file '${args[0]}': ${e.message}` };
+                        return ErrorHandler.createError(`adventure: Error parsing adventure file '${args[0]}': ${e.message}`);
                     }
                 } else {
                     adventureToLoad = defaultAdventureData;
@@ -218,10 +222,10 @@ CREATION COMMANDS
                     scriptingContext: options.scriptingContext
                 });
 
-                return {success: true, output: ""};
+                return ErrorHandler.createSuccess("");
 
             } catch (e) {
-                return { success: false, error: `adventure: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`adventure: An unexpected error occurred: ${e.message}`);
             }
         }
     };

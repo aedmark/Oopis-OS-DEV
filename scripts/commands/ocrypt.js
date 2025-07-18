@@ -116,19 +116,19 @@ EXAMPLES
 
             try {
                 if ((!flags.encrypt && !flags.decrypt) || (flags.encrypt && flags.decrypt)) {
-                    return { success: false, error: "ocrypt: You must specify exactly one of -e (encrypt) or -d (decrypt)." };
+                    return ErrorHandler.createError("ocrypt: You must specify exactly one of -e (encrypt) or -d (decrypt).");
                 }
 
                 let password = args[0];
                 const filePath = args[1];
 
                 if (!filePath) {
-                    return { success: false, error: "ocrypt: File path is required." };
+                    return ErrorHandler.createError("ocrypt: File path is required.");
                 }
 
                 if (!password) {
                     if (!options.isInteractive) {
-                        return { success: false, error: "ocrypt: password must be provided as an argument in non-interactive mode." };
+                        return ErrorHandler.createError("ocrypt: password must be provided as an argument in non-interactive mode.");
                     }
                     password = await new Promise(resolve => {
                         ModalManager.request({
@@ -141,15 +141,16 @@ EXAMPLES
                         });
                     });
 
-                    if (password === null) return { success: true, output: "Operation cancelled." };
-                    if (!password) return { success: false, error: "ocrypt: password cannot be empty." };
+                    if (password === null) return ErrorHandler.createSuccess("Operation cancelled.");
+                    if (!password) return ErrorHandler.createError("ocrypt: password cannot be empty.");
                 }
 
-                const pathValidation = FileSystemManager.validatePath(filePath, { allowMissing: flags.encrypt, expectedType: 'file' });
+                const pathValidationResult = FileSystemManager.validatePath(filePath, { allowMissing: flags.encrypt, expectedType: 'file' });
 
-                if (pathValidation.error && !pathValidation.optionsUsed.allowMissing) {
-                    return { success: false, error: `ocrypt: ${pathValidation.error}` };
+                if (!pathValidationResult.success && !pathValidationResult.data.node) {
+                    return ErrorHandler.createError(`ocrypt: ${pathValidationResult.error}`);
                 }
+                const pathValidation = pathValidationResult.data;
 
                 if (flags.encrypt) {
                     const contentToEncrypt = pathValidation.node?.content || '';
@@ -162,29 +163,30 @@ EXAMPLES
                     );
 
                     if (!saveResult.success) {
-                        return { success: false, error: `ocrypt: ${saveResult.error}` };
+                        return ErrorHandler.createError(`ocrypt: ${saveResult.error}`);
                     }
-                    if (!(await FileSystemManager.save())) {
-                        return { success: false, error: "ocrypt: Failed to save encrypted file."};
+                    const fsSaveResult = await FileSystemManager.save();
+                    if (!fsSaveResult.success) {
+                        return ErrorHandler.createError("ocrypt: Failed to save encrypted file.");
                     }
-                    return { success: true, output: `File '${filePath}' encrypted successfully.` };
+                    return ErrorHandler.createSuccess(`File '${filePath}' encrypted successfully.`);
 
                 } else { // Decrypt
                     if (!pathValidation.node) {
-                        return { success: false, error: `ocrypt: file not found: ${filePath}` };
+                        return ErrorHandler.createError(`ocrypt: file not found: ${filePath}`);
                     }
                     if (!FileSystemManager.hasPermission(pathValidation.node, currentUser, "read")) {
-                        return { success: false, error: `ocrypt: cannot read '${filePath}': Permission denied` };
+                        return ErrorHandler.createError(`ocrypt: cannot read '${filePath}': Permission denied`);
                     }
                     try {
                         const decryptedContent = await decryptData(pathValidation.node.content, password);
-                        return { success: true, output: decryptedContent };
+                        return ErrorHandler.createSuccess(decryptedContent);
                     } catch (e) {
-                        return { success: false, error: e.message };
+                        return ErrorHandler.createError(e.message);
                     }
                 }
             } catch (e) {
-                return { success: false, error: `ocrypt: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`ocrypt: An unexpected error occurred: ${e.message}`);
             }
         }
     };

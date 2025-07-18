@@ -37,30 +37,22 @@ PERMISSIONS
 
             try {
                 if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
-                    return {
-                        success: false,
-                        error: `chgrp: changing group of '${pathArg}': Operation not permitted`,
-                    };
+                    return ErrorHandler.createError(`chgrp: changing group of '${pathArg}': Operation not permitted`);
                 }
                 if (!GroupManager.groupExists(groupName)) {
-                    return {
-                        success: false,
-                        error: `chgrp: invalid group: '${groupName}'`,
-                    };
+                    return ErrorHandler.createError(`chgrp: invalid group: '${groupName}'`);
                 }
 
                 node.group = groupName;
                 node.mtime = new Date().toISOString();
-                if (!(await FileSystemManager.save())) {
-                    return {
-                        success: false,
-                        error: "chgrp: Failed to save file system changes.",
-                    };
+                const saveResult = await FileSystemManager.save();
+                if (!saveResult.success) {
+                    return ErrorHandler.createError("chgrp: Failed to save file system changes.");
                 }
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `chgrp: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`chgrp: An unexpected error occurred: ${e.message}`);
             }
         },
     };

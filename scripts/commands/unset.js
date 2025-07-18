@@ -26,9 +26,9 @@ EXAMPLES
         coreLogic: async (context) => {
             try {
                 context.args.forEach(varName => EnvironmentManager.unset(varName));
-                return { success: true };
+                return ErrorHandler.createSuccess();
             } catch (e) {
-                return { success: false, error: `unset: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`unset: An unexpected error occurred: ${e.message}`);
             }
         }
     };

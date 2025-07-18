@@ -38,18 +38,12 @@ EXAMPLES
                 userNames.sort();
 
                 if (userNames.length === 0)
-                    return {
-                        success: true,
-                        output: "No users registered.",
-                    };
+                    return ErrorHandler.createSuccess("No users registered.");
 
-                return {
-                    success: true,
-                    output:
-                        "Registered users:\\n" + userNames.map((u) => `  ${u}`).join("\\n"),
-                };
+                const output = "Registered users:\\n" + userNames.map((u) => `  ${u}`).join("\\n");
+                return ErrorHandler.createSuccess(output);
             } catch (e) {
-                return { success: false, error: `listusers: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`listusers: An unexpected error occurred: ${e.message}`);
             }
         },
     };

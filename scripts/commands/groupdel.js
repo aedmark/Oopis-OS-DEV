@@ -29,18 +29,18 @@ PERMISSIONS
 
             try {
                 if (currentUser !== "root") {
-                    return { success: false, error: "groupdel: only root can delete groups." };
+                    return ErrorHandler.createError("groupdel: only root can delete groups.");
                 }
 
                 const result = GroupManager.deleteGroup(groupName);
 
                 if (!result.success) {
-                    return { success: false, error: `groupdel: ${result.error}` };
+                    return ErrorHandler.createError(`groupdel: ${result.error}`);
                 }
 
-                return { success: true, output: `Group '${groupName}' deleted.` };
+                return ErrorHandler.createSuccess(`Group '${groupName}' deleted.`);
             } catch (e) {
-                return { success: false, error: `groupdel: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`groupdel: An unexpected error occurred: ${e.message}`);
             }
         },
     };

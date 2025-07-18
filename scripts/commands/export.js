@@ -52,15 +52,9 @@ EXAMPLES
 
                 URL.revokeObjectURL(url);
 
-                return {
-                    success: true,
-                    output: `${Config.MESSAGES.EXPORTING_PREFIX}${fileName}${Config.MESSAGES.EXPORTING_SUFFIX}`,
-                };
+                return ErrorHandler.createSuccess(`${Config.MESSAGES.EXPORTING_PREFIX}${fileName}${Config.MESSAGES.EXPORTING_SUFFIX}`);
             } catch (e) {
-                return {
-                    success: false,
-                    error: `export: Failed to download file: ${e.message}`,
-                };
+                return ErrorHandler.createError(`export: Failed to download file: ${e.message}`);
             }
         },
     };

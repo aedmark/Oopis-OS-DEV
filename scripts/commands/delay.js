@@ -37,10 +37,7 @@ EXAMPLES
                 });
 
                 if (parsedArg.error) {
-                    return {
-                        success: false,
-                        error: `delay: Invalid delay time '${args[0]}': ${parsedArg.error}. Must be a positive integer.`,
-                    };
+                    return ErrorHandler.createError(`delay: Invalid delay time '${args[0]}': ${parsedArg.error}. Must be a positive integer.`);
                 }
 
                 const ms = parsedArg.value;
@@ -50,7 +47,7 @@ EXAMPLES
                 }
 
                 if (signal?.aborted) {
-                    return { success: false, error: `delay: Operation already cancelled.` };
+                    return ErrorHandler.createError(`delay: Operation already cancelled.`);
                 }
 
                 const delayPromise = new Promise((resolve) => setTimeout(resolve, ms));
@@ -73,9 +70,9 @@ EXAMPLES
                 if (options.isInteractive && !options.scriptingContext) {
                     await OutputManager.appendToOutput(`Delay complete.`);
                 }
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `delay: ${e.message}` };
+                return ErrorHandler.createError(`delay: ${e.message}`);
             }
         },
     };

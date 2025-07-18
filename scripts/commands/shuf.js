@@ -62,13 +62,13 @@ EXAMPLES
                 if (flags.inputRange) {
                     const rangeParts = flags.inputRange.split('-');
                     if (rangeParts.length !== 2) {
-                        return { success: false, error: "shuf: invalid input range format for -i. Expected LO-HI." };
+                        return ErrorHandler.createError("shuf: invalid input range format for -i. Expected LO-HI.");
                     }
                     const lo = parseInt(rangeParts[0], 10);
                     const hi = parseInt(rangeParts[1], 10);
 
                     if (isNaN(lo) || isNaN(hi) || lo > hi) {
-                        return { success: false, error: "shuf: invalid numeric range for -i." };
+                        return ErrorHandler.createError("shuf: invalid numeric range for -i.");
                     }
                     for (let i = lo; i <= hi; i++) {
                         lines.push(String(i));
@@ -77,19 +77,19 @@ EXAMPLES
                     lines = args;
                 } else {
                     if (inputError) {
-                        return { success: false, error: "shuf: No readable input provided or permission denied."};
+                        return ErrorHandler.createError("shuf: No readable input provided or permission denied.");
                     }
                     if (inputItems && inputItems.length > 0) {
                         lines = inputItems.map(item => item.content).join('\\n').split('\\n');
                     } else if (args.length === 0) {
-                        return { success: true, output: "" };
+                        return ErrorHandler.createSuccess("");
                     }
                 }
 
                 if (flags.count) {
                     const countResult = Utils.parseNumericArg(flags.count, { allowFloat: false, allowNegative: false });
                     if (countResult.error) {
-                        return { success: false, error: `shuf: invalid count for -n: ${countResult.error}` };
+                        return ErrorHandler.createError(`shuf: invalid count for -n: ${countResult.error}`);
                     }
                     outputCount = countResult.value;
                 }
@@ -107,9 +107,9 @@ EXAMPLES
                     finalOutput = shuffledLines;
                 }
 
-                return { success: true, output: finalOutput.join('\\n') };
+                return ErrorHandler.createSuccess(finalOutput.join('\\n'));
             } catch (e) {
-                return { success: false, error: `shuf: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`shuf: An unexpected error occurred: ${e.message}`);
             }
         },
     };

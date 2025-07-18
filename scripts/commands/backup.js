@@ -25,7 +25,7 @@ DESCRIPTION
 
       try {
         if (!options.isInteractive) {
-          return { success: false, error: "backup: Can only be run in interactive mode." };
+          return ErrorHandler.createError("backup: Can only be run in interactive mode.");
         }
 
         const currentUser = UserManager.getCurrentUser();
@@ -56,7 +56,7 @@ DESCRIPTION
         const checksum = await Utils.calculateSHA256(stringifiedDataForChecksum);
 
         if (!checksum) {
-          return { success: false, error: "backup: Failed to compute integrity checksum." };
+          return ErrorHandler.createError("backup: Failed to compute integrity checksum.");
         }
         backupData.checksum = checksum;
 
@@ -75,12 +75,12 @@ DESCRIPTION
             const writeResult = await CommandExecutor.processSingleCommand(`echo '${escapedContent}' > "${filePath}"`, { isInteractive: false });
 
             if (writeResult.success) {
-              return { success: true, output: `Backup saved successfully to ${filePath}.` };
+              return ErrorHandler.createSuccess(`Backup saved successfully to ${filePath}.`);
             } else {
-              return { success: false, error: `backup: Failed to write to file: ${writeResult.error}` };
+              return ErrorHandler.createError(`backup: Failed to write to file: ${writeResult.error}`);
             }
           } else {
-            return { success: true, output: "Backup cancelled." };
+            return ErrorHandler.createSuccess("Backup cancelled.");
           }
         }
         else {
@@ -91,13 +91,10 @@ DESCRIPTION
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-          return {
-            success: true,
-            output: `${Config.MESSAGES.BACKUP_CREATING_PREFIX}${defaultFileName}${Config.MESSAGES.BACKUP_CREATING_SUFFIX}`,
-          };
+          return ErrorHandler.createSuccess(`${Config.MESSAGES.BACKUP_CREATING_PREFIX}${defaultFileName}${Config.MESSAGES.BACKUP_CREATING_SUFFIX}`);
         }
       } catch (e) {
-        return { success: false, error: `backup: An unexpected error occurred: ${e.message}` };
+        return ErrorHandler.createError(`backup: An unexpected error occurred: ${e.message}`);
       }
     },
   };

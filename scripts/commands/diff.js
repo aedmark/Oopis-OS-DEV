@@ -32,30 +32,26 @@ EXAMPLES
             const file2Path = args[1];
 
             try {
-                const validation1 = FileSystemManager.validatePath(file1Path, { expectedType: 'file', permissions: ['read'] });
-                if (validation1.error) {
-                    return { success: false, error: `diff: ${file1Path}: ${validation1.error.replace(file1Path + ':', '').trim()}` };
+                const validation1Result = FileSystemManager.validatePath(file1Path, { expectedType: 'file', permissions: ['read'] });
+                if (!validation1Result.success) {
+                    return ErrorHandler.createError(`diff: ${file1Path}: ${validation1Result.error.replace(file1Path + ':', '').trim()}`);
                 }
+                const { node: file1Node } = validation1Result.data;
 
-                const validation2 = FileSystemManager.validatePath(file2Path, { expectedType: 'file', permissions: ['read'] });
-                if (validation2.error) {
-                    return { success: false, error: `diff: ${file2Path}: ${validation2.error.replace(file2Path + ':', '').trim()}` };
+                const validation2Result = FileSystemManager.validatePath(file2Path, { expectedType: 'file', permissions: ['read'] });
+                if (!validation2Result.success) {
+                    return ErrorHandler.createError(`diff: ${file2Path}: ${validation2Result.error.replace(file2Path + ':', '').trim()}`);
                 }
-
-                const file1Node = validation1.node;
-                const file2Node = validation2.node;
+                const { node: file2Node } = validation2Result.data;
 
                 const diffResult = DiffUtils.compare(
                     file1Node.content || "",
                     file2Node.content || ""
                 );
 
-                return {
-                    success: true,
-                    output: diffResult,
-                };
+                return ErrorHandler.createSuccess(diffResult);
             } catch (e) {
-                return { success: false, error: `diff: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`diff: An unexpected error occurred: ${e.message}`);
             }
         },
     };

@@ -42,25 +42,20 @@ EXAMPLES
                 let suppressNewline = false;
 
                 if (context.flags.enableBackslashEscapes) {
-                    // Correctly handle \c to suppress newline and further output
                     const cIndex = output.indexOf('\\c');
                     if (cIndex !== -1) {
                         output = output.substring(0, cIndex);
                         suppressNewline = true;
                     }
 
-                    // Now interpret other escapes on the potentially truncated string
                     output = output.replace(/\\n/g, '\n')
                         .replace(/\\t/g, '\t')
                         .replace(/\\\\/g, '\\');
                 }
 
-                return {
-                    success: true,
-                    output: suppressNewline ? output : output + '\n',
-                };
+                return ErrorHandler.createSuccess(suppressNewline ? output : output + '\n');
             } catch (e) {
-                return { success: false, error: `echo: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`echo: An unexpected error occurred: ${e.message}`);
             }
         },
     };

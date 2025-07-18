@@ -51,33 +51,37 @@ EXAMPLES
                 const destPathArg = args.pop();
                 const sourcePathArgs = args;
 
-                const destValidation = FileSystemManager.validatePath(destPathArg, { allowMissing: true });
+                const destValidationResult = FileSystemManager.validatePath(destPathArg, { allowMissing: true });
+                if (!destValidationResult.success && destValidationResult.data?.node === undefined) {
+                    return ErrorHandler.createError(`mv: ${destValidationResult.error}`);
+                }
+                const destValidation = destValidationResult.data;
                 const isDestADirectory = destValidation.node && destValidation.node.type === 'directory';
 
                 if (sourcePathArgs.length > 1 && !isDestADirectory) {
-                    return { success: false, error: `mv: target '${destPathArg}' is not a directory` };
+                    return ErrorHandler.createError(`mv: target '${destPathArg}' is not a directory`);
                 }
 
                 for (const sourcePathArg of sourcePathArgs) {
-                    const sourceValidation = FileSystemManager.validatePath(sourcePathArg);
-                    if (sourceValidation.error) {
-                        return { success: false, error: `mv: ${sourceValidation.error}` };
+                    const sourceValidationResult = FileSystemManager.validatePath(sourcePathArg);
+                    if (!sourceValidationResult.success) {
+                        return ErrorHandler.createError(`mv: ${sourceValidationResult.error}`);
                     }
+                    const { node: sourceNode, resolvedPath: sourceAbsPath } = sourceValidationResult.data;
 
-                    const { node: sourceNode, resolvedPath: sourceAbsPath } = sourceValidation;
 
                     if (sourceAbsPath === '/') {
-                        return { success: false, error: "mv: cannot move root directory" };
+                        return ErrorHandler.createError("mv: cannot move root directory");
                     }
 
                     const sourceName = sourceAbsPath.substring(sourceAbsPath.lastIndexOf('/') + 1);
                     const sourceParentPath = sourceAbsPath.substring(0, sourceAbsPath.lastIndexOf('/')) || '/';
 
-                    const sourceParentValidation = FileSystemManager.validatePath(sourceParentPath, {expectedType: 'directory', permissions: ['write']});
-                    if (sourceParentValidation.error) {
-                        return { success: false, error: `mv: cannot move '${sourcePathArg}': Permission denied in source directory` };
+                    const sourceParentValidationResult = FileSystemManager.validatePath(sourceParentPath, {expectedType: 'directory', permissions: ['write']});
+                    if (!sourceParentValidationResult.success) {
+                        return ErrorHandler.createError(`mv: cannot move '${sourcePathArg}': Permission denied in source directory`);
                     }
-                    const sourceParentNode = sourceParentValidation.node;
+                    const sourceParentNode = sourceParentValidationResult.data.node;
 
                     let finalDestPath;
                     let targetContainerNode;
@@ -90,11 +94,11 @@ EXAMPLES
                     } else {
                         finalDestName = destValidation.resolvedPath.substring(destValidation.resolvedPath.lastIndexOf('/') + 1);
                         const destParentPath = destValidation.resolvedPath.substring(0, destValidation.resolvedPath.lastIndexOf('/')) || '/';
-                        const destParentValidation = FileSystemManager.validatePath(destParentPath, {expectedType: 'directory', permissions: ['write']});
-                        if (destParentValidation.error){
-                            return { success: false, error: `mv: ${destParentValidation.error}` };
+                        const destParentValidationResult = FileSystemManager.validatePath(destParentPath, {expectedType: 'directory', permissions: ['write']});
+                        if (!destParentValidationResult.success){
+                            return ErrorHandler.createError(`mv: ${destParentValidationResult.error}`);
                         }
-                        targetContainerNode = destParentValidation.node;
+                        targetContainerNode = destParentValidationResult.data.node;
                         finalDestPath = destValidation.resolvedPath;
                     }
 
@@ -103,7 +107,7 @@ EXAMPLES
                     }
 
                     if (sourceNode.type === 'directory' && finalDestPath.startsWith(sourceAbsPath + '/')) {
-                        return { success: false, error: `mv: cannot move '${sourcePathArg}' to a subdirectory of itself, '${finalDestPath}'` };
+                        return ErrorHandler.createError(`mv: cannot move '${sourcePathArg}' to a subdirectory of itself, '${finalDestPath}'`);
                     }
 
                     const existingNodeAtDest = targetContainerNode.children[finalDestName];
@@ -135,13 +139,16 @@ EXAMPLES
                     changesMade = true;
                 }
 
-                if (changesMade && !(await FileSystemManager.save())) {
-                    return { success: false, error: "mv: Failed to save file system changes." };
+                if (changesMade) {
+                    const saveResult = await FileSystemManager.save();
+                    if (!saveResult.success) {
+                        return ErrorHandler.createError("mv: Failed to save file system changes.");
+                    }
                 }
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `mv: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`mv: An unexpected error occurred: ${e.message}`);
             }
         }
     };

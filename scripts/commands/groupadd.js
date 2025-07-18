@@ -31,21 +31,18 @@ PERMISSIONS
 
             try {
                 if (currentUser !== "root") {
-                    return { success: false, error: "groupadd: only root can add groups." };
+                    return ErrorHandler.createError("groupadd: only root can add groups.");
                 }
 
                 if (GroupManager.groupExists(groupName)) {
-                    return {
-                        success: false,
-                        error: `groupadd: group '${groupName}' already exists.`,
-                    };
+                    return ErrorHandler.createError(`groupadd: group '${groupName}' already exists.`);
                 }
 
                 GroupManager.createGroup(groupName);
 
-                return { success: true, output: `Group '${groupName}' created.` };
+                return ErrorHandler.createSuccess(`Group '${groupName}' created.`);
             } catch (e) {
-                return { success: false, error: `groupadd: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`groupadd: An unexpected error occurred: ${e.message}`);
             }
         },
     };

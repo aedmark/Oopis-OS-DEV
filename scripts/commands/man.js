@@ -80,30 +80,21 @@ EXAMPLES
                 const isLoaded = await CommandExecutor._ensureCommandLoaded(commandName);
 
                 if (!isLoaded) {
-                    return {
-                        success: false,
-                        error: `No manual entry for ${commandName}`,
-                    };
+                    return ErrorHandler.createError(`No manual entry for ${commandName}`);
                 }
 
                 const allCommands = CommandRegistry.getDefinitions();
                 const commandData = allCommands[commandName];
 
                 if (!commandData) {
-                    return {
-                        success: false,
-                        error: `No manual entry for ${commandName}`,
-                    };
+                    return ErrorHandler.createError(`No manual entry for ${commandName}`);
                 }
 
                 const manPage = formatManPage(commandName, commandData);
 
-                return {
-                    success: true,
-                    output: manPage,
-                };
+                return ErrorHandler.createSuccess(manPage);
             } catch (e) {
-                return { success: false, error: `man: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`man: An unexpected error occurred: ${e.message}`);
             }
         },
     };

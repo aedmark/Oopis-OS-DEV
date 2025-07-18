@@ -38,34 +38,23 @@ PERMISSIONS
 
             try {
                 if (!await UserManager.userExists(newOwnerArg) && newOwnerArg !== Config.USER.DEFAULT_NAME) {
-                    return {
-                        success: false,
-                        error: `chown: user '${newOwnerArg}' does not exist.`,
-                    };
+                    return ErrorHandler.createError(`chown: user '${newOwnerArg}' does not exist.`);
                 }
 
                 if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
-                    return {
-                        success: false,
-                        error: `chown: changing ownership of '${pathArg}': Operation not permitted`,
-                    };
+                    return ErrorHandler.createError(`chown: changing ownership of '${pathArg}': Operation not permitted`);
                 }
 
                 node.owner = newOwnerArg;
                 node.mtime = nowISO;
 
-                if (!(await FileSystemManager.save(currentUser))) {
-                    return {
-                        success: false,
-                        error: "chown: Failed to save file system changes.",
-                    };
+                const saveResult = await FileSystemManager.save();
+                if (!saveResult.success) {
+                    return ErrorHandler.createError("chown: Failed to save file system changes.");
                 }
-                return {
-                    success: true,
-                    output: "", // No output on success
-                };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `chown: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`chown: An unexpected error occurred: ${e.message}`);
             }
         },
     };

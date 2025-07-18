@@ -17,12 +17,9 @@ DESCRIPTION
         },
         coreLogic: async () => {
             try {
-                return {
-                    success: true,
-                    output: new Date().toString(),
-                };
+                return ErrorHandler.createSuccess(new Date().toString());
             } catch (e) {
-                return { success: false, error: `date: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`date: An unexpected error occurred: ${e.message}`);
             }
         },
     };

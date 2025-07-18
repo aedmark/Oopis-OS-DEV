@@ -67,22 +67,26 @@ EXAMPLES
 
                 const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
                 if (!primaryGroup) {
-                    return { success: false, error: "cp: critical - could not determine primary group for current user." };
+                    return ErrorHandler.createError("cp: critical - could not determine primary group for current user.");
                 }
 
-                const destValidation = FileSystemManager.validatePath(destPathArg, { allowMissing: true });
+                const destValidationResult = FileSystemManager.validatePath(destPathArg, { allowMissing: true });
+                if (!destValidationResult.success && destValidationResult.data?.node === undefined) {
+                    return ErrorHandler.createError(`cp: ${destValidationResult.error}`);
+                }
+                const destValidation = destValidationResult.data;
                 const isDestADirectory = destValidation.node && destValidation.node.type === 'directory';
 
                 if (sourcePathArgs.length > 1 && !isDestADirectory) {
-                    return { success: false, error: `cp: target '${destPathArg}' is not a directory` };
+                    return ErrorHandler.createError(`cp: target '${destPathArg}' is not a directory`);
                 }
 
                 for (const sourcePathArg of sourcePathArgs) {
-                    // Centralized validation for each source
-                    const sourceValidation = FileSystemManager.validatePath(sourcePathArg, { permissions: ['read'] });
-                    if (sourceValidation.error) {
-                        return { success: false, error: `cp: ${sourceValidation.error}` };
+                    const sourceValidationResult = FileSystemManager.validatePath(sourcePathArg, { permissions: ['read'] });
+                    if (!sourceValidationResult.success) {
+                        return ErrorHandler.createError(`cp: ${sourceValidationResult.error}`);
                     }
+                    const sourceValidation = sourceValidationResult.data;
 
                     let targetContainerAbsPath;
                     let targetEntryName;
@@ -100,25 +104,24 @@ EXAMPLES
                     if (!copyResult.success) {
                         return copyResult;
                     }
-                    if (copyResult.changed) anyChangesMade = true;
+                    if (copyResult.data.changed) anyChangesMade = true;
                 }
 
                 if (anyChangesMade) {
                     const saveResult = await FileSystemManager.save();
                     if (!saveResult.success) {
-                        return { success: false, error: `cp: CRITICAL - Failed to save file system changes: ${saveResult.error}` };
+                        return ErrorHandler.createError(`cp: CRITICAL - Failed to save file system changes: ${saveResult.error}`);
                     }
                 }
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
 
                 async function _executeCopyInternal(sourceNode, sourcePathForMsg, targetContainerAbsPath, targetEntryName) {
-                    // Centralized validation for the target container
-                    const containerValidation = FileSystemManager.validatePath(targetContainerAbsPath, { expectedType: 'directory', permissions: ['write'] });
-                    if (containerValidation.error) {
-                        return { success: false, error: `cp: ${containerValidation.error}` };
+                    const containerValidationResult = FileSystemManager.validatePath(targetContainerAbsPath, { expectedType: 'directory', permissions: ['write'] });
+                    if (!containerValidationResult.success) {
+                        return ErrorHandler.createError(`cp: ${containerValidationResult.error}`);
                     }
-                    const targetContainerNode = containerValidation.node;
+                    const targetContainerNode = containerValidationResult.data.node;
 
                     const fullFinalDestPath = FileSystemManager.getAbsolutePath(targetEntryName, targetContainerAbsPath);
                     const existingNodeAtDest = targetContainerNode.children[targetEntryName];
@@ -136,7 +139,7 @@ EXAMPLES
                                 });
                             });
                             if (!confirmed) {
-                                return { success: true, changed: false, message: `cp: not overwriting '${fullFinalDestPath}' (skipped)` };
+                                return ErrorHandler.createSuccess({ changed: false, message: `cp: not overwriting '${fullFinalDestPath}' (skipped)` });
                             }
                         }
                     }
@@ -155,7 +158,7 @@ EXAMPLES
                     } else if (sourceNode.type === 'directory') {
                         if (!flags.recursive) {
                             await OutputManager.appendToOutput(`cp: omitting directory '${sourcePathForMsg}'`);
-                            return { success: true, changed: false };
+                            return ErrorHandler.createSuccess({ changed: false });
                         }
 
                         if (!existingNodeAtDest) {
@@ -181,10 +184,10 @@ EXAMPLES
                         }
                     }
                     targetContainerNode.mtime = nowISO;
-                    return { success: true, changed: true };
+                    return ErrorHandler.createSuccess({ changed: true });
                 }
             } catch (e) {
-                return { success: false, error: `cp: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`cp: An unexpected error occurred: ${e.message}`);
             }
         },
     };

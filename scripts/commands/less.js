@@ -30,24 +30,24 @@ EXAMPLES
 
             try {
                 if (inputError) {
-                    return {success: false, error: "less: Could not read one or more sources."};
+                    return ErrorHandler.createError("less: Could not read one or more sources.");
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const content = inputItems.map(item => item.content).join('\\n');
 
                 if (!options.isInteractive) {
-                    return { success: true, output: content };
+                    return ErrorHandler.createSuccess(content);
                 }
 
                 await PagerManager.enter(content, { mode: 'less' });
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `less: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`less: An unexpected error occurred: ${e.message}`);
             }
         },
     };

@@ -33,17 +33,17 @@ EXAMPLES
 
             try {
                 if (!options.isInteractive) {
-                    return { success: false, error: "passwd: can only be run in interactive mode." };
+                    return ErrorHandler.createError("passwd: can only be run in interactive mode.");
                 }
 
                 const targetUsername = args[0] || currentUser;
 
                 if (currentUser !== 'root' && currentUser !== targetUsername) {
-                    return { success: false, error: "passwd: you may only change your own password." };
+                    return ErrorHandler.createError("passwd: you may only change your own password.");
                 }
 
                 if (!await UserManager.userExists(targetUsername)) {
-                    return { success: false, error: `passwd: user '${targetUsername}' does not exist.` };
+                    return ErrorHandler.createError(`passwd: user '${targetUsername}' does not exist.`);
                 }
 
                 return new Promise(resolve => {
@@ -55,7 +55,7 @@ EXAMPLES
                             obscured: true,
                             onConfirm: (newPassword) => {
                                 if (!newPassword) {
-                                    resolve({ success: false, error: Config.MESSAGES.EMPTY_PASSWORD_NOT_ALLOWED });
+                                    resolve(ErrorHandler.createError(Config.MESSAGES.EMPTY_PASSWORD_NOT_ALLOWED));
                                     return;
                                 }
                                 ModalManager.request({
@@ -65,16 +65,16 @@ EXAMPLES
                                     obscured: true,
                                     onConfirm: async (confirmPassword) => {
                                         if (newPassword !== confirmPassword) {
-                                            resolve({ success: false, error: Config.MESSAGES.PASSWORD_MISMATCH });
+                                            resolve(ErrorHandler.createError(Config.MESSAGES.PASSWORD_MISMATCH));
                                             return;
                                         }
                                         const result = await UserManager.changePassword(currentUser, targetUsername, oldPassword, newPassword);
                                         resolve(result);
                                     },
-                                    onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
+                                    onCancel: () => resolve(ErrorHandler.createSuccess(Config.MESSAGES.OPERATION_CANCELLED))
                                 });
                             },
-                            onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
+                            onCancel: () => resolve(ErrorHandler.createSuccess(Config.MESSAGES.OPERATION_CANCELLED))
                         });
                     };
 
@@ -87,12 +87,17 @@ EXAMPLES
                             messageLines: [`Enter current password for ${currentUser}:`],
                             obscured: true,
                             onConfirm: (oldPassword) => getNewPassword(oldPassword),
-                            onCancel: () => resolve({ success: true, output: Config.MESSAGES.OPERATION_CANCELLED })
+                            onCancel: () => resolve(ErrorHandler.createSuccess(Config.MESSAGES.OPERATION_CANCELLED))
                         });
                     }
+                }).then(result => {
+                    if (result.success) {
+                        return ErrorHandler.createSuccess(result.data);
+                    }
+                    return result;
                 });
             } catch (e) {
-                return { success: false, error: `passwd: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`passwd: An unexpected error occurred: ${e.message}`);
             }
         }
     };

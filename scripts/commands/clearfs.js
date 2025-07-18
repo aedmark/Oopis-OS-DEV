@@ -29,10 +29,7 @@ WARNING
 
             try {
                 if (!options.isInteractive) {
-                    return {
-                        success: false,
-                        error: "clearfs: Can only be run in interactive mode.",
-                    };
+                    return ErrorHandler.createError("clearfs: Can only be run in interactive mode.");
                 }
 
                 const username = currentUser;
@@ -53,10 +50,7 @@ WARNING
                 );
 
                 if (!confirmed) {
-                    return {
-                        success: true,
-                        output: `Home directory clear for '${username}' cancelled. No action taken.`,
-                    };
+                    return ErrorHandler.createSuccess(`Home directory clear for '${username}' cancelled. No action taken.`);
                 }
 
                 const homeDirNode = FileSystemManager.getNodeByPath(userHomePath);
@@ -65,21 +59,15 @@ WARNING
                     !homeDirNode ||
                     homeDirNode.type !== Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE
                 ) {
-                    return {
-                        success: false,
-                        error: `clearfs: Critical error - Could not find home directory for '${username}' at '${userHomePath}'.`,
-                    };
+                    return ErrorHandler.createError(`clearfs: Critical error - Could not find home directory for '${username}' at '${userHomePath}'.`);
                 }
 
                 homeDirNode.children = {};
                 homeDirNode.mtime = new Date().toISOString();
 
-                if (!(await FileSystemManager.save())) {
-                    return {
-                        success: false,
-                        error:
-                            "clearfs: CRITICAL - Failed to save file system changes after clearing home directory.",
-                    };
+                const saveResult = await FileSystemManager.save();
+                if (!saveResult.success) {
+                    return ErrorHandler.createError("clearfs: CRITICAL - Failed to save file system changes after clearing home directory.");
                 }
 
                 const currentPath = FileSystemManager.getCurrentPath();
@@ -95,12 +83,9 @@ WARNING
                     typeClass: Config.CSS_CLASSES.SUCCESS_MSG,
                 });
 
-                return {
-                    success: true,
-                    output: "",
-                };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `clearfs: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`clearfs: An unexpected error occurred: ${e.message}`);
             }
         },
     };

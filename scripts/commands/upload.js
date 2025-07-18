@@ -40,7 +40,7 @@ OPTIONS
 
             try {
                 if (!options.isInteractive)
-                    return { success: false, error: "upload: Can only be run in interactive mode." };
+                    return ErrorHandler.createError("upload: Can only be run in interactive mode.");
 
                 let targetDirPath = FileSystemManager.getCurrentPath();
                 const operationMessages = [];
@@ -48,15 +48,15 @@ OPTIONS
                 let anyChangeMade = false;
 
                 if (args.length === 1) {
-                    const pathValidation = FileSystemManager.validatePath(args[0], { expectedType: 'directory', permissions: ['write'] });
-                    if (pathValidation.error) {
-                        return { success: false, error: `upload: ${pathValidation.error}` };
+                    const pathValidationResult = FileSystemManager.validatePath(args[0], { expectedType: 'directory', permissions: ['write'] });
+                    if (!pathValidationResult.success) {
+                        return ErrorHandler.createError(`upload: ${pathValidationResult.error}`);
                     }
-                    targetDirPath = pathValidation.resolvedPath;
+                    targetDirPath = pathValidationResult.data.resolvedPath;
                 } else {
-                    const pathValidation = FileSystemManager.validatePath(targetDirPath, { expectedType: 'directory', permissions: ['write'] });
-                    if (pathValidation.error) {
-                        return { success: false, error: `upload: cannot write to current directory: ${pathValidation.error}` };
+                    const pathValidationResult = FileSystemManager.validatePath(targetDirPath, { expectedType: 'directory', permissions: ['write'] });
+                    if (!pathValidationResult.success) {
+                        return ErrorHandler.createError(`upload: cannot write to current directory: ${pathValidationResult.error}`);
                     }
                 }
 
@@ -72,28 +72,28 @@ OPTIONS
                 const fileResult = await new Promise((resolve) => {
                     input.onchange = (e) => {
                         if (e.target.files?.length > 0) {
-                            resolve({ success: true, files: e.target.files });
+                            resolve(ErrorHandler.createSuccess(e.target.files));
                         } else {
-                            resolve({ success: false, error: Config.MESSAGES.UPLOAD_NO_FILE });
+                            resolve(ErrorHandler.createError(Config.MESSAGES.UPLOAD_NO_FILE));
                         }
                     };
                     input.addEventListener('cancel', () => {
-                        resolve({ success: false, error: Config.MESSAGES.UPLOAD_NO_FILE });
+                        resolve(ErrorHandler.createError(Config.MESSAGES.UPLOAD_NO_FILE));
                     });
                     input.click();
                 });
 
                 if (!fileResult.success) {
                     document.body.removeChild(input);
-                    return { success: true, output: `upload: ${fileResult.error}` };
+                    return ErrorHandler.createSuccess(`upload: ${fileResult.error}`);
                 }
 
-                const filesToUpload = fileResult.files;
+                const filesToUpload = fileResult.data;
                 const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
                 const ALLOWED_EXTENSIONS = new Set(['txt', 'md', 'html', 'sh', 'js', 'css', 'json', 'oopic', 'bas']);
 
                 if (!primaryGroup) {
-                    return { success: false, error: "upload: Could not determine primary group for user." };
+                    return ErrorHandler.createError("upload: Could not determine primary group for user.");
                 }
 
                 for (const file of Array.from(filesToUpload)) {
@@ -160,16 +160,18 @@ OPTIONS
 
                 document.body.removeChild(input);
                 const outputMessage = operationMessages.join("\\n");
-                return {
-                    success: allFilesSuccess,
-                    [allFilesSuccess ? 'output' : 'error']: outputMessage || "Upload process completed with some issues."
-                };
+
+                if (allFilesSuccess) {
+                    return ErrorHandler.createSuccess(outputMessage);
+                } else {
+                    return ErrorHandler.createError(outputMessage || "Upload process completed with some issues.");
+                }
 
             } catch (e) {
                 if (document.getElementById('file-upload-input')) {
                     document.body.removeChild(document.getElementById('file-upload-input'));
                 }
-                return { success: false, error: `upload: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`upload: An unexpected error occurred: ${e.message}`);
             }
         },
     };

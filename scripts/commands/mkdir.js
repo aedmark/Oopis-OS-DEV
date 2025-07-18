@@ -48,10 +48,7 @@ EXAMPLES
             try {
                 const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
                 if (!primaryGroup) {
-                    return {
-                        success: false,
-                        error: `mkdir: critical - could not determine primary group for user '${currentUser}'`,
-                    };
+                    return ErrorHandler.createError(`mkdir: critical - could not determine primary group for user '${currentUser}'`);
                 }
 
                 for (const pathArg of args) {
@@ -69,20 +66,20 @@ EXAMPLES
 
                     if (flags.parents) {
                         const parentDirResult = FileSystemManager.createParentDirectoriesIfNeeded(resolvedPath);
-                        if (parentDirResult.error) {
+                        if (!parentDirResult.success) {
                             messages.push(`mkdir: ${parentDirResult.error}`);
                             allSuccess = false;
                             continue;
                         }
-                        parentNodeToCreateIn = parentDirResult.parentNode;
+                        parentNodeToCreateIn = parentDirResult.data;
                     } else {
-                        const parentValidation = FileSystemManager.validatePath(parentPathForTarget, { expectedType: 'directory', permissions: ['write'] });
-                        if (parentValidation.error) {
-                            messages.push(`mkdir: cannot create directory '${pathArg}': ${parentValidation.error.replace(parentPathForTarget + ':', '').trim()}`);
+                        const parentValidationResult = FileSystemManager.validatePath(parentPathForTarget, { expectedType: 'directory', permissions: ['write'] });
+                        if (!parentValidationResult.success) {
+                            messages.push(`mkdir: cannot create directory '${pathArg}': ${parentValidationResult.error.replace(parentPathForTarget + ':', '').trim()}`);
                             allSuccess = false;
                             continue;
                         }
-                        parentNodeToCreateIn = parentValidation.node;
+                        parentNodeToCreateIn = parentValidationResult.data.node;
                     }
 
                     if (parentNodeToCreateIn.children && parentNodeToCreateIn.children[dirName]) {
@@ -100,23 +97,20 @@ EXAMPLES
                     }
                 }
 
-                if (changesMade && !(await FileSystemManager.save())) {
-                    allSuccess = false;
-                    messages.unshift("mkdir: Failed to save file system changes.");
+                if (changesMade) {
+                    const saveResult = await FileSystemManager.save();
+                    if (!saveResult.success) {
+                        allSuccess = false;
+                        messages.unshift("mkdir: Failed to save file system changes.");
+                    }
                 }
 
                 if (!allSuccess) {
-                    return {
-                        success: false,
-                        error: messages.join("\\n"),
-                    };
+                    return ErrorHandler.createError(messages.join("\\n"));
                 }
-                return {
-                    success: true,
-                    output: "",
-                };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `mkdir: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`mkdir: An unexpected error occurred: ${e.message}`);
             }
         },
     };

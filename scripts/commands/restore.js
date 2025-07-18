@@ -39,7 +39,7 @@ WARNING
 
             try {
                 if (!options.isInteractive) {
-                    return { success: false, error: "restore: Can only be run in interactive mode." };
+                    return ErrorHandler.createError("restore: Can only be run in interactive mode.");
                 }
 
                 let fileContent;
@@ -55,12 +55,12 @@ WARNING
                     if (filePath) {
                         const readResult = await CommandExecutor.processSingleCommand(`cat "${filePath}"`, { isInteractive: false });
                         if (!readResult.success) {
-                            return { success: false, error: `restore: Could not read file '${filePath}': ${readResult.error}` };
+                            return ErrorHandler.createError(`restore: Could not read file '${filePath}': ${readResult.error}`);
                         }
                         fileContent = readResult.output;
                         fileName = filePath.split(/[\\\\/]/).pop();
                     } else {
-                        return { success: true, output: Config.MESSAGES.RESTORE_CANCELLED_NO_FILE };
+                        return ErrorHandler.createSuccess(Config.MESSAGES.RESTORE_CANCELLED_NO_FILE);
                     }
                 }
                 else {
@@ -75,7 +75,7 @@ WARNING
                                 window.removeEventListener("focus", onFocus);
                                 if (!dialogClosed) {
                                     dialogClosed = true;
-                                    resolve({ success: false, error: Config.MESSAGES.RESTORE_CANCELLED_NO_FILE });
+                                    resolve(ErrorHandler.createError(Config.MESSAGES.RESTORE_CANCELLED_NO_FILE));
                                 }
                             }, 300);
                         };
@@ -83,8 +83,8 @@ WARNING
                             dialogClosed = true;
                             window.removeEventListener("focus", onFocus);
                             const f = e.target.files[0];
-                            if (f) resolve({ success: true, file: f });
-                            else resolve({ success: false, error: Config.MESSAGES.RESTORE_CANCELLED_NO_FILE });
+                            if (f) resolve(ErrorHandler.createSuccess(f));
+                            else resolve(ErrorHandler.createError(Config.MESSAGES.RESTORE_CANCELLED_NO_FILE));
                         };
                         window.addEventListener("focus", onFocus);
                         input.click();
@@ -92,17 +92,17 @@ WARNING
 
                     document.body.removeChild(input);
                     if (!fileResult.success) {
-                        return { success: true, output: `restore: ${fileResult.error}` };
+                        return ErrorHandler.createSuccess(`restore: ${fileResult.error}`);
                     }
-                    fileContent = await fileResult.file.text();
-                    fileName = fileResult.file.name;
+                    fileContent = await fileResult.data.text();
+                    fileName = fileResult.data.name;
                 }
 
                 let backupData;
                 try {
                     backupData = JSON.parse(fileContent);
                 } catch (parseError) {
-                    return { success: false, error: `restore: Error parsing backup file '${fileName}': ${parseError.message}` };
+                    return ErrorHandler.createError(`restore: Error parsing backup file '${fileName}': ${parseError.message}`);
                 }
 
                 if (backupData.checksum) {
@@ -111,12 +111,12 @@ WARNING
                     const stringifiedDataForChecksum = JSON.stringify(backupData);
                     const calculatedChecksum = await Utils.calculateSHA256(stringifiedDataForChecksum);
                     if (calculatedChecksum !== storedChecksum) {
-                        return { success: false, error: `restore: Checksum mismatch. Backup file is corrupted or has been tampered with.` };
+                        return ErrorHandler.createError(`restore: Checksum mismatch. Backup file is corrupted or has been tampered with.`);
                     }
                 }
 
                 if (!backupData || !backupData.dataType || !backupData.dataType.startsWith("OopisOS_System_State_Backup")) {
-                    return { success: false, error: `restore: '${fileName}' is not a valid OopisOS System State backup file.` };
+                    return ErrorHandler.createError(`restore: '${fileName}' is not a valid OopisOS System State backup file.`);
                 }
 
                 const messageLines = [
@@ -132,7 +132,7 @@ WARNING
                 );
 
                 if (!confirmed) {
-                    return { success: true, output: Config.MESSAGES.OPERATION_CANCELLED };
+                    return ErrorHandler.createSuccess(Config.MESSAGES.OPERATION_CANCELLED);
                 }
 
                 const allKeys = StorageManager.getAllLocalStorageKeys();
@@ -152,8 +152,9 @@ WARNING
                 }
 
                 FileSystemManager.setFsData(Utils.deepCopyNode(backupData.fsDataSnapshot));
-                if (!(await FileSystemManager.save())) {
-                    return { success: false, error: "restore: Critical failure: Could not save the restored file system to the database." };
+                const saveResult = await FileSystemManager.save();
+                if (!saveResult.success) {
+                    return ErrorHandler.createError("restore: Critical failure: Could not save the restored file system to the database.");
                 }
 
                 const successMessage = `${Config.MESSAGES.RESTORE_SUCCESS_PREFIX}${context.currentUser}${Config.MESSAGES.RESTORE_SUCCESS_MIDDLE}${fileName}${Config.MESSAGES.RESTORE_SUCCESS_SUFFIX}`;
@@ -161,9 +162,9 @@ WARNING
 
                 setTimeout(() => { window.location.reload(true); }, 1500);
 
-                return { success: true, output: "" };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `restore: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`restore: An unexpected error occurred: ${e.message}`);
             }
         },
     };

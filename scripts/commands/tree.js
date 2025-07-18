@@ -44,7 +44,7 @@ EXAMPLES
             permissions: ['read']
         },
         coreLogic: async (context) => {
-            const { args, flags, currentUser, resolvedPath } = context;
+            const { flags, currentUser, resolvedPath } = context;
 
             try {
                 const maxDepth = flags.level
@@ -52,10 +52,7 @@ EXAMPLES
                     : { value: Infinity };
 
                 if (flags.level && (maxDepth.error || maxDepth.value === null))
-                    return {
-                        success: false,
-                        error: `tree: invalid level value for -L: '${flags.level}' ${maxDepth.error || ""}`,
-                    };
+                    return ErrorHandler.createError(`tree: invalid level value for -L: '${flags.level}' ${maxDepth.error || ""}`);
 
                 const outputLines = [resolvedPath];
                 let dirCount = 0;
@@ -101,12 +98,9 @@ EXAMPLES
                     report += `, ${fileCount} file${fileCount === 1 ? "" : "s"}`;
                 outputLines.push(report);
 
-                return {
-                    success: true,
-                    output: outputLines.join("\\n"),
-                };
+                return ErrorHandler.createSuccess(outputLines.join("\\n"));
             } catch (e) {
-                return { success: false, error: `tree: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`tree: An unexpected error occurred: ${e.message}`);
             }
         },
     };

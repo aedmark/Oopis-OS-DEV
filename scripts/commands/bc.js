@@ -108,13 +108,13 @@ EXAMPLES
                 }
 
                 if (!input.trim()) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const result = _safeEvaluate(input);
-                return { success: true, output: String(result) };
+                return ErrorHandler.createSuccess(String(result));
             } catch (e) {
-                return { success: false, error: `bc: ${e.message}` };
+                return ErrorHandler.createError(`bc: ${e.message}`);
             }
         },
     };

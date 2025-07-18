@@ -49,17 +49,21 @@ WARNING
 
             try {
                 for (const pathArg of args) {
-                    const pathValidation = FileSystemManager.validatePath(pathArg);
+                    const pathValidationResult = FileSystemManager.validatePath(pathArg);
 
-                    if (flags.force && !pathValidation.node) continue;
+                    if (flags.force && !pathValidationResult.success) {
+                        if (pathValidationResult.error.includes("No such file or directory")) {
+                            continue;
+                        }
+                    }
 
-                    if (pathValidation.error) {
-                        messages.push(`rm: cannot remove '${pathArg}': ${pathValidation.error.replace(pathArg + ':', '').trim()}`);
+                    if (!pathValidationResult.success) {
+                        messages.push(`rm: cannot remove '${pathArg}': ${pathValidationResult.error.replace(pathArg + ':', '').trim()}`);
                         allSuccess = false;
                         continue;
                     }
 
-                    const { node, resolvedPath } = pathValidation;
+                    const { node, resolvedPath } = pathValidationResult.data;
 
                     if (resolvedPath === '/') {
                         messages.push(`rm: cannot remove root directory`);
@@ -96,10 +100,10 @@ WARNING
 
                     const deleteResult = await FileSystemManager.deleteNodeRecursive(resolvedPath, { force: true, currentUser });
                     if (deleteResult.success) {
-                        if (deleteResult.anyChangeMade) anyChangeMade = true;
+                        if (deleteResult.data.anyChangeMade) anyChangeMade = true;
                     } else {
                         allSuccess = false;
-                        messages.push(...deleteResult.messages);
+                        messages.push(...(deleteResult.error.messages || [deleteResult.error]));
                     }
                 }
 
@@ -112,13 +116,12 @@ WARNING
                 }
 
                 const finalOutput = messages.filter((m) => m).join("\\n");
-                return {
-                    success: allSuccess,
-                    output: allSuccess ? "" : null,
-                    error: allSuccess ? null : finalOutput || "Unknown error during rm operation.",
-                };
+                if (!allSuccess) {
+                    return ErrorHandler.createError(finalOutput || "Unknown error during rm operation.");
+                }
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `rm: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`rm: An unexpected error occurred: ${e.message}`);
             }
         },
     };

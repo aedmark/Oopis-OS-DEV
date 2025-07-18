@@ -17,12 +17,9 @@ DESCRIPTION
         },
         coreLogic: async () => {
             try {
-                return {
-                    success: true,
-                    output: UserManager.getCurrentUser().name,
-                };
+                return ErrorHandler.createSuccess(UserManager.getCurrentUser().name);
             } catch (e) {
-                return { success: false, error: `whoami: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`whoami: An unexpected error occurred: ${e.message}`);
             }
         },
     };

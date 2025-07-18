@@ -39,15 +39,15 @@ EXAMPLES
 
             try {
                 if (inputError) {
-                    return { success: false, error: "head: No readable input provided or permission denied." };
+                    return ErrorHandler.createError("head: No readable input provided or permission denied.");
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 if (flags.lines && flags.bytes) {
-                    return { success: false, error: "head: cannot use both -n and -c" };
+                    return ErrorHandler.createError("head: cannot use both -n and -c");
                 }
 
                 const input = inputItems.map(item => item.content).join('\n');
@@ -56,7 +56,7 @@ EXAMPLES
                 if (flags.lines) {
                     const linesResult = Utils.parseNumericArg(flags.lines, { allowFloat: false, allowNegative: false });
                     if (linesResult.error) {
-                        return { success: false, error: `head: invalid number of lines: '${flags.lines}'` };
+                        return ErrorHandler.createError(`head: invalid number of lines: '${flags.lines}'`);
                     }
                     lineCount = linesResult.value;
                 }
@@ -65,7 +65,7 @@ EXAMPLES
                 if (flags.bytes) {
                     const bytesResult = Utils.parseNumericArg(flags.bytes, { allowFloat: false, allowNegative: false });
                     if (bytesResult.error) {
-                        return { success: false, error: `head: invalid number of bytes: '${flags.bytes}'` };
+                        return ErrorHandler.createError(`head: invalid number of bytes: '${flags.bytes}'`);
                     }
                     byteCount = bytesResult.value;
                 }
@@ -77,9 +77,9 @@ EXAMPLES
                     output = input.split('\n').slice(0, lineCount).join('\n');
                 }
 
-                return { success: true, output: output };
+                return ErrorHandler.createSuccess(output);
             } catch (e) {
-                return { success: false, error: `head: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`head: An unexpected error occurred: ${e.message}`);
             }
         },
     };

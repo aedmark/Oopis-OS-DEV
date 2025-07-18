@@ -34,10 +34,7 @@ WARNING
 
             try {
                 if (!options.isInteractive) {
-                    return {
-                        success: false,
-                        error: "reset: Can only be run in interactive mode.",
-                    };
+                    return ErrorHandler.createError("reset: Can only be run in interactive mode.");
                 }
 
                 const confirmed = await new Promise((resolve) =>
@@ -71,18 +68,12 @@ WARNING
                         ? "OopisOS reset to initial state. Cache storage cleared. Please refresh the page."
                         : "OopisOS reset to initial state. Please refresh the page if UI issues persist.";
 
-                    return {
-                        success: true,
-                        output: outputMessage,
-                    };
+                    return ErrorHandler.createSuccess(outputMessage);
                 } else {
-                    return {
-                        success: true,
-                        output: `Reset cancelled. ${Config.MESSAGES.NO_ACTION_TAKEN}`,
-                    };
+                    return ErrorHandler.createSuccess(`Reset cancelled. ${Config.MESSAGES.NO_ACTION_TAKEN}`);
                 }
             } catch (e) {
-                return { success: false, error: `reset: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`reset: An unexpected error occurred: ${e.message}`);
             }
         },
     };

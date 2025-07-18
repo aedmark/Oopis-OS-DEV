@@ -43,14 +43,14 @@ EXAMPLES
                 };
 
                 for (const pathArg of paths) {
-                    const pathValidation = FileSystemManager.validatePath(pathArg, { permissions: ['read'] });
+                    const pathValidationResult = FileSystemManager.validatePath(pathArg, { permissions: ['read'] });
 
-                    if (pathValidation.error) {
-                        outputLines.push(`du: ${pathValidation.error}`);
+                    if (!pathValidationResult.success) {
+                        outputLines.push(`du: ${pathValidationResult.error}`);
                         hadError = true;
                         continue;
                     }
-                    const startNode = pathValidation.node;
+                    const { node: startNode } = pathValidationResult.data;
 
                     if (flags.summarize) {
                         const totalSize = FileSystemManager.calculateNodeSize(startNode);
@@ -76,12 +76,12 @@ EXAMPLES
                     }
                 }
 
-                return {
-                    success: !hadError,
-                    output: outputLines.join('\\n')
-                };
+                if (hadError) {
+                    return ErrorHandler.createError(outputLines.join('\\n'));
+                }
+                return ErrorHandler.createSuccess(outputLines.join('\\n'));
             } catch (e) {
-                return { success: false, error: `du: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`du: An unexpected error occurred: ${e.message}`);
             }
         }
     };

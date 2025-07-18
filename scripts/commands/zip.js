@@ -57,22 +57,24 @@ EXAMPLES
                     archivePath += '.zip';
                 }
 
-                const sourceValidation = FileSystemManager.validatePath(sourcePath, {
+                const sourceValidationResult = FileSystemManager.validatePath(sourcePath, {
                     permissions: ['read']
                 });
-                if (sourceValidation.error) {
-                    return { success: false, error: `zip: ${sourceValidation.error}` };
+                if (!sourceValidationResult.success) {
+                    return ErrorHandler.createError(`zip: ${sourceValidationResult.error}`);
                 }
+                const sourceValidation = sourceValidationResult.data;
 
-                const archiveValidation = FileSystemManager.validatePath(archivePath, {
+                const archiveValidationResult = FileSystemManager.validatePath(archivePath, {
                     allowMissing: true,
                     expectedType: 'file'
                 });
-                if (archiveValidation.error && !archiveValidation.node && !archiveValidation.error.includes("No such file or directory")) {
-                    return { success: false, error: `zip: ${archiveValidation.error}` };
+                if (!archiveValidationResult.success && archiveValidationResult.data?.node) {
+                    return ErrorHandler.createError(`zip: ${archiveValidationResult.error}`);
                 }
+                const archiveValidation = archiveValidationResult.data;
                 if (archiveValidation.node && archiveValidation.node.type === 'directory') {
-                    return { success: false, error: `zip: cannot overwrite directory '${archivePath}' with a file` };
+                    return ErrorHandler.createError(`zip: cannot overwrite directory '${archivePath}' with a file`);
                 }
 
                 await OutputManager.appendToOutput(`Zipping '${sourcePath}'...`);
@@ -91,17 +93,17 @@ EXAMPLES
                 );
 
                 if (!saveResult.success) {
-                    return { success: false, error: `zip: ${saveResult.error}` };
+                    return ErrorHandler.createError(`zip: ${saveResult.error}`);
                 }
 
                 const fsSaveResult = await FileSystemManager.save();
                 if (!fsSaveResult.success) {
-                    return { success: false, error: `zip: Failed to save file system changes: ${fsSaveResult.error}` };
+                    return ErrorHandler.createError(`zip: Failed to save file system changes: ${fsSaveResult.error}`);
                 }
 
-                return { success: true, output: `Successfully zipped '${sourcePath}' to '${archivePath}'.` };
+                return ErrorHandler.createSuccess(`Successfully zipped '${sourcePath}' to '${archivePath}'.`);
             } catch (e) {
-                return { success: false, error: `zip: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`zip: An unexpected error occurred: ${e.message}`);
             }
         }
     };

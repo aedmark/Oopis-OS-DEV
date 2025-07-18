@@ -35,38 +35,33 @@ PERMISSIONS
             error: "incorrect number of arguments",
         },
         coreLogic: async (context) => {
-            const { args, currentUser, options } = context;
+            const { args, options } = context;
             const pathArg = args[0];
 
             try {
-                const pathValidation = FileSystemManager.validatePath(pathArg, {
+                const pathValidationResult = FileSystemManager.validatePath(pathArg, {
                     expectedType: 'directory',
                     permissions: ['execute']
                 });
 
-                if (pathValidation.error) {
-                    return { success: false, error: `cd: ${pathValidation.error.replace(pathArg + ':', '').trim()}` };
+                if (!pathValidationResult.success) {
+                    return ErrorHandler.createError(`cd: ${pathValidationResult.error.replace(pathArg + ':', '').trim()}`);
+                }
+                const { resolvedPath } = pathValidationResult.data;
+
+                if (FileSystemManager.getCurrentPath() === resolvedPath) {
+                    return ErrorHandler.createSuccess("");
                 }
 
-                if (FileSystemManager.getCurrentPath() === pathValidation.resolvedPath) {
-                    return {
-                        success: true,
-                        output: "", // No output on success
-                    };
-                }
-
-                FileSystemManager.setCurrentPath(pathValidation.resolvedPath);
+                FileSystemManager.setCurrentPath(resolvedPath);
 
                 if (options.isInteractive) {
                     TerminalUI.updatePrompt();
                 }
 
-                return {
-                    success: true,
-                    output: "",
-                };
+                return ErrorHandler.createSuccess("");
             } catch (e) {
-                return { success: false, error: `cd: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`cd: An unexpected error occurred: ${e.message}`);
             }
         },
     };

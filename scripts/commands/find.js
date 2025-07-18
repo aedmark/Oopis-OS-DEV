@@ -29,7 +29,7 @@ Expressions are made up of tests and actions:
             const startPathArg = args[0];
             const expressionArgs = args.slice(1);
             let outputLines = [];
-            let overallSuccess = true;
+            let hadError = false;
             let filesProcessedSuccessfully = true;
             let anyChangeMadeDuringFind = false;
 
@@ -39,7 +39,7 @@ Expressions are made up of tests and actions:
                         const regex = Utils.globToRegex(pattern);
                         if (!regex) {
                             outputLines.push(`find: invalid pattern for -name: ${pattern}`);
-                            overallSuccess = false;
+                            hadError = true;
                             return false;
                         }
                         return regex.test(path.substring(path.lastIndexOf('/') + 1));
@@ -48,14 +48,14 @@ Expressions are made up of tests and actions:
                         if (typeChar === "f") return node.type === 'file';
                         if (typeChar === "d") return node.type === 'directory';
                         outputLines.push(`find: unknown type '${typeChar}' for -type`);
-                        overallSuccess = false;
+                        hadError = true;
                         return false;
                     },
                     "-user": (node, path, username) => node.owner === username,
                     "-perm": (node, path, modeStr) => {
                         if (!/^[0-7]{3,4}$/.test(modeStr)) {
                             outputLines.push(`find: invalid mode '${modeStr}' for -perm`);
-                            overallSuccess = false;
+                            hadError = true;
                             return false;
                         }
                         return node.mode === parseInt(modeStr, 8);
@@ -96,11 +96,11 @@ Expressions are made up of tests and actions:
                     "-delete": async (node, path) => {
                         const result = await FileSystemManager.deleteNodeRecursive(path, { force: true, currentUser });
                         if (!result.success) {
-                            outputLines.push(`find: -delete: ${result.messages.join(";") || `failed to delete '${path}'`}`);
+                            outputLines.push(`find: -delete: ${result.error.messages.join(";") || `failed to delete '${path}'`}`);
                             filesProcessedSuccessfully = false;
                             return false;
                         }
-                        if (result.anyChangeMade) anyChangeMadeDuringFind = true;
+                        if (result.data.anyChangeMade) anyChangeMadeDuringFind = true;
                         return true;
                     },
                 };
@@ -135,7 +135,7 @@ Expressions are made up of tests and actions:
                         if (i + 1 < expressionArgs.length) {
                             term.arg = expressionArgs[++i];
                         } else {
-                            return { success: false, error: `find: missing argument to \`${token}\`` };
+                            return ErrorHandler.createError(`find: missing argument to \`${token}\``);
                         }
                     } else if (actions[token]) {
                         term.type = "ACTION";
@@ -147,10 +147,10 @@ Expressions are made up of tests and actions:
                             while (i < expressionArgs.length && expressionArgs[i] !== ";")
                                 term.commandParts.push(expressionArgs[i++]);
                             if (i >= expressionArgs.length || expressionArgs[i] !== ";")
-                                return { success: false, error: "find: missing terminating ';' for -exec" };
+                                return ErrorHandler.createError("find: missing terminating ';' for -exec");
                         }
                     } else {
-                        return { success: false, error: `find: unknown predicate '${token}'` };
+                        return ErrorHandler.createError(`find: unknown predicate '${token}'`);
                     }
                     currentTermGroup.push(term);
                     i++;
@@ -227,20 +227,26 @@ Expressions are made up of tests and actions:
                 const startNode = FileSystemManager.getNodeByPath(startPathResolved);
 
                 if (!startNode) {
-                    return { success: false, error: `find: '${startPathArg}': No such file or directory` };
+                    return ErrorHandler.createError(`find: '${startPathArg}': No such file or directory`);
                 }
 
                 const impliesDepth = parsedExpression.some((g) => g.type === "AND_GROUP" && g.terms.some((t) => t.name === "-delete"));
                 await recurseFind(startPathResolved, impliesDepth);
 
-                if (anyChangeMadeDuringFind) await FileSystemManager.save();
+                if (anyChangeMadeDuringFind) {
+                    const saveResult = await FileSystemManager.save();
+                    if (!saveResult.success) {
+                        hadError = true;
+                        outputLines.push(`find: CRITICAL - Failed to save file system changes: ${saveResult.error}`);
+                    }
+                }
 
-                return {
-                    success: overallSuccess && filesProcessedSuccessfully,
-                    output: outputLines.join("\n"),
-                };
+                if (hadError || !filesProcessedSuccessfully) {
+                    return ErrorHandler.createError(outputLines.join("\n"));
+                }
+                return ErrorHandler.createSuccess(outputLines.join("\n"));
             } catch (e) {
-                return { success: false, error: `find: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`find: An unexpected error occurred: ${e.message}`);
             }
         },
     };

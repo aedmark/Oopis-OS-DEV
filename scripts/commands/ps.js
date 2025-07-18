@@ -32,10 +32,7 @@ EXAMPLES
                 const jobIds = Object.keys(jobs);
 
                 if (jobIds.length === 0) {
-                    return {
-                        success: true,
-                        output: "No active background jobs.",
-                    };
+                    return ErrorHandler.createSuccess("No active background jobs.");
                 }
 
                 let outputLines = ["  PID   COMMAND"];
@@ -45,12 +42,9 @@ EXAMPLES
                     outputLines.push(`  ${String(id).padEnd(5)} ${job.command}`);
                 });
 
-                return {
-                    success: true,
-                    output: outputLines.join("\\n"),
-                };
+                return ErrorHandler.createSuccess(outputLines.join("\\n"));
             } catch (e) {
-                return { success: false, error: `ps: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`ps: An unexpected error occurred: ${e.message}`);
             }
         },
     };

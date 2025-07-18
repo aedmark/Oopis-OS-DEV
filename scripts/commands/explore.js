@@ -33,29 +33,20 @@ DESCRIPTION
 
             try {
                 if (!options.isInteractive) {
-                    return {
-                        success: false,
-                        error: "explore: Can only be run in an interactive session.",
-                    };
+                    return ErrorHandler.createError("explore: Can only be run in an interactive session.");
                 }
 
                 if (typeof Explorer === 'undefined' || typeof AppLayerManager === 'undefined') {
-                    return {
-                        success: false,
-                        error: "explore: Explorer application module is not loaded.",
-                    };
+                    return ErrorHandler.createError("explore: Explorer application module is not loaded.");
                 }
 
                 const startPath = args.length > 0 ? args[0] : null;
 
                 AppLayerManager.show(Explorer, { startPath: startPath });
 
-                return {
-                    success: true,
-                    output: ""
-                };
+                return ErrorHandler.createSuccess("");
             } catch(e) {
-                return { success: false, error: `explore: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`explore: An unexpected error occurred: ${e.message}`);
             }
         },
     };

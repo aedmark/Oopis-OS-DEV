@@ -47,21 +47,21 @@ EXAMPLES
 
             try {
                 if (args.length === 0) {
-                    return { success: false, error: "awk: missing program" };
+                    return ErrorHandler.createError("awk: missing program");
                 }
 
                 if (inputError) {
-                    return { success: false, error: "awk: One or more input files could not be read." };
+                    return ErrorHandler.createError("awk: One or more input files could not be read.");
                 }
 
                 const programString = args[0];
                 const program = _parseProgram(programString);
                 if (program.error) {
-                    return { success: false, error: `awk: program error: ${program.error}` };
+                    return ErrorHandler.createError(`awk: program error: ${program.error}`);
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const inputText = inputItems.map(item => item.content).join('\n');
@@ -101,9 +101,9 @@ EXAMPLES
                     }
                 }
 
-                return { success: true, output: outputLines.join('\n') };
+                return ErrorHandler.createSuccess(outputLines.join('\n'));
             } catch (e) {
-                return { success: false, error: `awk: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`awk: An unexpected error occurred: ${e.message}`);
             }
         }
     };

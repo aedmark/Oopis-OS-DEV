@@ -39,7 +39,7 @@ EXAMPLES
                 if (args.length === 0) {
                     const allVars = EnvironmentManager.getAll();
                     const output = Object.keys(allVars).sort().map(key => `${key}="${allVars[key]}"`).join('\\n');
-                    return { success: true, output: output };
+                    return ErrorHandler.createSuccess(output);
                 }
 
                 const combinedArg = args.join(' ');
@@ -50,7 +50,7 @@ EXAMPLES
                     let value = combinedArg.substring(eqIndex + 1).trim();
 
                     if (!varName) {
-                        return { success: false, error: "set: invalid format. Missing variable name." };
+                        return ErrorHandler.createError("set: invalid format. Missing variable name.");
                     }
 
                     if ((value.startsWith("'") && value.endsWith("'")) || (value.startsWith('"') && value.endsWith('"'))) {
@@ -59,7 +59,7 @@ EXAMPLES
 
                     const result = EnvironmentManager.set(varName, value);
                     if (!result.success) {
-                        return { success: false, error: `set: ${result.error}` };
+                        return ErrorHandler.createError(`set: ${result.error}`);
                     }
                 } else {
                     const varName = args[0];
@@ -67,13 +67,13 @@ EXAMPLES
 
                     const result = EnvironmentManager.set(varName, value);
                     if (!result.success) {
-                        return { success: false, error: `set: ${result.error}` };
+                        return ErrorHandler.createError(`set: ${result.error}`);
                     }
                 }
 
-                return { success: true };
+                return ErrorHandler.createSuccess();
             } catch (e) {
-                return { success: false, error: `set: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`set: An unexpected error occurred: ${e.message}`);
             }
         }
     };

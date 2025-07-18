@@ -6,7 +6,7 @@
 
     async function _extractChildren(children, parentPath, context, baseExtractionPath, currentDepth) {
         if (currentDepth > MAX_EXTRACTION_DEPTH) {
-            return { success: false, error: "Archive nesting level exceeds maximum depth." };
+            return ErrorHandler.createError("Archive nesting level exceeds maximum depth.");
         }
 
         for (const name in children) {
@@ -14,7 +14,7 @@
             const newPath = FileSystemManager.getAbsolutePath(name, parentPath);
 
             if (!newPath.startsWith(baseExtractionPath)) {
-                return { success: false, error: `Path traversal attempt detected.` };
+                return ErrorHandler.createError(`Path traversal attempt detected.`);
             }
 
             if (node.type === 'file') {
@@ -23,13 +23,13 @@
             } else if (node.type === 'directory') {
                 const mkdirResult = await CommandExecutor.processSingleCommand(`mkdir -p "${newPath}"`, { isInteractive: false });
                 if (!mkdirResult.success) {
-                    return { success: false, error: `Could not create directory ${newPath}: ${mkdirResult.error}` };
+                    return ErrorHandler.createError(`Could not create directory ${newPath}: ${mkdirResult.error}`);
                 }
                 const recursiveResult = await _extractChildren(node.children, newPath, context, baseExtractionPath, currentDepth + 1);
                 if (!recursiveResult.success) return recursiveResult;
             }
         }
-        return { success: true };
+        return ErrorHandler.createSuccess();
     }
 
     async function _performExtraction(archive, destinationPath, context) {
@@ -38,7 +38,7 @@
             const newPath = FileSystemManager.getAbsolutePath(name, destinationPath);
 
             if (!newPath.startsWith(destinationPath)) {
-                return { success: false, error: `Path traversal attempt detected.` };
+                return ErrorHandler.createError(`Path traversal attempt detected.`);
             }
 
             if (node.type === 'file') {
@@ -47,13 +47,13 @@
             } else if (node.type === 'directory') {
                 const mkdirResult = await CommandExecutor.processSingleCommand(`mkdir -p "${newPath}"`, { isInteractive: false });
                 if (!mkdirResult.success) {
-                    return { success: false, error: `Could not create directory ${newPath}: ${mkdirResult.error}` };
+                    return ErrorHandler.createError(`Could not create directory ${newPath}: ${mkdirResult.error}`);
                 }
                 const childrenResult = await _extractChildren(node.children, newPath, context, newPath, 1);
                 if (!childrenResult.success) return childrenResult;
             }
         }
-        return { success: true };
+        return ErrorHandler.createSuccess();
     }
 
     const unzipCommandDefinition = {
@@ -88,40 +88,40 @@ EXAMPLES
 
             try {
                 if (!archivePathArg.endsWith('.zip')) {
-                    return { success: false, error: `unzip: invalid file extension for '${archivePathArg}'. Must be .zip` };
+                    return ErrorHandler.createError(`unzip: invalid file extension for '${archivePathArg}'. Must be .zip`);
                 }
 
-                const archiveValidation = FileSystemManager.validatePath(archivePathArg, {
+                const archiveValidationResult = FileSystemManager.validatePath(archivePathArg, {
                     expectedType: 'file',
                     permissions: ['read']
                 });
-                if (archiveValidation.error) {
-                    return { success: false, error: `unzip: ${archiveValidation.error}` };
+                if (!archiveValidationResult.success) {
+                    return ErrorHandler.createError(`unzip: ${archiveValidationResult.error}`);
                 }
-                const archiveNode = archiveValidation.node;
+                const archiveNode = archiveValidationResult.data.node;
 
                 let archiveContent;
                 try {
                     archiveContent = JSON.parse(archiveNode.content);
                 } catch (e) {
-                    return { success: false, error: `unzip: Archive is corrupted or not a valid .zip file.` };
+                    return ErrorHandler.createError(`unzip: Archive is corrupted or not a valid .zip file.`);
                 }
 
-                const destValidation = FileSystemManager.validatePath(destinationPathArg, {
+                const destValidationResult = FileSystemManager.validatePath(destinationPathArg, {
                     allowMissing: true,
                     expectedType: 'directory'
                 });
 
-                if (destValidation.error && !(destValidation.node === null && destValidation.error.includes("No such file or directory"))) {
-                    return { success: false, error: `unzip: ${destValidation.error}` };
+                if (!destValidationResult.success && destValidationResult.data?.node !== null) {
+                    return ErrorHandler.createError(`unzip: ${destValidationResult.error}`);
                 }
 
-                const resolvedDestPath = destValidation.resolvedPath;
+                const resolvedDestPath = destValidationResult.data.resolvedPath;
 
-                if (!destValidation.node) {
+                if (!destValidationResult.data.node) {
                     const mkdirResult = await CommandExecutor.processSingleCommand(`mkdir -p "${resolvedDestPath}"`, { isInteractive: false });
                     if (!mkdirResult.success) {
-                        return { success: false, error: `unzip: could not create destination directory: ${mkdirResult.error}` };
+                        return ErrorHandler.createError(`unzip: could not create destination directory: ${mkdirResult.error}`);
                     }
                 }
 
@@ -135,16 +135,17 @@ EXAMPLES
                 const extractResult = await _performExtraction(archiveContent, resolvedDestPath, extractionContext);
 
                 if (!extractResult.success) {
-                    return { success: false, error: `unzip: extraction failed. ${extractResult.error}` };
+                    return ErrorHandler.createError(`unzip: extraction failed. ${extractResult.error}`);
                 }
 
-                if (!(await FileSystemManager.save())) {
-                    return { success: false, error: "unzip: Failed to save file system changes." };
+                const saveResult = await FileSystemManager.save();
+                if (!saveResult.success) {
+                    return ErrorHandler.createError("unzip: Failed to save file system changes.");
                 }
 
-                return { success: true, output: `Archive '${archivePathArg}' successfully extracted to '${resolvedDestPath}'.` };
+                return ErrorHandler.createSuccess(`Archive '${archivePathArg}' successfully extracted to '${resolvedDestPath}'.`);
             } catch (e) {
-                return { success: false, error: `unzip: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`unzip: An unexpected error occurred: ${e.message}`);
             }
         }
     };

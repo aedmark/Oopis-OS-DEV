@@ -37,18 +37,21 @@ EXAMPLES
             try {
                 const result = await UserManager.login(username, providedPassword, options);
 
-                if (result.success && result.isLogin) {
-                    OutputManager.clearOutput();
-                    await OutputManager.appendToOutput(`${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`);
+                if (result.success) {
+                    const resultData = result.data || {};
+                    if (resultData.isLogin) {
+                        OutputManager.clearOutput();
+                        await OutputManager.appendToOutput(`${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`);
+                    }
+                    if (resultData.noAction) {
+                        return ErrorHandler.createSuccess(resultData.message);
+                    }
+                    return ErrorHandler.createSuccess(null);
+                } else {
+                    return result;
                 }
-
-                return {
-                    success: result.success,
-                    output: result.noAction ? result.message : null,
-                    error: result.success ? null : result.error,
-                };
             } catch (e) {
-                return { success: false, error: `login: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`login: An unexpected error occurred: ${e.message}`);
             }
         },
     };

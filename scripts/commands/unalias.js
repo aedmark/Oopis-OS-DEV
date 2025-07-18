@@ -39,18 +39,12 @@ EXAMPLES
                 }
 
                 if (allSuccess) {
-                    return {
-                        success: true,
-                        output: "",
-                    };
+                    return ErrorHandler.createSuccess("");
                 } else {
-                    return {
-                        success: false,
-                        error: errorMessages.join("\\n"),
-                    };
+                    return ErrorHandler.createError(errorMessages.join("\\n"));
                 }
             } catch (e) {
-                return { success: false, error: `unalias: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`unalias: An unexpected error occurred: ${e.message}`);
             }
         },
     };

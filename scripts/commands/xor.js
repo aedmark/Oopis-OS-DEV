@@ -42,11 +42,11 @@ PIPELINE SECURITY
 
             try {
                 if (inputError) {
-                    return { success: false, error: "xor: No readable input provided or permission denied." };
+                    return ErrorHandler.createError("xor: No readable input provided or permission denied.");
                 }
 
                 if (!inputItems || inputItems.length === 0) {
-                    return { success: true, output: "" };
+                    return ErrorHandler.createSuccess("");
                 }
 
                 const inputData = inputItems.map(item => item.content).join('\\n');
@@ -55,7 +55,7 @@ PIPELINE SECURITY
 
                 if (password === null || password === undefined) {
                     if (!options.isInteractive) {
-                        return { success: false, error: "xor: password must be provided as an argument in non-interactive mode." };
+                        return ErrorHandler.createError("xor: password must be provided as an argument in non-interactive mode.");
                     }
                     password = await new Promise(resolve => {
                         ModalManager.request({
@@ -69,18 +69,18 @@ PIPELINE SECURITY
                     });
 
                     if (password === null) {
-                        return { success: true, output: "Operation cancelled." };
+                        return ErrorHandler.createSuccess("Operation cancelled.");
                     }
                 }
 
                 if (!password) {
-                    return { success: false, error: "xor: password cannot be empty." };
+                    return ErrorHandler.createError("xor: password cannot be empty.");
                 }
 
                 const processedData = xorCipher(inputData, password);
-                return { success: true, output: processedData };
+                return ErrorHandler.createSuccess(processedData);
             } catch (e) {
-                return { success: false, error: `xor: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`xor: An unexpected error occurred: ${e.message}`);
             }
         }
     };

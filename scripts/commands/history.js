@@ -31,25 +31,18 @@ OPTIONS
             try {
                 if (context.flags.clear) {
                     HistoryManager.clearHistory();
-                    return {
-                        success: true,
-                        output: "Command history cleared.",
-                    };
+                    return ErrorHandler.createSuccess("Command history cleared.");
                 }
                 const history = HistoryManager.getFullHistory();
                 if (history.length === 0)
-                    return {
-                        success: true,
-                        output: Config.MESSAGES.NO_COMMANDS_IN_HISTORY,
-                    };
-                return {
-                    success: true,
-                    output: history
-                        .map((cmd, i) => `  ${String(i + 1).padStart(3)}  ${cmd}`)
-                        .join("\\n"),
-                };
+                    return ErrorHandler.createSuccess(Config.MESSAGES.NO_COMMANDS_IN_HISTORY);
+
+                const output = history
+                    .map((cmd, i) => `  ${String(i + 1).padStart(3)}  ${cmd}`)
+                    .join("\\n");
+                return ErrorHandler.createSuccess(output);
             } catch (e) {
-                return { success: false, error: `history: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`history: An unexpected error occurred: ${e.message}`);
             }
         },
     };

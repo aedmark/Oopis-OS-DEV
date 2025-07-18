@@ -31,18 +31,23 @@ DESCRIPTION
                 const fullCommandStr = args.join(' ');
 
                 if (currentUser === 'root') {
-                    return await CommandExecutor.processSingleCommand(fullCommandStr, {isInteractive: options.isInteractive});
+                    const result = await CommandExecutor.processSingleCommand(fullCommandStr, {isInteractive: options.isInteractive});
+                    if (result.success) {
+                        return ErrorHandler.createSuccess(result.output);
+                    }
+                    return ErrorHandler.createError(result.error);
                 }
 
                 if (!SudoManager.canUserRunCommand(currentUser, commandToRun) && !SudoManager.canUserRunCommand(currentUser, 'ALL')) {
-                    return {
-                        success: false,
-                        error: `sudo: Sorry, user ${currentUser} is not allowed to execute '${commandToRun}' as root on OopisOs.`
-                    };
+                    return ErrorHandler.createError(`sudo: Sorry, user ${currentUser} is not allowed to execute '${commandToRun}' as root on OopisOs.`);
                 }
 
                 if (SudoManager.isUserTimestampValid(currentUser)) {
-                    return await UserManager.sudoExecute(fullCommandStr, options);
+                    const result = await UserManager.sudoExecute(fullCommandStr, options);
+                    if (result.success) {
+                        return ErrorHandler.createSuccess(result.output);
+                    }
+                    return ErrorHandler.createError(result.error);
                 }
 
                 return new Promise(resolve => {
@@ -56,19 +61,24 @@ DESCRIPTION
 
                             if (authResult.success) {
                                 SudoManager.updateUserTimestamp(currentUser);
-                                resolve(await UserManager.sudoExecute(fullCommandStr, options));
+                                const execResult = await UserManager.sudoExecute(fullCommandStr, options);
+                                if(execResult.success) {
+                                    resolve(ErrorHandler.createSuccess(execResult.output));
+                                } else {
+                                    resolve(ErrorHandler.createError(execResult.error));
+                                }
                             } else {
                                 setTimeout(() => {
-                                    resolve({ success: false, error: "sudo: Sorry, try again." });
+                                    resolve(ErrorHandler.createError("sudo: Sorry, try again."));
                                 }, 1000);
                             }
                         },
-                        onCancel: () => resolve({success: true, output: ""}),
+                        onCancel: () => resolve(ErrorHandler.createSuccess("")),
                         options,
                     });
                 });
             } catch (e) {
-                return { success: false, error: `sudo: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`sudo: An unexpected error occurred: ${e.message}`);
             }
         }
     };

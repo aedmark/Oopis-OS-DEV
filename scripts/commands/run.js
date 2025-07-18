@@ -49,22 +49,19 @@ SCRIPTING
             try {
                 const currentDepth = (options.scriptingContext?.depth || 0) + 1;
                 if (currentDepth > Config.FILESYSTEM.MAX_SCRIPT_DEPTH) {
-                    return {
-                        success: false,
-                        error: `Maximum script recursion depth (${Config.FILESYSTEM.MAX_SCRIPT_DEPTH}) exceeded. Halting execution.`
-                    };
+                    return ErrorHandler.createError(`Maximum script recursion depth (${Config.FILESYSTEM.MAX_SCRIPT_DEPTH}) exceeded. Halting execution.`);
                 }
 
-                const pathValidation = FileSystemManager.validatePath(scriptPathArg, {
+                const pathValidationResult = FileSystemManager.validatePath(scriptPathArg, {
                     expectedType: 'file',
                     permissions: ['read', 'execute']
                 });
 
-                if (pathValidation.error) {
-                    return { success: false, error: `run: ${scriptPathArg}: ${pathValidation.error}` };
+                if (!pathValidationResult.success) {
+                    return ErrorHandler.createError(`run: ${scriptPathArg}: ${pathValidationResult.error}`);
                 }
 
-                const scriptNode = pathValidation.node;
+                const scriptNode = pathValidationResult.data.node;
                 const scriptContent = scriptNode.content || "";
                 const scriptArgs = args.slice(1);
                 const lines = scriptContent.split('\n');
@@ -77,14 +74,14 @@ SCRIPTING
                     depth: currentDepth
                 };
 
-                let finalResult = { success: true, output: "" };
+                let finalResult = ErrorHandler.createSuccess("");
 
                 for (let i = 0; i < lines.length; i++) {
                     scriptingContext.currentLineIndex = i;
 
                     if (signal?.aborted) {
                         await OutputManager.appendToOutput("Script execution aborted by user.", { typeClass: "text-warning" });
-                        finalResult = { success: false, error: "Aborted by user" };
+                        finalResult = ErrorHandler.createError("Aborted by user");
                         break;
                     }
 
@@ -118,7 +115,7 @@ SCRIPTING
                 return finalResult;
 
             } catch (e) {
-                return { success: false, error: `run: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`run: An unexpected error occurred: ${e.message}`);
             } finally {
                 EnvironmentManager.pop();
             }

@@ -30,17 +30,14 @@ For a full, detailed manual page for a command, use 'man <command>'.`,
                         output += `  ${cmdName.padEnd(15)} ${description}\\n`;
                     });
                     output += "\\nType 'help [command]' or 'man [command]' for more details.";
-                    return { success: true, output };
+                    return ErrorHandler.createSuccess(output);
 
                 } else {
                     const cmdName = args[0].toLowerCase();
                     const isLoaded = await CommandExecutor._ensureCommandLoaded(cmdName);
 
                     if (!isLoaded) {
-                        return {
-                            success: false,
-                            error: `help: command not found: ${cmdName}`,
-                        };
+                        return ErrorHandler.createError(`help: command not found: ${cmdName}`);
                     }
 
                     const commandData = CommandRegistry.getDefinitions()[cmdName];
@@ -56,15 +53,12 @@ For a full, detailed manual page for a command, use 'man <command>'.`,
                         }
                         output += `\\n\\nFor more details, run 'man ${cmdName}'`;
                     } else {
-                        return {
-                            success: false,
-                            error: `help: command not found: ${args[0]}`,
-                        };
+                        return ErrorHandler.createError(`help: command not found: ${args[0]}`);
                     }
-                    return { success: true, output: output };
+                    return ErrorHandler.createSuccess(output);
                 }
             } catch (e) {
-                return { success: false, error: `help: An unexpected error occurred: ${e.message}` };
+                return ErrorHandler.createError(`help: An unexpected error occurred: ${e.message}`);
             }
         },
     };
